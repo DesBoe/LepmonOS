@@ -7,7 +7,7 @@ except Exception as e:
 from hardware import *
      
      
-def ram_counter(ramadresse):
+def ram_counter(ramadresse): 
     """
     Liest eine 4-Byte-Zahl aus dem FRAM an der angegebenen Adresse, erhöht sie um 1 und schreibt sie zurück.
     Gibt den Wert als vierstelligen String mit führenden Nullen aus.
@@ -45,18 +45,29 @@ def delete_error_code():
         print("Fehlercode in config nicht gelöscht")
         pass
     
-def store_times_power(power_on, power_off):
+def store_times_power(power_on, power_off, process):
     """
     Funktion um die Zeiten für den Power on und Power off in den FRAM zu speichern
     """
-    try:
-        write_fram(0x0010, str(power_on))
-        write_fram(0x0040, str(power_off))
-        time.sleep(1)
-        print("start time and stop time written to FRAM")
+    if process == "start_up":
+        try:
+            write_fram(0x0010, str(power_on))
+            write_fram(0x0040, str(power_off))
+            time.sleep(1)
+            print("start time and stop time written to FRAM")
+        except Exception as e:
+            print(f"Fehler beim speichern der Startzeiten im FRAM:{e}")
 
-    except Exception as e:
-        time.sleep(5)
+    elif process =="end":
+        try:
+            write_fram(0x06A0, str(power_on))
+            write_fram(0x06C0, str(power_off))
+            time.sleep(1)
+            print("start time and stop time written to FRAM")
+        except Exception as e:
+            print(f"Fehler beim speichern der Startzeiten im FRAM:{e}")
+        
+
         
 def check_version():
     """

@@ -177,6 +177,8 @@ def error_message(error_number, error_details, log_mode):
         
         try:
             write_fram_bytes(0x0810, error_number.to_bytes(4, byteorder='big'))
+            print(f"Fehlercode {error_number} im FRAM gespeichert.")
+            time.sleep(10)
         except Exception as e:  
             print(f"Fehler beim Schreiben in den FRAM: {e}")
             pass

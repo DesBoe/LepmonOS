@@ -402,11 +402,11 @@ def capturing(log_mode):
             except Exception as e:
                 log_schreiben("Verbrauchter Speicher und gezählte Bildernicht gemessen: {e}",log_mode)
                 pass
-            log_schreiben("Beende Aufnahme Schleife. Leite zum Ausschalten über",log_mode)
-            log_schreiben("Fahre ARNI in 1 Minute herunter und starte neu",log_mode)
-            log_schreiben("##################################",log_mode)
-            log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###",log_mode)
-            log_schreiben("##################################",log_mode)
+
+            log_schreiben("Beende Daten und Bildaufnahme",log_mode)
+            log_schreiben("Leite zum Ausschalten über...",log_mode)
+            log_schreiben("##################################", log_mode)
+            log_schreiben("##################################", log_mode)
         
             # Signal that capturing has ended
             set_capturing_active(False)            

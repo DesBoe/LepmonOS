@@ -28,4 +28,4 @@ if __name__ == "__main__":
     #install_packages("log")
     open_trap_hmi("log")
     capturing("log")
-    trap_shutdown("log",60)
+    trap_shutdown(i=60, log_mode="log", execution="full")

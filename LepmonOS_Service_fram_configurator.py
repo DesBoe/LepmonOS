@@ -114,7 +114,7 @@ def write_config_to_fram(ARNI_version, backplane_version, lieferdatum_an_PMJ,log
     
 #### Fehlercode 0###
     write_fram(0x0800, "error_code")
-    write_fram_bytes(0x081F, (0).to_bytes(4, byteorder='big'))  # Fehlercode 0
+    write_fram_bytes(0x0810, (0).to_bytes(4, byteorder='big'))  # Fehlercode 0
 #### Fehlerhäufigkeitstabelle ####   
     write_fram(0x0820, "error_counts") 
     write_fram(0x0830, "Err01")

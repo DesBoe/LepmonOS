@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timedelta
 import board
 import adafruit_ds3231
-from logging_utils import error_message
+from logging_utils import *
 from times import *
 
 
@@ -23,18 +23,30 @@ def reset_alarms(log_mode):
     try:
         rtc = init_rtc(log_mode)
         if not rtc:
-            print("RTC konnte nicht initialisiert werden. Alarme werden nicht zurückgesetzt.")
+            log_schreiben("RTC konnte nicht initialisiert werden. Alarme werden nicht zurückgesetzt.", log_mode=log_mode)
             return
 
-        print("Lese RTC Alarm Status:")
-        print("Alarm 1 Status:", rtc.alarm1_status)
-        print("Alarm 2 Status:", rtc.alarm2_status)
-        print("Setze Alarme zurück...")
+        log_schreiben("Lese RTC Status:", log_mode=log_mode)
+        log_schreiben("----------------------------------------------", log_mode=log_mode)
+        log_schreiben(f"{'Alarm 1 Status':<22} | {rtc.alarm1_status}", log_mode=log_mode)
+        log_schreiben(f"{'Alarm 2 Status':<22} | {rtc.alarm2_status}", log_mode=log_mode)
+        log_schreiben("----------------------------------------------", log_mode=log_mode)
+        log_schreiben("Setze Alarme zurück...", log_mode=log_mode)
         rtc.alarm1_status = False
         rtc.alarm2_status = False
-        print("Alarme zurückgesetzt.")
+        log_schreiben("Alarme zurückgesetzt.", log_mode=log_mode)
     except Exception as e:
         error_message(8, e, log_mode)
+        log_schreiben("----------------------------------------------", log_mode=log_mode)
+
+
+    try:
+        power_loss_since_last_write = rtc.lost_power
+        log_schreiben(f"RTC hat seit dem letzten Schreiben Stromverlust erfahren: {power_loss_since_last_write}", log_mode=log_mode)
+    except Exception as e:
+        error_message(8, e, log_mode)
+        log_schreiben(f"Fehler beim Überprüfen des Stromverlusts der RTC: {e}", log_mode=log_mode)
+        log_schreiben("----------------------------------------------", log_mode=log_mode)
 
 
 def set_alarm(power_on, power_off, log_mode):
@@ -76,6 +88,10 @@ if __name__ == "__main__":
 
     set_alarm(now_plus_one_minute, now_plus_one_day, log_mode="manual")
     print("Zähle bis zum Alarm... der Alarm wird bei 60 erwartet")
+
+    # conroll power state: 
+    power_loss_since_last_write = rtc.lost_power
+    print(f"RTC hat seit dem letzten Schreiben Stromverlust erfahren: {power_loss_since_last_write}")
     i = 1
     while True:
         print(i)

@@ -310,8 +310,18 @@ FRAM_MEMORY_MAP = {
         "description": "current_Exp_Gain",
         "type": "RPI"
     },
-    (0x06A0, 0x077F): {
-        "size": 256,
+    (0x06A0, 0x06BF): {
+        "size": 32,
+        "description": "estimated_run_start_from_last_end",
+        "type": "RPI"
+    },
+    (0x06C0, 0x06DF): {
+        "size": 32,
+        "description": "estimated_run_end_from_last_end",
+        "type": "RPI"
+    },
+    (0x06E0, 0x077F): {
+        "size": 192,
         "description": "FREE",
         "type": "RPI"
     },

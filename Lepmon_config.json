@@ -1,11 +1,11 @@
 {
     "general": {
-        "ARNI_Gen": "",
+        "ARNI_Gen": "Pro_Gen_4",
         "serielnumber": "",
         "project_name": "Lepmon#",
-        "usb_drive": "/media/Ento/Ento",
-        "current_folder": "/media/Ento/Ento/Default",
-        "current_log": "/media/Ento/Ento/Default/Default.log",
+        "usb_drive": "/media/Ento/stick",
+        "current_folder": "/media/Ento/stick/Lepmon#SN010083_Manueller_TestRun_2000-01-01_T_0022",
+        "current_log": "/media/Ento/stick/Lepmon#SN010083_Manueller_TestRun_2000-01-01_T_0022/Lepmon#SN010083_Manueller_TestRun_2000-01-01_T_0022.log",
         "language": "de",
         "expected_images": 152,
         "Control_Night": true,
