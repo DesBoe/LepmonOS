@@ -244,7 +244,7 @@ def snap_image_rpi(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, expec
         project_name,province, Kreis_code, sensor_id = get_Lepmon_code(log_mode)
         now = datetime.now()
         if now.strftime('%Y') < '2026':
-            now = Zeit_überschrieben(log_mode="log")
+            now = Zeit_überschrieben(now, log_mode="log")
         interval = get_interval(log_mode)
         seconds = interval < 1
         time_format = "%H%M%S" if seconds else "%H%M"

@@ -18,7 +18,7 @@ except Exception as e:
 
 
 def indicate_display_error(e=""):
-    print(f"Error displaying text on OLED: {e}")
+    #print(f"Error displaying text on OLED: {e}")
     turn_on_led("rot")
     for _ in range(3):
         turn_on_led("gelb")        

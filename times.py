@@ -45,22 +45,44 @@ def Zeit_aktualisieren(log_mode="log"):
     return jetzt_local, lokale_Zeit, rtc_status
 
 
-def Zeit_überschrieben(now, log_mode="log"):
+def Zeit_überschrieben(now, log_mode="log", operation = "log"):
     """
     diese Funktion wird aufgerufen, wenn die RTC Zeit vor 2026 liegt.
     Sie überschreibt das Datum mit der Firmwareversion und einem individuellen Jahr, das in den letzten 3 Ziffern des Jahres hochgezählt wird, um die Bilder zu zählen, die während des RTC-Ausfalls aufgenommen werden.
     """
-    log_schreiben("RTC Zeit liegt vor 2026. Kontrolliere Fehlercode 17.", log_mode=log_mode)
-    log_schreiben("Erweitere Datum um Firmwareversion und zähle in letzten 3 Ziffern des Jahres die Bilder hoch, die in diesm Ausfall wärend des Fehlers aufgenommen werden.", log_mode=log_mode)
+    if operation == "log":
+        log_schreiben("RTC Zeit liegt vor 2026. Kontrolliere Fehlercode 17.", log_mode=log_mode)
+        log_schreiben("Erweitere Datum um Firmwareversion und zähle in letzten 3 Ziffern des Jahres die Bilder hoch, die in diesm Ausfall wärend des Fehlers aufgenommen werden.", log_mode=log_mode)
+    else:
+        print("RTC Zeit liegt vor 2026. Kontrolliere Fehlercode 17.")
+        print("Erweitere Datum um Firmwareversion und zähle in letzten 3 Ziffern des Jahres die Bilder hoch, die in diesm Ausfall wärend des Fehlers aufgenommen werden.")
     _, firmware_version = get_firmware_version()
-    try:
-        individual_year = int(ram_counter(0x0670))
-        pass
-    except Exception as e:
-        log_schreiben(f"Fehler beim Lesen des individuellen Jahres: {e}", log_mode=log_mode)
-        individual_year = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "images_count_RTC_failure"))
-        individual_year += 1
-        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "images_count_RTC_failure", str(individual_year))
+    if operation == "log":
+        try:
+            individual_year = int(ram_counter(0x0670))
+            pass
+        except Exception as e:
+            if operation == "log":        
+                log_schreiben(f"Fehler beim Lesen des individuellen Jahres: {e}", log_mode=log_mode)
+            else:
+                print(f"Fehler beim Lesen des individuellen Jahres: {e}")
+            individual_year = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "images_count_RTC_failure"))
+            individual_year += 1
+            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "images_count_RTC_failure", str(individual_year))
+
+    else:
+        try:
+            individual_year = read_fram_bytes(0x0670, 4)
+            # Falls leer, initialisiere mit 0
+            if not individual_year or not isinstance(individual_year, (bytes, bytearray)):
+                individual_year = 0
+            else:
+                individual_year = int.from_bytes(individual_year, byteorder='big')
+        except Exception as e:
+            print(f"Counter an Adresse {hex(0x0670)} konnte nicht gelesen werden: {e}, nutze Konfig Datei")
+            individual_year = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "images_count_RTC_failure"))
+
+    
     print(f"Individuelles Jahr: {individual_year} entspricht Anzahl der Bilder, die während des RTC-Ausfalls aufgenommen wurden.")
     if isinstance(firmware_version, tuple) and len(firmware_version) == 3:
         major, minor, patch = firmware_version 
@@ -72,12 +94,20 @@ def Zeit_überschrieben(now, log_mode="log"):
             now_mon = int(minor)
             now_mday = int(patch)
             now = now.replace(year=now_year, month=now_mon, day=now_mday)
-            log_schreiben(f"RTC Fallback aktiv: Firmware {firmware_version} -> Datum auf {now.strftime('%Y-%m-%d')} gesetzt.", log_mode=log_mode)
-
+            if operation == "log":
+                log_schreiben(f"RTC Fallback aktiv: Firmware {firmware_version} -> Datum auf {now.strftime('%Y-%m-%d')} gesetzt.", log_mode=log_mode)
+            else:
+                print(f"RTC Fallback aktiv: Firmware {firmware_version} -> Datum auf {now.strftime('%Y-%m-%d')} gesetzt.")
         except ValueError as e:
-            log_schreiben(f"RTC Fallback ungültig: Firmware-Tuple {firmware_version} ergibt kein valides Datum ({e}).",log_mode=log_mode)
+            if operation == "log":
+                log_schreiben(f"RTC Fallback ungültig: Firmware-Tuple {firmware_version} ergibt kein valides Datum ({e}).",log_mode=log_mode)
+            else:
+                print(f"RTC Fallback ungültig: Firmware-Tuple {firmware_version} ergibt kein valides Datum ({e}).")
     else:
-        log_schreiben(f"RTC Fallback übersprungen: Ungültiges Firmware-Tuple {firmware_version!r}.", log_mode=log_mode)
+        if operation == "log":
+            log_schreiben(f"RTC Fallback übersprungen: Ungültiges Firmware-Tuple {firmware_version!r}.", log_mode=log_mode)
+        else:
+            print(f"RTC Fallback übersprungen: Ungültiges Firmware-Tuple {firmware_version!r}.")
 
     return now
 
@@ -303,17 +333,20 @@ if __name__ == "__main__":
     print("Teste Funktion zum Zeitüberschreiben bei RTC Fehler 17")
     print("Der RTC hat als Default 1.1.2000. Das Datum wird um die Firmware Version erweitert")
     now = datetime.now()
-    now = now.replace(year=2000, month=1, day=1)
     print("Teste 5 Bilder")
-
+    print("setze Config und Ram zurück")
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "images_count_RTC_failure", str(0))
+    write_fram_bytes(0x0670, b'\x00' * 4)
+    '''
     for i in range(1004):
+        now = now.replace(year=2000, month=1, day=1)
         now = Zeit_überschrieben(now, log_mode="log")
         time.sleep(.0005)
         print(f"neue Zeit: {now}")
     print("setze Config und Ram zurück")
     write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "images_count_RTC_failure", str(0))
     write_fram_bytes(0x0670, b'\x00' * 4)
-
+    '''
     print("---------------------------------")
 
     Zeitumstellung, Änderung = zeitumstellung_info(jetzt_local,Zeitzone)
