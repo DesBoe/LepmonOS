@@ -84,6 +84,12 @@ def _render_focus_qr(url, log_mode):
         qr.add_data(url)
         qr.make(fit=True)
         img = qr.make_image(fill_color="white", back_color="black").convert("1")
+
+        if os.path.exists(WEB_FOCUS_QR_PATH):
+            print("QR Code existiert bereits, lösche alten QR Code")
+            os.remove(WEB_FOCUS_QR_PATH)
+            print("Alter QR Code gelöscht")
+         
         img.save(WEB_FOCUS_QR_PATH)
         return WEB_FOCUS_QR_PATH
     except Exception as e:

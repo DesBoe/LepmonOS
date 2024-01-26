@@ -63,9 +63,8 @@ def start_up(log_mode):
     print("starte Setup")
     turn_off_led("blau")
     hardware=get_hardware_version()
-    if hardware == "CSS_Gen_1":
-        dim_down()
-    elif hardware not in geraete_bibliothek:
+
+    if hardware not in geraete_bibliothek:
         try:
             set_sn_manually()
         except Exception as e:
