@@ -374,8 +374,6 @@ def snap_image_rpi(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, expec
             show_message("blank", lang=lang)
 
             frame,Kamera_RPI_Status, power_vis, metadata, red_gain, blue_gain = get_frame_RPI(expected_camera, cam_mode,log_mode, Exposure, Gain, compression_quality, focus)
-            show_message("cam_6",lang=lang) 
-            LepiLED_ende("show")
 
             if image_correction:
                 print("Wende Gamma Korrektur an für Belichtungsoptimierung...")
@@ -403,6 +401,9 @@ def snap_image_rpi(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, expec
                     error_message(3, f"Bild konnte nicht gespeichert werden: {dateipfad}", log_mode)
                     Status_Kamera = 0
                     Kamera_Fehlerserie += 1
+                
+                avg_brightness, Exposure, Gain, good_exposure  = calculate_Exposure_and_gain(frame, Exposure, Gain, expected_camera, log_mode) 
+                avg_brightness = round(avg_brightness,0)
 
 
                 try: 
@@ -422,8 +423,7 @@ def snap_image_rpi(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, expec
                 Kamera_Fehlerserie += 1
                 log_schreiben("Kein Frame zum Speichern vorhanden", log_mode)
             
-            avg_brightness, Exposure, Gain, good_exposure  = calculate_Exposure_and_gain(frame, Exposure, Gain, expected_camera, log_mode) 
-            avg_brightness = round(avg_brightness,0)
+
 
 
   

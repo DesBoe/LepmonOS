@@ -314,6 +314,7 @@ def capturing(log_mode):
                 sensors["Exposure"] = Exposure
                 sensors["Gain"] = f"{gain:.1f}"
                 try:
+                    print(avg_brightness)
                     sensors["Brightness"] = f"{avg_brightness:.1f}"
                 except Exception as e:
                     log_schreiben(f"Fehler bei der Abspeichern der durchschnittlichen Helligkeit: {e}", log_mode = log_mode)

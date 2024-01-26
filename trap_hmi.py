@@ -586,7 +586,6 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
 
                             
                     if current == "diagnose_start":
-                            '''
                             log_schreiben("------------------", log_mode=log_mode)
                             log_schreiben("Starte Systemcheck", log_mode=log_mode)
 
@@ -735,8 +734,6 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                     log_schreiben("USB Speicher OK", log_mode=log_mode)
                                     USB = 1   
                                 time.sleep(.05)    
-
-                            '''
                             sunset, sunrise, Zeitzone = get_sun(log_mode)
                             sunset = sunset.strftime('%H:%M:%S')
                             sunrise = sunrise.strftime('%H:%M:%S')

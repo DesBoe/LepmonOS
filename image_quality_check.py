@@ -90,27 +90,39 @@ def first_exp(Night, log_mode, camera):
             log_schreiben("Warnung beim lesen der zuletzt gespeicherten Exposure aus dem FRAM: {e}", log_mode=log_mode)
 
     # Prüfen, ob Werte gültig sind, falls ja, Default-Werte verwenden
-    if gain > 26 or not 85 < exposure < 9999982:
+    if gain > 26 or not 85 < exposure < 9999982 and camera == "AV__Alvium_1800_U-2050":
         log_schreiben(f"Warnung: Gain oder Exposure im FRAM nicht im gültigen Bereich: Gain={gain}, Exposure={exposure}", log_mode=log_mode)
         try:
-            if camera == "AV__Alvium_1800_U-2050":
-                exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_exposure"))
-                gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_gain_10"))/10
-            elif camera == "RPI_Module_3":
-                exposure = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","initial_exposure_10")/10
-                gain = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","initial_gain_10")/10            
-            elif camera == "RPI_HQ":
-                exposure = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","initial_exposure_10")/10
-                gain = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","initial_gain_10")/10
-                print(f"Initialer Exposure: {exposure}, Initialer Gain: {gain}")
+            exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_exposure"))
+            gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_gain_10"))/10
+            log_schreiben(f"Nutze Default: Gain={gain}, Exposure={exposure} und schreibe diese in den FRAM", log_mode=log_mode)
+        
         except Exception as e:
             print(f"Fehler beim Lesen des initialen Exposure und Gain aus der Konfigurationsdatei: {e}")            
             error_message(9,e,log_mode)
-        log_schreiben(f"Nutze Default: Gain={gain}, Exposure={exposure} und schreibe diese in den FRAM", log_mode=log_mode)
+        
 
-        write_current_exp(exposure, gain, camera, log_mode)
-        print("In FRAM geschriebener initialer Exposure und Gain:", exposure, gain)
-        time.sleep(10)
+
+    elif gain > 26 or not 1 < exposure <15 and camera == "RPI_Module_3":
+        try:
+            exposure = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","initial_exposure_10")/10
+            gain = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","initial_gain_10")/10   
+            log_schreiben(f"Nutze Default: Gain={gain}, Exposure={exposure} und schreibe diese in den FRAM", log_mode=log_mode)
+        except Exception as e:
+            print(f"Fehler beim Lesen des initialen Exposure und Gain aus der Konfigurationsdatei: {e}")            
+            error_message(9,e,log_mode)
+
+    '''         
+    elif camera == "RPI_HQ":
+        exposure = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","initial_exposure_10")/10
+        gain = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","initial_gain_10")/10
+        print(f"Initialer Exposure: {exposure}, Initialer Gain: {gain}")
+    '''
+
+
+    write_current_exp(exposure, gain, camera, log_mode)
+    print("In FRAM geschriebener initialer Exposure und Gain:", exposure, gain)
+    time.sleep(10)
 
     return exposure, gain
  
@@ -338,7 +350,7 @@ if "__main__" == __name__:
     path = "/media/Ento/LEPMON/Belichtungsreihe_RPI_HQ/RPI_HQ_50_1.jpg"
     if not os.path.exists(path):
         print(f"Datei existiert nicht: {path}\nnutze Logo")
-        path = "/home/Ento/LepmonOS/startscreen/LepmonOS_Logo_9_9.jpg"
+        path = "/home/Ento/LepmonOS/startsequenz/Logo_9_9.png"
     log_mode = "manual"
         
     camera = get_device_info("camera")
