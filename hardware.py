@@ -111,6 +111,7 @@ def get_hardware_version():
     if ARNI_Gen == "Unknown":
         print(f"ARNI_Gen konnte nicht ermittelt werden. Es muss manuell eingestellt werden.")
     else:
+        print(f"Ermittelte ARNI_Gen (Bei FRAM Fehler Fallback auf LEPMON Config): {ARNI_Gen}")
         return ARNI_Gen
 
 if __name__ == "__main__":

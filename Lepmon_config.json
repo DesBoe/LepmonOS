@@ -1,7 +1,7 @@
 {
     "general": {
-        "ARNI_Gen": "PPP_Gen_P",
-        "serielnumber": "SN010115",
+        "ARNI_Gen": "Pro_Gen_3",
+        "serielnumber": "SN010048",
         "project_name": "Lepmon#",
         "usb_drive": "/media/Ento/INTENSO4",
         "current_folder": "/media/Ento/INTENSO4",
@@ -24,7 +24,7 @@
         "flash": 0.25,
         "interval": 2,
         "dusk_treshold": 90,
-        "error_code": "0",
+        "error_code": 4,
         "gamma_correction": true,
         "trigger_for_wb": true
     },

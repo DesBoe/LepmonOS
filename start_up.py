@@ -65,8 +65,12 @@ def start_up(log_mode):
     hardware=get_hardware_version()
     if hardware == "CSS_Gen_1":
         dim_down()
-    elif hardware == "Unknown":
-        set_sn_manually()
+    elif hardware not in geraete_bibliothek:
+        try:
+            set_sn_manually()
+        except Exception as e:
+            print(f"Fehler beim manuellen Setzen der SN: {e}")
+            print("Fahre fort, obwohl die SN nicht manuell gesetzt werden konnte. Bitte überprüfen Sie die Verbindung zum RAM und die Funktionalität der Tasten.")
     turn_off_led("heizung")
     RPI_time(log_mode)
 
@@ -89,7 +93,21 @@ def start_up(log_mode):
     display_text_and_image("Leitfaden","Guide","Guia","/home/Ento/LepmonOS/startsequenz/link_manual.png",4)
     on_start()
     sn = compare_fram_json(log_mode)
-    
+
+    # Kontrolle, ob gegebene Seriennummer zur Geräteversion passt. Wenn nicht, manuelle SN Eingabe erzwingen
+    # Dazu muss K2W die verbauten Seriennummern bekannt geben.
+    print("TODO: Vergleiche gegebene Seriennummer mit der Geräteversion. Wenn sie nicht zusammenpassen, erzwinge manuelle SN Eingabe. Dazu muss K2W die verbauten Seriennummern bekannt geben.")
+    '''
+    try:
+        hardware_in_list = get_generation_by_serial(sn)
+        if hardware_in_list != hardware:
+            print(f"Seriennummer {sn} passt nicht zur erkannten Hardware {hardware}. Erzwinge manuelle SN Eingabe.")
+            sn_trigger = True
+            sn_manual, hardware, fram_success = set_sn_manually()
+    except Exception as e:
+        print(f"Fehler beim Überprüfen der Seriennummer: {e}")
+    '''
+
     check_Lepmon_code()
     
     time.sleep(3)

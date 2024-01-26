@@ -17,10 +17,15 @@ def get_serial_list():
 
     return sn_list
 
-
-
+def get_generation_by_serial(serial_number):
+    """
+    Gibt die Generation für eine gegebene Seriennummer zurück.
+    """
+    sn_list = dict(get_serial_list())
+    return sn_list.get(serial_number, "Seriennummer nicht gefunden")
     
 
 if __name__ == "__main__":
     sn_list = get_serial_list()
     print(sn_list)
+    print(get_generation_by_serial("SN010005"))
