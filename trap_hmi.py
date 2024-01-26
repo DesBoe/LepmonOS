@@ -486,6 +486,16 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                 write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "GPS", "latitude", latitude_ohne_Vorzeichen)
                                 write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "GPS", "longitude", longitude_ohne_Vorzeichen)
                                 print("Koordinaten aus Ram in Konfigurationsdatei geschrieben")
+                                try:
+                                    _, provinz, Kreiscode, _ = get_Lepmon_code(log_mode)
+                                    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "locality", "province",provinz)
+                                    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "locality", "Kreis",Kreiscode)
+                                    log_schreiben(f"LEPMONCODE in Konfigurationsdatei geschrieben: {provinz}, {Kreiscode}", log_mode=log_mode)
+                                except Exception as e:
+                                    print(f"Fehler beim Schreiben von Provinz und Kreiscode in die Konfigurationsdatei: {e}")
+                                    log_schreiben(f"Fehler beim Schreiben von Provinz und Kreiscode in die Konfigurationsdatei: {e}", log_mode=log_mode)
+                                
+
                                 step += 1
                                 break
                             elif button_pressed("rechts") and step > 0:

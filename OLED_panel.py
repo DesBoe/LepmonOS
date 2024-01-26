@@ -67,6 +67,27 @@ def display_text_and_image(line1, line2, line3, image_path,sleeptime =0):
             time.sleep(0.25)        
     time.sleep(sleeptime)
 
+
+def display_image_3_2(image_path,sleeptime =0):
+    """
+    Zeigt ein Bild (128x64 px) auf dem OLED an.
+    """
+    try:
+        logo = Image.open(image_path).convert("1").resize((128, 64))
+        with canvas(oled) as draw:
+            # Hintergrund löschen
+            draw.rectangle(oled.bounding_box, outline="black", fill="black")
+            draw.bitmap((oled.width - 128, 0), logo, fill=1)
+    
+    except Exception as e:
+        print(f"Error displaying text on OLED: {e}")        
+        for _ in range(3):
+            turn_on_led("rot")
+            time.sleep(0.25)
+            turn_off_led("rot")
+            time.sleep(0.25)        
+    time.sleep(sleeptime)
+
     
 def display_text_with_arrows(line1, line2, line3=None, x_position=None, sleeptime=0):
     try:

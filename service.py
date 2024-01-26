@@ -239,6 +239,9 @@ def initialisiere_logfile(log_mode):
                 write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_log",log_dateipfad)
                 print(f"Pfad der Logdatei in der Konfigurationsdatei gespeichert")
                 time.sleep(.5)
+        if os.path.exists(log_dateipfad):
+            print(f"Logdatei existiert bereits: {log_dateipfad}")
+
   except Exception as e:
         lokale_Zeit = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"{lokale_Zeit}; Fehler beim Erstellen des Logfiles: {e}")

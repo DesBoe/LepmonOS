@@ -1,5 +1,5 @@
 from times import get_times_power
-from OLED_panel import display_text, display_text_and_image
+from OLED_panel import *
 from service import *
 from logging_utils import log_schreiben
 from lora import send_lora
@@ -21,14 +21,27 @@ import os
 
 def start_up(log_mode):
     #dev_info()
+    # Update 2.2.1 muss Ram Neu Beschreiben für INFO zur Firmware.
+    new_version = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "version")
+    new_date = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "date")
+    try:
+        write_fram(0x0520, new_version.ljust(7)) 
+        write_fram(0x0510, new_date.ljust(10))
+        print("Version im FRAM aktualisiert.")
+    except Exception as e:
+        pass
     
     print("starte Setup")
     add_to_bootconfig("gpio=13=op,dl")
     turn_off_led("blau")
     turn_off_led("heizung")
     RPI_time(log_mode)
+
+
+    display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_K2W.png",sleeptime = 3)
+    display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_U2C.png",sleeptime = 3)
     
-    display_text_and_image("Leitfaden","Guide","Guia","/home/Ento/LepmonOS/startsequenz/link_manual.png",0)
+    display_text_and_image("Leitfaden","Guide","Guia","/home/Ento/LepmonOS/startsequenz/link_manual.png",4)
     on_start()
     sn = compare_fram_json(log_mode)
     
@@ -88,19 +101,20 @@ def start_up(log_mode):
     # Neuen Ordner auch dann erstellen, wenn der alte Ordner nicht gefunden wird --> USB Stick wurde gewechselt
     ordner_from_config = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
     ordner = os.path.basename(ordner_from_config)
-    print(f"DEBUG: Ordner aus Config: {ordner_from_config}")
-    print(f"DEBUG: Ordnername: {ordner}")
+    print(f"Ordner aus ConfigJson: {ordner_from_config}")
+    print(f"letzter Ordner- Name:  {ordner}")
     ordner_path = os.path.join(USB_stick, ordner)
-    print(f"DEBUG: Vollständiger Pfad zum Ordner: {ordner_path}")
+    print(f"Vollständiger Pfad zum neuen Ordner: {ordner_path}")
     
-    print(f"\nletzter verwendeter Ordner: {ordner_from_config}\n")
-    print(f"Ermittelter Ordner: {ordner}")
+    print(f"bestimme, ob neuer Ordner existiert: {ordner_path}")
 
     
-    if os.path.exists(os.path.join(USB_stick, ordner)) == False or ordner == "":
+    if not os.path.exists(ordner_path) or ordner == "":
         control_bit = False
-        print("Alter Ordner auf USB Stick nicht gefunden. Annahme, dass ein neuer USB Stick eingelegt wurde. Erstelle neuen Ordner")
-
+        print("Ordner auf USB Stick nicht gefunden. Annahme, dass ein neuer USB Stick eingelegt wurde. Erstelle neuen Ordner")
+    elif os.path.exists(ordner_path):
+        print("vorhierige Ordner gefunden")
+        
     display_text_and_image("Will-","kommen", "", "/home/Ento/LepmonOS/startsequenz/Logo_3_9.png",1)
     
     if control_bit:
@@ -109,50 +123,51 @@ def start_up(log_mode):
 
     if not control_bit:
         ordner = erstelle_ordner(log_mode)
-        print (f"neuer Ordner: {ordner}")
-    elif control_bit:
-        print("letzer Fang nicht ordnungsgemäß beendet, benutze alten Ordner")
-        #ordner = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
-        log_schreiben("#######################################################################################", log_mode=log_mode)
-        log_schreiben("### Letzter Durchlauf nicht ordnungsgemäß beendet. Fahre mit dem alten Ordner fort ###", log_mode=log_mode)
-        log_schreiben("#######################################################################################", log_mode=log_mode)
-        
-    display_text_and_image("Wel-","come", "", "/home/Ento/LepmonOS/startsequenz/Logo_4_9.png",1) 
-    if ordner == None:
-        display_text("USB Stick","nicht erkannt","neu einstecken",3)
-        log_schreiben("##################################", log_mode=log_mode)
-        log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###", log_mode=log_mode)
-        log_schreiben("##################################", log_mode=log_mode)
-        trap_shutdown(log_mode,10)
-        return
-         
-    initialisiere_logfile(log_mode)
-
-    if control_bit:
-        log_schreiben("Letzter Durchlauf nicht ordnungsgemäß beendet. Oder zwischem altem und neuen run liegt mehr als 1 Tag Unterschied. Fahre mit dem alten Ordner fort:", log_mode=log_mode)
-        log_schreiben(f"Alter Ordner: {ordner_from_config}", log_mode=log_mode)
-        log_schreiben(f"Neuer Ordner: {ordner}", log_mode=log_mode)
-    
-    elif not control_bit:
+        print (f"neuer Ordner erstellt: {ordner}")
+        if ordner == None:
+            display_text("USB Stick","nicht erkannt","neu einstecken",3)
+            log_schreiben("##################################", log_mode=log_mode)
+            log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###", log_mode=log_mode)
+            log_schreiben("##################################", log_mode=log_mode)
+            trap_shutdown(log_mode,10)
+            return
+        initialisiere_logfile(log_mode)
         log_schreiben("Letzter Durchlauf ordnungsgemäß beendet. Fahre mit neuem Ordner fort:", log_mode=log_mode)
         log_schreiben(f"Alter Ordner: {ordner_from_config}", log_mode=log_mode)
         log_schreiben(f"Neuer Ordner: {ordner}", log_mode=log_mode)
+    
+    display_text_and_image("Wel-","come", "", "/home/Ento/LepmonOS/startsequenz/Logo_4_9.png",4)   
+    if control_bit:
+        print("letzer Fang nicht ordnungsgemäß beendet, benutze alten Ordner")
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder", ordner_path)
+        
+        initialisiere_logfile(log_mode)
+        log_schreiben("#######################################################################################", log_mode=log_mode)
+        log_schreiben("### Letzter Durchlauf nicht ordnungsgemäß beendet. Fahre mit dem alten Ordner fort ###", log_mode=log_mode)
+        log_schreiben("#######################################################################################", log_mode=log_mode)
+        log_schreiben("Letzter Durchlauf nicht ordnungsgemäß beendet. Fahre mit dem alten Ordner fort:", log_mode=log_mode)
+        log_schreiben(f"Alter Ordner: {ordner_from_config}", log_mode=log_mode)
+        log_schreiben(f"Neuer Ordner: {ordner_path}", log_mode=log_mode)
+
         
     
     display_text_and_image("Wel-","come", "", "/home/Ento/LepmonOS/startsequenz/Logo_5_9.png",1)
-    log_schreiben("", log_mode=log_mode)
-    log_schreiben(f"ARNI SN Nummer:   {sn}", log_mode=log_mode)
-    log_schreiben(f"ARNI Generation:  {hardware}", log_mode=log_mode)
-    log_schreiben(f"verbaute Kamera:  {get_device_info('camera')}",log_mode=log_mode)
-    log_schreiben(f"verbauter Sensor: {get_device_info('sensor')}",log_mode=log_mode)
-    log_schreiben(f"Auflösung (LxB):  {get_device_info('length')} x {get_device_info('height')}",log_mode=log_mode)
 
-
+    log_schreiben("==============================================", log_mode=log_mode)
+    log_schreiben(f"Gerätedaten", log_mode=log_mode)
+    log_schreiben("----------------------------------------------", log_mode=log_mode)
+    log_schreiben(f"{'ARNI SN Nummer':<20} | {sn}", log_mode=log_mode)
+    log_schreiben(f"{'ARNI Generation':<20} | {hardware}", log_mode=log_mode)
+    log_schreiben(f"{'verbaute Kamera':<20} | {get_device_info('camera')}", log_mode=log_mode)
+    log_schreiben(f"{'verbauter Sensor':<20} | {get_device_info('sensor')}", log_mode=log_mode)
+    log_schreiben(f"{'Auflösung (LxB)':<20} | {get_device_info('length')} x {get_device_info('height')}", log_mode=log_mode)
     if device_run is not None:
-        log_schreiben(f"ARNI run:         {sn}__{device_run}", log_mode=log_mode)
-    
+        log_schreiben(f"{'ARNI run':<20} | {sn}__{device_run}", log_mode=log_mode)
     Version = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "version")
-    log_schreiben(f"Firmware:         {Version} vom {date}", log_mode=log_mode)
+    log_schreiben(f"{'Firmware':<20} | {Version} vom {date}", log_mode=log_mode)
+    log_schreiben("==============================================", log_mode=log_mode)
+    log_schreiben("", log_mode=log_mode)
+
     
     display_text_and_image("Wel-","come", "", "/home/Ento/LepmonOS/startsequenz/Logo_6_9.png",1)   
     power_on, power_off = get_times_power()
@@ -166,18 +181,23 @@ def start_up(log_mode):
 
     display_text_and_image("Bien-","venido", "", "/home/Ento/LepmonOS/startsequenz/Logo_8_9.png",1)
     experiment_start_time, experiment_end_time, _, _ = get_experiment_times()
-  
-    log_schreiben("------------------", log_mode=log_mode)
-    log_schreiben(f"Beginn Experiment: {power_on[:10]}", log_mode=log_mode)
-    log_schreiben(f"        Attiny on:   {power_on[11:]}", log_mode=log_mode)
-    log_schreiben(f"   Start Aufnahme:   {experiment_start_time}", log_mode=log_mode)
-    log_schreiben(f"  Sonnenuntergang:   {sunset.strftime('%H:%M:%S')}", log_mode=log_mode)
-    
-    log_schreiben(f"Ende Experiment:   {power_off[:10]}", log_mode=log_mode)
-    log_schreiben(f"  Ende Aufnahme:     {experiment_end_time}", log_mode=log_mode)
-    log_schreiben(f"     Attiny off:     {power_off[11:]}", log_mode=log_mode)
-    log_schreiben(f"  Sonnenaufgang:     {sunrise.strftime('%H:%M:%S')}", log_mode=log_mode)
-    log_schreiben("------------------", log_mode=log_mode)
+    minutes_after_sunset = str(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "minutes_after_sunset"))
+
+    log_schreiben("==============================================", log_mode=log_mode)
+    log_schreiben(f"Experiment Zeiten", log_mode=log_mode)
+    log_schreiben("----------------------------------------------", log_mode=log_mode)
+    log_schreiben(f"{'Beginn Experiment':<22} | {power_on[:10]}", log_mode=log_mode)
+    log_schreiben(f"{'Attiny on':<22} | {power_on[11:]}", log_mode=log_mode)
+    log_schreiben(f"{'Start Aufnahme':<22} | {experiment_start_time}", log_mode=log_mode)
+    log_schreiben(f"{'Sonnenuntergang':<22} | {sunset.strftime('%H:%M:%S')}", log_mode=log_mode)
+    log_schreiben(f"{'Verzögerung Start':<22} | {minutes_after_sunset} Minuten", log_mode=log_mode)
+    log_schreiben("----------------------------------------------", log_mode=log_mode)
+    log_schreiben(f"{'Ende Experiment':<22} | {power_off[:10]}", log_mode=log_mode)
+    log_schreiben(f"{'Ende Aufnahme':<22} | {experiment_end_time}", log_mode=log_mode)
+    log_schreiben(f"{'Attiny off':<22} | {power_off[11:]}", log_mode=log_mode)
+    log_schreiben(f"{'Sonnenaufgang':<22} | {sunrise.strftime('%H:%M:%S')}", log_mode=log_mode)
+    log_schreiben("==============================================", log_mode=log_mode)
+
     
     
     display_text_and_image("Bien-","venido", "", "/home/Ento/LepmonOS/startsequenz/Logo_9_9.png",1)

@@ -99,7 +99,7 @@ def gap_day():
         now = datetime.datetime.now()
         
         # Berechne den Unterschied in Tagen
-        difference = (now - activity_time).total_seconds()
+        difference = round((now - activity_time).total_seconds(), 0)
         print(f"Letzter Aktivitätszeitstempel: {activity_time}, jetzt:{now}, Unterschied in Sekunden: {difference}")
         
         # Überprüfe, ob der Unterschied mehr als 1 Tag beträgt

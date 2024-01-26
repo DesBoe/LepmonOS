@@ -153,11 +153,11 @@ def capturing(log_mode):
             ordner = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
             Dateiname = os.path.basename(ordner)
             zieldatei = os.path.join(ordner, f"{Dateiname}_Kameraeinstellungen.xml")
-            shutil.copy("/home/Ento/LepmonOS/Kamera_Einstellungen.xml", zieldatei)
+            shutil.copy("/home/Ento/LepmonOS/Kamera_Einstellungen_VimbaX.xml", zieldatei)
             checklist(zieldatei, log_mode, algorithm="md5")
             print("Kameraeinstellungen kopiert")
         except Exception as e:
-            print(f"Fehler beim Kopieren der Kameraeinstellungen: {e}")
+            log_schreiben(f"Fehler beim Kopieren der Kameraeinstellungen: {e}", log_mode=log_mode)
         
     # erste Belichtung
     try:
@@ -176,12 +176,10 @@ def capturing(log_mode):
     # Schleife
     while True:
         _, lokale_Zeit,_ = Zeit_aktualisieren(log_mode)
-        ambient_light, Sensorstatus_Licht = get_light(log_mode)
         photo_sanity_check = False
         good_exposure = False
 
-        if (ambient_light <= dusk_treshold and not experiment_end_time <= lokale_Zeit <= experiment_start_time) or\
-        (ambient_light > dusk_treshold and not sunrise <= lokale_Zeit <= experiment_start_time)or\
+        if not experiment_end_time <= lokale_Zeit <= experiment_start_time or\
             Warteschleife:
             if  Warteschleife:
                 Warteschleife = False
@@ -226,7 +224,7 @@ def capturing(log_mode):
             print(f"Aufnahmezeitpunkt: {lokale_Zeit_string.strftime('%H:%M:%S')}")
             print(Exposure, gain)
             time.sleep(5)
-            while not photo_sanity_check and not good_exposure:
+            while not photo_sanity_check:# and not good_exposure:
 
                 '''
                 if is_stop_requested():
@@ -266,6 +264,7 @@ def capturing(log_mode):
                     error_message(2, "", log_mode)
                     überleiten_zu_shutdown = True
                     break
+                print(f" Status Kamera: {Status_Kamera}, Fehlerserie: {Kamera_Fehlerserie}, Foto OK: {photo_sanity_check}")
                 
             if photo_sanity_check:
                 try:

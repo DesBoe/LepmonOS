@@ -40,7 +40,6 @@ def erstelle_und_aktualisiere_csv(sensor_data, log_mode):
             experiment_start_time, experiment_end_time,_,_ = get_experiment_times()
             
             sensor_id = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")  
-            dusk_treshold = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "dusk_treshold")
             interval = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "interval")
 
             sensor = get_device_info("sensor")
@@ -75,7 +74,6 @@ def erstelle_und_aktualisiere_csv(sensor_data, log_mode):
                 csv_writer.writerow(["#Beginn Monitoring:",         experiment_start_time])
                 csv_writer.writerow(["#Ende Monitoring:",           experiment_end_time])
 
-                csv_writer.writerow(["#Dämmerungs Schwellenwert:",  f"{dusk_treshold} Lux"])
                 csv_writer.writerow(["#Aufnahme Intervall:",        f"{interval} min"])
                 csv_writer.writerow(["********************"])
                 csv_writer.writerow(["#Starting new Programme"])

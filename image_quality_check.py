@@ -175,6 +175,7 @@ def calculate_Exposure_and_gain(current_image, initial_exposure, initial_gain, c
                 new_exposure = initial_exposure + step_exposure
                 print(f"Exposure erhöht von {initial_exposure} auf {new_exposure}")
                 log_schreiben(f"Exposure erhöht von {initial_exposure} auf {new_exposure}", log_mode=log_mode)
+                write_current_exp(new_exposure, new_gain, camera, log_mode)
             elif initial_gain < maximal_gain:
                 new_gain = initial_gain + step_gain
                 print(f"Gain erhöht von {initial_gain} auf {new_gain}")
@@ -193,6 +194,7 @@ def calculate_Exposure_and_gain(current_image, initial_exposure, initial_gain, c
             if initial_gain > minimal_gain:
                 new_gain = initial_gain - step_gain
                 log_schreiben(f"Gain verringert von {initial_gain} auf {new_gain}",log_mode)
+                write_current_exp(new_exposure, new_gain, camera, log_mode)
             elif initial_exposure > minimal_exposure:
                 new_exposure = initial_exposure - step_exposure
                 log_schreiben(f"Exposure verringert von {initial_exposure} auf {new_exposure}",log_mode)

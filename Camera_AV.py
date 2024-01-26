@@ -84,7 +84,6 @@ def get_frame(Exposure, cam_mode, log_mode, Gain):
             frame = None
             Kamera_Status = 0
             cams = None
-            error_details = str(e)
             if cam_Initiliase_tries > 5:
                 show_message("err_1a", lang=lang, tries=cam_Initiliase_tries)
                 print(f"Fehler beim Abrufen des Frames: {e}")
@@ -319,12 +318,17 @@ def snap_image(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposure,
     )
 
 
-def get_frame_AV(Exposure, cam_mode, log_mode, Gain):
+
+#######################################################################################################################
+#######################################################################################################################
+#######################################################################################################################
+def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1):
     cams = None
     cam_Initiliase_tries = 0
     power_vis = "---"
     frame = None
     Kamera_Status = 0
+    error_details = ""
 
     while cams is None:
         if cam_mode == "display" and cam_Initiliase_tries == 0:
@@ -340,28 +344,41 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain):
                     raise RuntimeError("Keine Kamera gefunden (vmbpy).")
 
                 with cams[0] as cam:
-                    try:
-                        cam.set_pixel_format(PixelFormat.Bgr8)
-                    except Exception as e:
-                        print(f"Fehler beim Setzen des Pixelformats: {e}")
+                    print(f"Verwende gefundene Kamera:{cam}")
+                    settings_file = "/home/Ento/LepmonOS/Kamera_Einstellungen_VimbaX.xml".format(cam.get_id()) # VimbaX uses an other format compared to Vimba
+                    # BGR8 is included in the new version of the setings file
 
-                    settings_file = "/home/Ento/LepmonOS/Kamera_Einstellungen.xml".format(cam.get_id())
                     try:
                         cam.load_settings(settings_file, PersistType.All)
+                        print("Kameraeinstellungen erfolgreich geladen")
+                        time.sleep(5)
                     except Exception as e:
-                        print(f"Fehler beim Laden der Kameraeinstellungen: {e}")
-
+                        log_schreiben(f"Fehler beim Laden der Kameraeinstellungen: {e}", log_mode=log_mode)
+                    
                     try:
                         cam.ExposureTime.set(Exposure * 1000)
                         print(f"Exposure in Kamera Einstellungen geändert:{(cam.ExposureTime.get()/1000):.0f}")
                     except Exception as e:
-                        print(f"Fehler beim Setzen der Belichtungszeit: {e}")
-
+                        log_schreiben(f"Fehler beim Setzen der Belichtungszeit: {e}", log_mode=log_mode)
+                        
                     try:
                         cam.Gain.set(Gain)
                         print(f"Gain in Kamera Einstellungen geändert:{cam.Gain.get()}")
                     except Exception as e:
-                        print(f"Fehler beim Setzen des Gain: {e}")
+                        log_schreiben("Fehler beim Setzen des Gains: {e}", log_mode=log_mode)
+
+                    try:
+                        cam.Gamma.set(gamma)
+                        print(f"Gamma in Kamera Einstellungen geändert:{cam.Gamma.get()}")
+                    except Exception as e:
+                        log_schreiben(f"Fehler beim Setzen von Gamma: {e}", log_mode=log_mode)
+
+                    try:
+                        print(f"Pixelformat der Kamera: {cam.get_pixel_format()}")
+                    except Exception as e:
+                        log_schreiben(f"unbekanntes Pixelformat:{e}", log_mode=log_mode)
+                        
+
 
                     if cam_mode != "focus":
                         dim_up()
@@ -369,8 +386,11 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain):
                             _, _, _, power_vis, _ = get_power()
                         except Exception:
                             power_vis = "---"
-
-                    frame = cam.get_frame(timeout_ms=5000).as_opencv_image()
+                    try:
+                        frame = cam.get_frame(timeout_ms=5000).as_opencv_image()
+                        print("frame erfolgreich aufgenommen")
+                    except Exception as e:
+                        log_schreiben(f"Fehler bei der Frame Aufnahme:{e}", log_mode=log_mode)
 
                     if cam_mode != "focus":
                         dim_down()
@@ -384,19 +404,22 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain):
             frame = None
             Kamera_Status = 0
             cams = None
-            if cam_Initiliase_tries > 5:
+            if cam_Initiliase_tries > 2:
                 show_message("err_1a", lang=lang, tries=cam_Initiliase_tries)
                 print(f"Fehler beim Abrufen des Frames: {e}")
                 print(f"Prüfe Kamera Verbindung und Stromversorgung. Versuch {cam_Initiliase_tries}")
+                error_details = str(e)
 
         if cam_Initiliase_tries > 90:
             print(f"Kamera nach {cam_Initiliase_tries} Versuchen nicht initalisiert")
             log_schreiben(f"Kamera nach {cam_Initiliase_tries} Versuchen nicht initalisiert", log_mode=log_mode)
             show_message("cam_3", lang=lang)
             time.sleep(5)
-            e = f"Kamera nach {cam_Initiliase_tries} Versuchen nicht initalisiert"
-            error_message(1, e, log_mode)
-            print(f"Fehler beim Abrufen des Frames: {e}")
+            if error_details == "":
+                error_details = f"Kamera nach {cam_Initiliase_tries} Versuchen nicht initalisiert"
+    
+            error_message(1, error_details, log_mode)
+            log_schreiben(f"Fehler beim Abrufen des Frames: {error_details}",log_mode=log_mode)
             print("Prüfe Kamera Verbindung und Stromversorgung")
             break
 
@@ -405,23 +428,24 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain):
 
 def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposure, Gain=9, sn=""):
     """
-    nimmt ein Bild auf
-
-    :param file_extension: Dateierweiterung
-    :param cam_mode: "display" für lokale ausgabe; "log" für speichern in der schleife;
-                     "kamera_test" für Kameratest, Diagnose für Diagnose
+    Args:
+        file_extension (str): Dateierweiterung des Bildes.
+        cam_mode (str): Betriebsmodus der Kamera.
+            - "display": Lokale Anzeige
+            - "log": Speichern in der Schleife
+            - "kamera_test": Test der Kamera oder des Skriptes
+            - "Diagnose": Diagnose (Geräteeinrichtung)
     """
     code = 000
     power_on = 0
     image_file = ""
 
     avg_brightness, good_exposure = "---", False
-    image_correction = get_value_from_section(
-        "/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "gamma_correction"
-    )
-    gamma = get_value_from_section(
-        "/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "gamma_value"
-    )
+    image_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "gamma_correction")
+    if image_correction:
+        gamma = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "gamma_value")
+    else:
+        gamma = 1
 
     camera = LED(5)
     camera.on()
@@ -469,7 +493,7 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
     if cam_mode == "log":
         time.sleep(5)
 
-    frame, Status_Kamera, power_vis = get_frame_AV(Exposure, cam_mode, log_mode, Gain)
+    frame, Status_Kamera, power_vis = get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma)
 
     if frame is not None:
         Kamera_Fehlerserie = 0
@@ -480,7 +504,8 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
             )
             avg_brightness = round(avg_brightness, 0)
 
-            if image_correction and gamma is not None and gamma != 0:
+            
+            """if image_correction and gamma is not None and gamma != 0:
                 time.sleep(1)
                 print(f"Belichtungsoptimierung: Wende Gamma Korrektur an (gamma={gamma})", flush=True)
 
@@ -506,7 +531,9 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
                 gc.collect()
                 print("Belichtungsoptimierung: Gamma Korrektur vollständig angewendet", flush=True)
             elif gamma is None or gamma == 0:
-                print(f"FEHLER: gamma ist :{gamma}!", flush=True)
+                print(f"FEHLER: gamma ist :{gamma}!", flush=True)"""
+            
+            # VimbaX has gamma Argument --> Gamma correction handled by VimbaX directly
 
     if frame is None:
         if cam_mode == "display":
@@ -543,10 +570,12 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
     if frame is not None:
         try:
             cv2.imwrite(dateipfad, frame)
+            print(f"Bild erfolgreich gespeichert!\nPfad: {dateipfad}")
 
             Status_Kamera = 1
             if cam_mode == "display":
                 show_message("cam_7", lang=lang)
+
                 os.remove(dateipfad)
                 print(f"Bild vom Speicher gelöscht: {dateipfad}")
                 log_schreiben("Kamera Zugriff erfolgreich", log_mode=log_mode)
@@ -585,4 +614,4 @@ if __name__ == "__main__":
         gain = int(
             get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "initial_gain_10")
         ) / 10
-        snap_image_AV("jpg", "log", 0, "log", exposure, gain)
+        snap_image_AV("jpg", "display", 0, "manual", exposure, gain)

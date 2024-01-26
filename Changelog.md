@@ -1,5 +1,26 @@
 # Changelog
 
+
+
+
+## [2.2.1] 2026-03-09
+### Geändert
+- Installation via SD Karten image
+- Start der Aufnahme pauschal 10 Minuten nach Sonnenuntergang
+- VimbaX statt Vimba
+
+### Hinzugefügt
+- detailierte Fehler Logs in der Alied Vision Kamera
+
+
+### Behoben
+- Problem, dass ARNI keine Bilder aufnimmt
+
+
+
+
+
+
 ## [2.2.0] 2026-03-02
 ### Geändert
 - Visible nur bei Befehl der Frame erstellung an
