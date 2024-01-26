@@ -1,8 +1,11 @@
 # Changelog
 
 
-## [2.3.0] 2026-03-12
+## [2.3.0] 2026-03-16
 ### Geändert
+- Installation via SD Karten image
+- Start der Aufnahme pauschal 10 Minuten nach Sonnenuntergang
+- VimbaX statt Vimba
 - SD-Image: LepmonOS_Dev_* und LepmonOS_Service_* Dateien werden nicht mehr im Image ausgeliefert
 - SD-Image wird nach dem Build verkleinert (shrink), um unter 2 GB GitHub-Release-Limit zu bleiben
 - Journald Log-Speicher auf 16 MB begrenzt
@@ -10,6 +13,7 @@
 - Release-Notes in GitHub Actions aktualisiert
 
 ### Hinzugefügt
+- detailierte Fehler Logs in der Alied Vision Kamera
 - Leichtgewichtiger LXDE-Desktop vorinstalliert, aktivierbar via `lepmon-desktop on` (CLI bleibt Standard)
 - SSH robust aktiviert: ConditionPathExists entfernt, PasswordAuthentication und PermitRootLogin aktiviert
 - I2C über raspi-config und zusätzliches Kernel-Modul `i2c-bcm2835` sichergestellt
@@ -22,27 +26,10 @@
 - Disk-Cleanup: man-pages, docs, locale, __pycache__, pip-cache, unnötige Firmware entfernt
 
 ### Behoben
+- Problem, dass ARNI keine Bilder aufnimmt
 - SSH war nicht standardmäßig aktiviert über WiFi und Ethernet Verbindungen
 - Boot blieb bei systemd-update-utmp-runlevel hängen, bevor Login-Prompt erschien
 - I2C Aktivierung über zusätzliches Kernel-Modul und raspi-config abgesichert
-
-
-## [2.2.1] 2026-03-09
-### Geändert
-- Installation via SD Karten image
-- Start der Aufnahme pauschal 10 Minuten nach Sonnenuntergang
-- VimbaX statt Vimba
-
-### Hinzugefügt
-- detailierte Fehler Logs in der Alied Vision Kamera
-
-
-### Behoben
-- Problem, dass ARNI keine Bilder aufnimmt
-
-
-
-
 
 
 ## [2.2.0] 2026-03-02

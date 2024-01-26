@@ -1,7 +1,7 @@
 {
     "general": {
-        "ARNI_Gen": "Pro_Gen_3",
-        "serielnumber": "SN010083",
+        "ARNI_Gen": "",
+        "serielnumber": "",
         "project_name": "Lepmon#",
         "usb_drive": "/media/Ento/INTENSO",
         "current_folder": "/media/Ento/INTENSO/Lepmon#SN010083_Manueller_TestRun_2026-03-12_T_1233",
@@ -14,8 +14,8 @@
     },
     "locality": {
         "country": "Germany",
-        "province": "AA",
-        "Kreis": "BBB"
+        "province": "TH",
+        "Kreis": "SLZ"
     },
     "capture_mode": {
         "minutes_after_sunset": 10,
@@ -23,7 +23,7 @@
         "flash": 0.25,
         "interval": 2,
         "dusk_treshold": 90,
-        "error_code": "0",
+        "error_code": 4,
         "gamma_correction": true
     },
     "RPI_Module_3": {
@@ -84,8 +84,8 @@
         "Block": "E"
     },
     "software": {
-        "version": "2.2.1",
-        "date": "2026-03-12"
+        "version": "2.3.0",
+        "date": "2026-03-16"
     },
     "powermode": {
         "supply": "Netz",

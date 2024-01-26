@@ -47,6 +47,8 @@ def set_location_code(log_mode):
                 if Kreis_count >1:
                     index = (index - 1) % Kreis_count
                     index = max(0, index)
+                if Kreis_count == 1:
+                    index = 0
                 if index == 1:
                     index = Kreis_count-1  
 
@@ -64,7 +66,7 @@ def set_location_code(log_mode):
                     index = (index + 1) % Kreis_count
                     index = max(0, index)   
                 elif Kreis_count ==1:
-                    index = 1  
+                    index = 0  
         if button_pressed("rechts"):
             if level == "country":
                 country = countries[index]
