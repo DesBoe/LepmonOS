@@ -22,7 +22,7 @@ from hardware import get_hardware_version
 lang = get_language()
 
 
-def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1):
+def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4):
     cams = None
     cam_Initiliase_tries = 0
     power_vis = "---"
@@ -71,6 +71,12 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1):
                         print(f"Gamma in Kamera Einstellungen geändert:{cam.Gamma.get()}")
                     except Exception as e:
                         log_schreiben(f"Fehler beim Setzen von Gamma: {e}", log_mode=log_mode)
+
+                    try:
+                        cam.ContrastShape.set(ContrastShape)
+                        print(f"ContrastShape in Kamera Einstellungen geändert:{cam.ContrastShape.get()}")
+                    except Exception as e:
+                        log_schreiben(f"Fehler beim Setzen von ContrastShape: {e}", log_mode=log_mode)
 
                     try:
                         print(f"Pixelformat der Kamera: {cam.get_pixel_format()}")
@@ -145,7 +151,7 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1):
     return frame, Kamera_Status, power_vis
 
 
-def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposure, Gain=9, sn=""):
+def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposure, Gain=9, sn="", ContrastShape = 4):
     """
     Args:
         file_extension (str): Dateierweiterung des Bildes.
@@ -162,11 +168,19 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
     HARDWARE_VERSION = get_hardware_version()
 
     avg_brightness, good_exposure = "---", False
+
+    # check for corrections that should be applied to the image based on the configuration
     image_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "gamma_correction")
     if image_correction:
         gamma = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "gamma_value")
     else:
         gamma = 1
+
+    adjust_ContrastShape = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "adjust_ContrastShape")
+    if adjust_ContrastShape:
+        ContrastShape = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "ContrastShape")
+    else:
+        ContrastShape = 4 # default value. This value was used before introduction of the ContrastShape parameter in the configuration file.
 
     camera = LED(5)
     camera.on()
@@ -191,13 +205,19 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
         )
         image_file = f"{code}.{file_extension}"
         dateipfad = os.path.join(ordnerpfad, image_file)
-
+    
     if cam_mode == "kamera_test":
         if not os.path.exists(ordnerpfad):
-            ordnerpfad = erstelle_ordner(log_mode, "AV__Alvium_1800_U-2050")
+            ordnerpfad = erstelle_ordner("kamera_test", "AV__Alvium_1800_U-2050")
             print(f"Ordner '{ordnerpfad}' wurde erstellt.")
+        log_dateipfad = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_log")
+        print(f"gelesener Logdateipfad: {log_dateipfad}")
+        if not os.path.exists(log_dateipfad):
+            log_dateipfad= initialisiere_logfile(log_mode, ignore_time = True)
+            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_log", log_dateipfad)
+            print(f"Logdatei innerhalb der Camera_AV Funktion neu estellt: {log_dateipfad}")
 
-        image_file = f"AV__Alvium_1800_U-2050_{Exposure}_{Gain}.jpg"
+        image_file = f"AV__Alvium_1800_U-2050_{Exposure}_{Gain}__{round(ContrastShape,1)}.jpg"
         dateipfad = os.path.join(ordnerpfad, image_file)
         print(f"Kamera Test Bild wird gespeichert in: {dateipfad}")
         time.sleep(2)
@@ -305,7 +325,7 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
             now_dt = datetime.strptime(now, "%H:%M:%S")
             write_timestamp(0x07E0)
             show_message("blank", lang=lang)
-            frame, Status_Kamera, power_vis = get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma)
+            frame, Status_Kamera, power_vis = get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma, ContrastShape)
 
             if frame is not None:
                 Kamera_Fehlerserie = 0
@@ -368,20 +388,7 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
 
 
 if __name__ == "__main__":
-    import sys
-
-    which = (sys.argv[1] if len(sys.argv) > 1 else "av").lower()
-
-    if which in ("imx", "imx183"):
-        print("Nehme ein Bild mit der IMX183 Kamera auf")
-        gain, exposure = 9, 140
-        snap_image("jpg", "display", 0, "log", float(exposure), float(gain))
-    else:
-        print("Nehme ein Bild mit der AV Kamera auf")
-        exposure = int(
-            get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "initial_exposure")
-        )
-        gain = int(
-            get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "initial_gain_10")
-        ) / 10
-        snap_image_AV("jpg", "kamera_test", 0, "manual", exposure, gain)
+    print("Nehme ein Bild mit der AV Kamera auf")
+    exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "initial_exposure"))
+    gain =     int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "initial_gain_10")) / 10
+    snap_image_AV("jpg", "kamera_test", 0, "manual", exposure, gain)

@@ -57,6 +57,11 @@ def start_up(log_mode):
             print(f"Firmware Version im FRAM aktualisiert:{new_version}; {new_date}")
             write_fram_bytes(0x078F, b'\x00')
             print("Kontrollbit für versteckte Menüs zurückgesetzt")
+
+            # Zähler der Bilder die während des RTC Fehler 17 bei dieder Firmware Version aufgenommen werden auf Null setzen
+            write_fram(0x0660, "Images_RTC_Err".ljust(16))
+            for addr in range(0x0670, 0x0680):
+                write_fram_bytes(addr, b'\x00')
         
         elif current_version == None:
             print("keine aktuelle Firmware-Version im FRAM gefunden")

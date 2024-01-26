@@ -167,11 +167,13 @@ def error_message(error_number, error_details, log_mode):
             show_message(f"err_{error_number}",lang = lang)
         except Exception as e:
             print(f"Fehler in der Anzeige {e}")
+            pass
 
         if not error_number == 10:
             try:
                 log_schreiben(f"Fehler {error_number}: {logging_text}: {error_details}", log_mode=log_mode)
             except Exception as e:
+                print(e)
                 pass   
         
         try:

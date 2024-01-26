@@ -1,11 +1,11 @@
 {
     "general": {
         "ARNI_Gen": "Pro_Gen_3",
-        "serielnumber": "SN010064",
+        "serielnumber": "",
         "project_name": "Lepmon#",
         "usb_drive": "/media/Ento/D49E-861A",
-        "current_folder": "/media/Ento/D49E-861A",
-        "current_log": "/media/Ento/D49E-861A/Lepmon_Diagnose_SN010064_log.log",
+        "current_folder": "/media/Ento/Ento/Belichtungsreihe_AV__Alvium_1800_U-2050__2024-01-26__23_56_27",
+        "current_log": "/media/Ento/Ento/Belichtungsreihe_AV__Alvium_1800_U-2050__2024-01-26__23_56_27/Belichtungsreihe_AV__Alvium_1800_U-2050__2024-01-26__23_56_27.log",
         "language": "de",
         "expected_images": 197,
         "Control_Night": true,
@@ -24,9 +24,11 @@
         "flash": 0.25,
         "interval": 2,
         "dusk_treshold": 90,
-        "error_code": 11,
+        "error_code": 8,
         "gamma_correction": true,
-        "trigger_for_wb": true
+        "trigger_for_wb": true,
+        "adjust_ContrastShape": true,
+        "flatfiled_correction": true
     },
     "RPI_Module_3": {
         "initial_gain_10": 7,
@@ -73,6 +75,7 @@
         "focus_threshold": 225.0,
         "gamma_value": 0.65,
         "current_gain": 16.0,
+        "ContrastShape": 1.4,
         "balance_ratio_red": 2.2928477633017224,
         "balance_ratio_blue": 1.9692419686807972
     },

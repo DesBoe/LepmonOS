@@ -3,7 +3,7 @@
 ####
 
 # Copy from Lights.py
-
+'''
 from json_read_write import get_value_from_section
 import RPi.GPIO as GPIO
 import time
@@ -74,7 +74,7 @@ if __name__ == "__main__":
         time.sleep(1)
 
 
-
+'''
 ########
 ########
 
@@ -142,3 +142,31 @@ if __name__ == "__main__":
                     display_text("Enter gedrückt ","","")
                 time.sleep(.05)
 '''    
+
+
+########
+########
+
+
+####
+# Schleife für Test der ContrastShape Einstellung
+####
+
+from Camera_AV import *
+from json_read_write import *
+log_mode = "log"
+cam_mode = "kamera_test"
+ContrastShape = 1
+write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "ContrastShape", ContrastShape)
+
+if __name__ == "__main__":
+    while 1<= ContrastShape <= 10:
+        print(f"Teste ContrastShape: {ContrastShape}")
+        snap_image_AV("jpg", cam_mode, 0, log_mode, 170, Gain=6, sn="", ContrastShape=ContrastShape)
+        ContrastShape += .1
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "ContrastShape", round(ContrastShape,1))
+
+        time.sleep(2)
+    print("Test der ContrastShape Einstellung abgeschlossen.")
+    print("############################################")
+

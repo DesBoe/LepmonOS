@@ -102,7 +102,11 @@ def write_to_fram():
         write_fram(0x04C0, "Provinz".ljust(16))
         write_fram(0x0600," language".ljust(16))
         write_fram(0x0460, "Zeitumstellung".ljust(16))
-        write_fram(0x0560, "new_package".ljust(16))
+        write_fram(0x0660, "Images_RTC_Err".ljust(16))
+        
+        # Zähler der Bilder die während des RTC Fehler 17 bei dieder Firmware Version aufgenommen werden auf Null setzen
+        for addr in range(0x0670, 0x0680):
+            write_fram_bytes(addr, b'\x00')
         if camera == "RPI_Module_3":
             write_fram_bytes(0x078F, b'\x01') # Fokusieren bei RPI Module 3 erzwingen
 

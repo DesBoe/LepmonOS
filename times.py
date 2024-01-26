@@ -28,6 +28,7 @@ def Zeit_aktualisieren(log_mode="log"):
         error_message(8,e, log_mode)
         jetzt_local = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         lokale_Zeit = datetime.now().strftime("%H:%M:%S")
+        pass
     return jetzt_local, lokale_Zeit, rtc_status
 
 

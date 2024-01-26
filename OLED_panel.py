@@ -14,12 +14,14 @@ try:
 except Exception as e:
     print(f"Error loading font: {e}")
 
+oled = None
+
 # OLED-Setup
 Display = i2c(port=1, address=0x3C)
 try:
     oled = sh1106(Display)
-except:
-    print("Fehler beim Initialisieren des OLED-Displays.")
+except Exception as e:
+    print(f"Fehler beim Initialisieren des OLED-Displays: {e}")
     for _ in range(3):
         turn_on_led("rot")
         time.sleep(0.25)
@@ -33,20 +35,25 @@ if HARDWARE_VERSION == "Pro_Gen_1":
     
 
 def display_text(line1, line2, line3, sleeptime =0):
-    try:
-        with canvas(oled) as draw:
-            draw.rectangle(oled.bounding_box, outline="black", fill="black")
-            draw.text((0, 5), line1, font=oled_font, fill="white")
-            draw.text((0, 25), line2, font=oled_font, fill="white")
-            draw.text((0, 45), line3, font=oled_font, fill="white")
-        time.sleep(sleeptime) 
-    except Exception as e:
-        print(f"Error displaying text on OLED: {e}")  
-        for _ in range(3):
-            turn_on_led("rot")
-            time.sleep(0.25)
-            turn_off_led("rot")
-            time.sleep(0.25)      
+    if oled is not None:
+        try:
+            with canvas(oled) as draw:
+                draw.rectangle(oled.bounding_box, outline="black", fill="black")
+                draw.text((0, 5), line1, font=oled_font, fill="white")
+                draw.text((0, 25), line2, font=oled_font, fill="white")
+                draw.text((0, 45), line3, font=oled_font, fill="white")
+            time.sleep(sleeptime) 
+        except Exception as e:
+            print(f"Error displaying text on OLED: {e}")  
+            for _ in range(3):
+                turn_on_led("rot")
+                time.sleep(0.25)
+                turn_off_led("rot")
+                time.sleep(0.25)
+                pass
+    elif oled is None:
+        print("keine Anzeige möglch, da Display nicht initialisiert")
+        pass
 
 
 def display_text_and_image(line1, line2, line3, image_path,sleeptime =0):
@@ -143,9 +150,11 @@ def show_message(code: str, lang: str = "de", **values):
 
     while len(lines) < 3:
         lines.append("")
-
-    display_text(lines[0], lines[1], lines[2], sleeptime)
-    
+    try:
+        display_text(lines[0], lines[1], lines[2], sleeptime)
+    except Exception as e:
+        print(f"Text nicht angezeigt:{e}")
+        return
     
     
 def show_message_with_arrows(code: str, lang: str = "de", x_position=None, **values):
