@@ -36,7 +36,7 @@ selected_tests = {
         #3: "Sensoren",
         #4: "Uhr",
         #5: "RAM",
-        6: "RAM_löschen",
+        #6: "RAM_löschen",
         7: "RAM_Konfiguration",
         #8: "Knöpfe",
         #9: "Kamera"

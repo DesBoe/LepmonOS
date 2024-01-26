@@ -1,11 +1,11 @@
 {
     "general": {
-        "ARNI_Gen": "Pro_Gen_4",
+        "ARNI_Gen": "PPP_Gen_P",
         "serielnumber": "SN010115",
         "project_name": "Lepmon#",
         "usb_drive": "/media/Ento/INTENSO4",
-        "current_folder": "/media/Ento/INTENSO4/Lepmon#SN010115_YY_XXX_2026-04-16_T_2255",
-        "current_log": "/media/Ento/INTENSO4/Lepmon#SN010115_YY_XXX_2026-04-16_T_2255/Lepmon#SN010115_YY_XXX_2026-04-16_T_2255.log",
+        "current_folder": "/media/Ento/INTENSO4",
+        "current_log": "/media/Ento/INTENSO4/Lepmon_Diagnose_SN010115_log.log",
         "language": "de",
         "expected_images": 190,
         "Control_Night": true,

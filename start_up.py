@@ -17,6 +17,7 @@ from bootconfig import add_to_bootconfig
 from hardware import *
 import os
 from serial_number_manual import *
+from serial_list import *
 from datetime import datetime
 from Box_Experiment_Times import *
 from Lights import dim_down

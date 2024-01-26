@@ -1,7 +1,8 @@
 from fram_operations import *
 from fram_direct import *
 from json_read_write import *
-from serial_number_manual  import *
+from serial_list  import *
+from GPIO_Setup import *
 
 geraete_bibliothek = {
     "Pro_Gen_1": {
@@ -88,29 +89,27 @@ def get_hardware_version():
     Gibt die Geräte-Generation zurück.
     Default: "Unknown"
     """
-    default = "Unknown"
+    ARNI_Gen = "Unknown"
 
     try:
         # lesen und Null-Bytes/Leerzeichen entfernen
         ARNI_Gen = read_fram(0x0130, 16).replace("\x00", "").strip() or ""
         if ARNI_Gen not in geraete_bibliothek:
-            print(f"Fehler:ARNI_Gen '{ARNI_Gen}' nicht in Gerätebibliothek gefunden.")
-            ARNI_Gen = ""
+            print(f"Fehler beim Lesen der Generation aus dem RAM: ARNI_Gen '{ARNI_Gen}' nicht in Gerätebibliothek gefunden.")
+            ARNI_Gen = "Unknown"
     except Exception as e:
         print(f"Fehler beim Lesen der ARNI_Gen aus dem FRAM: {e}")
-        ARNI_Gen = ""
-
-    if not ARNI_Gen:
+        ARNI_Gen = "Unknown"
+    if ARNI_Gen == "Unknown":
         try:
             ARNI_Gen = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "ARNI_Gen").strip()
             if ARNI_Gen not in geraete_bibliothek:
-                print(f"Fehler:ARNI_Gen '{ARNI_Gen}' nicht in Gerätebibliothek gefunden.")
-                ARNI_Gen = ""
+                print(f"Fehler beim Lesen der Generation aus der JSON: ARNI_Gen '{ARNI_Gen}' nicht in Gerätebibliothek gefunden.")
+                ARNI_Gen = "Unknown"
         except Exception as e:
             print(f"Fehler beim Lesen der ARNI_Gen aus der JSON: {e}")
-            ARNI_Gen = ""
-
-    if ARNI_Gen == "":
+            ARNI_Gen = "Unknown"
+    if ARNI_Gen == "Unknown":
         print(f"ARNI_Gen konnte nicht ermittelt werden. Es muss manuell eingestellt werden.")
         set_sn_manually()
     else:
