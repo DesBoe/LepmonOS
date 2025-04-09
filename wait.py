@@ -33,13 +33,14 @@ def wait(log_mode):
     # Experiment für Boundingboxen mit Delay, wenn ARNI im entsprechenden Experiment eingesetzt wird
     sn = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")
     if sn in ["SN010010", "SN010011"]:
+        jetzt_local, _, _= Zeit_aktualisieren(log_mode=log_mode)
         Delay, Box_Experiment_Run, Round = get_experiment_delay(sn, jetzt_local)
         experiment_start_time += Delay
 
 
     #if not (experiment_end_time > lokale_Zeit >= experiment_start_time):
     if experiment_end_time >= lokale_Zeit or experiment_start_time <= lokale_Zeit:
-        log_schreiben(f"{'Warte auf Nachtbeginn':<22} | nein, starte Schleife", log_mode=log_mode)
+        log_schreiben(f"{'Warte auf Beginn':<22} | nein, starte Schleife", log_mode=log_mode)
         log_schreiben("==============================================", log_mode=log_mode)
 
         return heater, waiter
@@ -47,7 +48,7 @@ def wait(log_mode):
     else:
         countdown = (experiment_start_time - lokale_Zeit).total_seconds()
         countdown_time = experiment_start_time - lokale_Zeit
-        log_schreiben(f"{'Warte bis Nachtbeginn':<22} | ja, {countdown_time}", log_mode=log_mode)
+        log_schreiben(f"{'Warte auf Beginn':<22} | ja, {countdown_time}", log_mode=log_mode)
         log_schreiben("==============================================", log_mode=log_mode)
         
         for _ in range(60):

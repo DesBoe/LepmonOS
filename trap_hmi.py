@@ -134,9 +134,11 @@ def open_trap_hmi(log_mode, start_step = 0):
             time.sleep(.05)
                        
     if not Menu_open:
-        log_schreiben("------------------", log_mode=log_mode)
-        log_schreiben("------------------", log_mode=log_mode) 
+        log_schreiben("##################################", log_mode=log_mode)
+        log_schreiben("##################################", log_mode=log_mode)
         log_schreiben("ARNI nicht mit lokalem User Interface parametrisiert", log_mode=log_mode)
+        log_schreiben("##################################", log_mode=log_mode)
+        log_schreiben("##################################", log_mode=log_mode)
 
     latitude, longitude, _, _, _, _ = (get_coordinates())
     log_schreiben("==============================================", log_mode=log_mode)
@@ -697,15 +699,21 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                 json_path = "/home/Ento/LepmonOS/Lepmon_config.json"
                                 update_folder_and_log(json_path, province_old, Kreis_code_old, province, Kreis_code, log_mode)
                                 show_message("hmi_36", lang=lang)
+                                log_schreiben("##################################", log_mode=log_mode)
+                                log_schreiben("##################################", log_mode=log_mode)
                                 log_schreiben("Beende Systemcheck", log_mode=log_mode)
+                                log_schreiben("##################################", log_mode=log_mode)
+                                log_schreiben("##################################", log_mode=log_mode)
                                 menu_exit = True
                                 break
                                 
                             elif not Neustart:
                                 show_message("hmi_36", lang=lang)
+                                log_schreiben("##################################", log_mode=log_mode)
+                                log_schreiben("##################################", log_mode=log_mode)
                                 log_schreiben("Beende Systemcheck", log_mode=log_mode)
-                                log_schreiben("------------------", log_mode=log_mode)
-                                log_schreiben("------------------", log_mode=log_mode)
+                                log_schreiben("##################################", log_mode=log_mode)
+                                log_schreiben("##################################", log_mode=log_mode)
                                 menu_exit = True
                                 break
             
@@ -716,14 +724,15 @@ if __name__ == "__main__":
     print("#################")
     print("Hinweis: Die Tasteneingaben 'Oben', 'Unten', 'Links' und 'Rechts' können durch eintippen dieser Worte im Terminal simuliert werden.")
     print("#################")
-    open_trap_hmi(log_mode="manual", start_step=6)
+    open_trap_hmi(log_mode="manual", start_step=1)
     
     # MENÜ Punkte:      start_step:
     #hidden             0
     #power              1   
     #delete_usb         2
     #heat               3 --> nur Pro_Gen_2, Pro_Gen_3, Pro_Gen_4
-    #time               4
+
+#time               4
     #gps                5
     #diagnose_return    6
     #diagnose_start     7

@@ -51,6 +51,7 @@ timezonefinder==5.2.0
 #DB
 pyyaml
 #pycountry
+pandas
 
 # --- GitHub-based packages (installed separately) ---
 # https://github.com/alliedvision/VimbaPython/archive/refs/heads/master.zip

@@ -24,7 +24,7 @@ from LepmonOS_Service_fram_tabelle import get_Fram_table, write_fram_table_to_lo
 from LepmonOS_Service_fram_configurator import write_config_to_fram
 from RTC_new_time import set_hwc
 
-sn = "SN010083"
+sn = "SN010011"
 try:
     write_fram(0x0110, sn)
 except Exception as e:

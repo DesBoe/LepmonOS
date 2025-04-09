@@ -865,6 +865,12 @@ MESSAGE_REGISTER = {
         "en": ("Error 16", "Country/ Region","not determined"),
         "es": ("Error 16", "País/ Región","no determinado")
     },
+    "err_17": {
+        "sleep": 3,
+        "de": ("Fehler 17", "Knopfzellenbatterie", "der RTC prüfen"),
+        "en": ("Error 17", "Button cell battery", "Check RTC"),
+        "es": ("Error 17", "Pila de botón", "Comprobar RTC")
+    },
                             
     ### blank ###
     "blank": {

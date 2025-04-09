@@ -61,7 +61,7 @@ def trap_shutdown(i,log_mode,execution="full"):
             power_mode = "Netz"
     print(f"Power-Modus vor Shutdown: {power_mode}, error_code: {Errorcode}")
 
-    if 8 > Errorcode >= 0 :
+    if Errorcode != 8 :
         jetzt_local, _,_ = Zeit_aktualisieren(log_mode)
         jetzt_local = datetime.strptime(jetzt_local, "%Y-%m-%d %H:%M:%S")
         next_experiment_start_time, next_experiment_end_time = get_times_power()
@@ -74,7 +74,7 @@ def trap_shutdown(i,log_mode,execution="full"):
         Nächstes_Ausschalten = jetzt_local + timedelta(days=1)
         
         Nächstes_Ausschalten = Nächstes_Ausschalten.replace(hour=next_experiment_end_time.hour, minute=next_experiment_end_time.minute, second=next_experiment_end_time.second) - timebuffer_powermanager
-        log_schreiben(f"Nächstes Ausschalten berechnet, Zeitstempel zum schreiben: {Nächstes_Ausschalten}", log_mode)
+        log_schreiben(f"nächstes Ausschalten berechnet, Zeitstempel zum schreiben: {Nächstes_Ausschalten}", log_mode)
 
         try:
             set_alarm(next_experiment_start_time.strftime("%Y-%m-%d %H:%M:%S"), Nächstes_Ausschalten.strftime("%Y-%m-%d %H:%M:%S"), log_mode)

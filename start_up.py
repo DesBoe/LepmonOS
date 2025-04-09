@@ -19,6 +19,7 @@ import os
 from serial_number_manual import *
 from datetime import datetime
 from Box_Experiment_Times import *
+import pandas as pd
 
 
 def version_tuple(version_str):
@@ -151,7 +152,7 @@ def start_up(log_mode):
     display_text_and_image("Will-","kommen", "", "/home/Ento/LepmonOS/startsequenz/Logo_3_9.png",1)
     
     if control_bit:
-        print("Überprüfe ob ein Tag seit letztem Fang vergangen ist. Wenn ja, wird Kontrollbit zurückgesetzt, um neuen Ordner zu erstellen")
+        print("Überprüfe ob ein halber Tag seit letztem Fang vergangen ist. Wenn ja, wird Kontrollbit zurückgesetzt, um neuen Ordner zu erstellen")
         control_bit = gap_day()
 
     if not control_bit:
@@ -225,7 +226,7 @@ def start_up(log_mode):
         now_str = now.strftime('%Y-%m-%d %H:%M:%S')
         power_on = now_str
         power_off = (now + timedelta(hours=12)).strftime('%Y-%m-%d %H:%M:%S')
-        log_schreiben(f"Setze Zeiten für Power Management, basiernd auf aktueler Zeit, auf: Power on: {power_on}; Power off: {power_off}", log_mode=log_mode)
+        log_schreiben(f"Setze Zeiten für Power Management, basierend auf aktueler Zeit, auf: Power on: {power_on}; Power off: {power_off}", log_mode=log_mode)
 
     display_text_and_image("Bien-","venido","", "/home/Ento/LepmonOS/startsequenz/Logo_7_9.png",1)
     try:
@@ -308,18 +309,26 @@ def start_up(log_mode):
     if sn in ["SN010010", "SN010011"]:
         jetzt_local, _, _= Zeit_aktualisieren(log_mode=log_mode)
         Delay, Box_Experiment_Run, Round = get_experiment_delay(sn, jetzt_local)
+        Delay_str = str(Delay).split()[-1]
         log_schreiben("==============================================", log_mode=log_mode)
         log_schreiben(f"ARNI im Experiment für Boundingboxen mit Delay eingesetzt", log_mode=log_mode)
         log_schreiben("----------------------------------------------", log_mode=log_mode)
-        log_schreiben(f"{'Verzögerung':<22} | {Delay.strftime('%H:%M:%S')}", log_mode=log_mode)
+        log_schreiben(f"{'Verzögerung':<22} | {Delay_str}", log_mode=log_mode)
         log_schreiben(f"{'Box Experiment Run':<22} | {Box_Experiment_Run}", log_mode=log_mode)
         log_schreiben(f"{'Runde':<22} | {Round}", log_mode=log_mode)
+        log_schreiben("==============================================", log_mode=log_mode)
+        try:
+            log_schreiben(f"Start auf diesem ARNI: {experiment_start_time + Delay}", log_mode=log_mode)
+        except Exception as e:
+            log_schreiben(f"Fehler beim Berechnen der Startzeit mit Delay: {e}", log_mode=log_mode)
 
 
-    log_schreiben("==============================================", log_mode=log_mode)
-    log_schreiben("beende Setup", log_mode=log_mode)
-    log_schreiben("==============================================", log_mode=log_mode)
+    log_schreiben("##################################", log_mode=log_mode)
+    log_schreiben("##################################", log_mode=log_mode)
+    log_schreiben("beende start_up", log_mode=log_mode)
+    log_schreiben("##################################", log_mode=log_mode)
+    log_schreiben("##################################", log_mode=log_mode)
 
 
 if __name__ == "__main__":
-    start_up(log_mode="manual")     
+    start_up(log_mode="log")     

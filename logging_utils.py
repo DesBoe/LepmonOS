@@ -96,6 +96,7 @@ Logging_MESSAGES = {
     14: ("Foto hat Sanity Check nicht bestanden und wurde neu aufgenommen", "Fehler 14"),
     15: ("Pakete installation nach Update fehlgeschlagen", "Fehler 15"),
     16: ("Land/Region konnte nicht bestimmt werden", "Fehler 16"),
+    17: {"Prüfe Knopfzellen Batterie der RTC", "Fehler 17"}
 }
 
 ERROR_COUNTER_ADDR = {
@@ -115,6 +116,7 @@ ERROR_COUNTER_ADDR = {
     14: 0x09E0,
     15: 0x0A00,
     16: 0x0A20,
+    17: 0x0A40
 }
 
 def increment_error_counter(error_number):

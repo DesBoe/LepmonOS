@@ -506,7 +506,7 @@ FRAM_MEMORY_MAP = {
         "description": "Err 13 Metadaten Tabelle",
         "type": "RPI"
     },
-    (0x09D0, 0x09BD): {
+    (0x09D0, 0x09DF): {
         "size": 16,
         "description": "Err 14 Foto Sanity Check",
         "type": "Label"
@@ -515,9 +515,41 @@ FRAM_MEMORY_MAP = {
         "size": 16,
         "description": "Err 14 Foto Sanity Check",
         "type": "RPI"
-    },    
-    (0x09F0, 0x1BFF): {
-        "size": 4624,
+    }, 
+    (0x09F0, 0x09FF): {
+        "size": 16,
+        "description": "Err 15 Package Installation",
+        "type": "Label" 
+    },
+    (0x0A00, 0x0A0F): {
+        "size": 16,
+        "description": "Err 15 Package Installation",
+        "type": "RPI"
+    },
+    (0x0A10, 0x0A1F): {
+        "size": 16,
+        "description": "Err 16 Region not determined",
+        "type": "Label" 
+    },
+    (0x0A20, 0x0A2F): {
+        "size": 16,
+        "description": "Err 16 Region not determined",
+        "type": "RPI"
+    },
+    (0x0A30, 0x0A3F): {
+        "size": 16,
+        "description": "Err 17 RTC Battery Alarm",
+        "type": "Label" 
+    },
+    (0x0A40, 0x0A4F): {
+        "size": 16,
+        "description": "Err 17 RTC Battery Alarm",
+        "type": "RPI"
+    },
+
+
+    (0x0A50, 0x1BFF): {
+        "size": 4528,
         "description": "FREE",
         "type": "RPI"
     },    

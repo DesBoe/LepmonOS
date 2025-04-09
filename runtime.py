@@ -1,6 +1,7 @@
 import time
 from fram_operations import*
 import datetime
+from hardware import *
 
 
 
@@ -103,11 +104,15 @@ def gap_day():
         difference = round((now - activity_time).total_seconds(), 0)
         print(f"Letzter Aktivitätszeitstempel: {activity_time}, jetzt:{now}, Unterschied in Sekunden: {difference}")
         
-        # Überprüfe, ob der Unterschied mehr als 1 Tag beträgt
-        return difference <= 86399  # 86400 Sekunden = 1 Tag
+        # Überprüfe, ob der Unterschied mehr als 12 h beträgt
+        return difference <= 43199  # 43200 Sekunden = 12 Stunden
     except Exception as e:
         print(f"Fehler beim Überprüfen des Aktivitätszeitstempels: {e}")
-        return False
+        if get_hardware_version() not in ["Pro_Gen_1", "Pro_Gen_2"]:
+             print("Da es sich nicht um einen ARNI mit FRAM handelt, wird angenommen, dass kein Tag vergangen ist.")
+             return True
+        else:
+            return False
 
 if __name__ == "__main__":
     print("Laufzeitwerkzeuge")

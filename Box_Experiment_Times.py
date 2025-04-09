@@ -1,5 +1,4 @@
 import pandas as pd
-
 def load_experiment_table(csv_path):
     df = pd.read_csv(csv_path)
 
@@ -13,12 +12,19 @@ def load_experiment_table(csv_path):
     return df
 
 
-def get_experiment_delay(df, sn, timestamp):
+def get_experiment_delay(sn, timestamp):
     """
     sn: z.B. "SN010010"
     timestamp: datetime oder String
     """
 
+    try:
+        df = load_experiment_table("/home/Ento/LepmonOS/Box_Experiment_Delays.csv")
+    except:
+        try:
+            df = load_experiment_table("/Volumes/Dennis_OTG/LEPMON/Raspberry_Pi/LepmonOS/Box_Experiment_Delays.csv")
+        except Exception as e:
+            print(f"Fehler beim Laden der Experimenttabelle: {e}")
     # Falls String → datetime
     timestamp = pd.to_datetime(timestamp)
 
@@ -37,7 +43,7 @@ def get_experiment_delay(df, sn, timestamp):
     row = result.iloc[0]
 
     
-    Delay= row["Delay_timedelta"],
+    Delay= row["Delay_timedelta"]
     Box_Experiment_Run = row["Box_Experiment_Run"]
     Round = row["Round"]
 
@@ -45,11 +51,10 @@ def get_experiment_delay(df, sn, timestamp):
 
 
 
+if __name__ == "__main__":
 
+    Delay, Box_Experiment_Run, Round = get_experiment_delay("SN010010", "2026-04-03 13:00")
 
-
-df = load_experiment_table("/Volumes/Dennis_OTG/LEPMON/Raspberry_Pi/LepmonOS/Box_Experiment_Delays.csv")
-
-Delay, Box_Experiment_Run, Round = get_experiment_delay(df, "SN010010", "2026-04-03 13:00")
-
-print(Delay, Box_Experiment_Run, Round)
+    #print(Delay, Box_Experiment_Run, Round)
+    Delay_str = str(Delay).split()[-1]
+    print(Delay_str)

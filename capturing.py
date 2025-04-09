@@ -416,7 +416,8 @@ def capturing(log_mode):
             except Exception as e:
                 log_schreiben("Verbrauchter Speicher und gezählte Bildernicht gemessen: {e}",log_mode)
                 pass
-
+            log_schreiben("##################################", log_mode)
+            log_schreiben("##################################", log_mode)
             log_schreiben("Beende Daten und Bildaufnahme",log_mode)
             log_schreiben("Leite zum Ausschalten über...",log_mode)
             log_schreiben("##################################", log_mode)
