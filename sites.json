@@ -15,7 +15,7 @@
   },
   "Germany": {
       "Baden-Württemberg": ["BW", "AA", "AB", "BC", "BL", "FR", "HD", "HN", "KA", "LB", "RT", "S", "TÜ", "UL", "WN", "ZAK"],
-      "Bayern": ["BY","A", "AB", "AN", "AÖ", "AS", "BA", "BT", "BY", "CO", "DON", "EBE", "ER", "FS", "IN", "KG", "LA", "M", "N", "PAF", "REG", "RO", "SAD", "SOB", "SR", "TIR", "TS", "WÜ"],
+      "Bayern": ["BY","A", "AB", "AN", "AÖ", "AS", "BA", "BT", "BY", "CO", "DON", "EBE", "ER", "FS", "IN", "KG", "LA", "M", "N", "PAF", "R", "REG", "RO", "SAD", "SOB", "SR", "TIR", "TS", "WÜ"],
       "Berlin": ["BE","B"],
       "Brandenburg": ["BB","BAR", "BRB", "CB", "EE", "FF", "HVL", "LDS", "LÜB", "MOL", "P", "PIR", "SPN"],
       "Bremen": ["HB", "BH"],
