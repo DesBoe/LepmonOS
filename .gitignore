@@ -1,0 +1,38 @@
+._*
+*.png
+icon*
+Logo*
+.git
+README.md
+
+# Python spezifische Ausschlüsse
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+git
+# Betriebssystem spezifische Ausschlüsse
+.DS_Store
+Thumbs.db
+
+# Logs und temporäre Dateien
+*.log
+*.tmp
+
+# Virtuelle Umgebungen
+venv/
+.env/
+
+# CSV-Dateien und Ergebnisse
+*.csv
+execution_times.csv
+*_result/
+
+# IDE spezifische Ausschlüsse
+.vscode/
+.idea/
+
+# Logo
+logo.png
+Logo.afdesign
+Logo.*

@@ -1,0 +1,60 @@
+{
+    "general": {
+        "serielnumber": "SN010023",
+        "project_name": "Lepmon#",
+        "usb_drive": "/media/Ento/8D6E-230F",
+        "current_folder": "/media/Ento/8D6E-230F/Lepmon#SN010023_BR_BR_2026-05-14_T_2255",
+        "current_log": "/media/Ento/8D6E-230F/Lepmon#SN010023_BR_BR_2026-05-14_T_2255/Lepmon#SN010023_BR_BR_2026-05-14_T_2255.log",
+        "language": "en",
+        "expected_images": 318,
+        "Control_Night": true,
+        "Control_End": true
+    },
+    "locality": {
+        "country": "Albania",
+        "province": "BR",
+        "Kreis": "BR",
+        "do_not_delete_path": "/media/Ento/8D6E-230F/Lepmon#SN010023_AA_BBB_2026-05-14_T_2255"
+    },
+    "capture_mode": {
+        "minutes_to_sunset": 15,
+        "minutes_to_sunrise": 60,
+        "flash": 0.25,
+        "interval": 2,
+        "dusk_treshold": 90,
+        "error_code": 1,
+        "initial_exposure": 150,
+        "initial_gain": 7,
+        "current_exposure": 130,
+        "current_gain": 5,
+        "Heizung": false
+    },
+    "image_quality": {
+        "black_sanity_level": 0.025,
+        "brightness_tolerance": 8,
+        "brightness_reference": 170,
+        "minimal_gain": 5,
+        "maximal_gain": 15,
+        "step_gain": 0.5,
+        "maximal_exposure": 170,
+        "minimal_exposure": 100,
+        "step_exposure": 5,
+        "focus_threshold": 225.0,
+        "gamma_correction": true,
+        "gamma_value": 1.5
+    },
+    "GPS": {
+        "latitude": 50.3456789,
+        "Pol": "N",
+        "longitude": 11.456789,
+        "Block": "E"
+    },
+    "software": {
+        "version": "2.1.5",
+        "date": "2025-01-21"
+    },
+    "powermode": {
+        "supply": "Netz",
+        "Heizung": true
+    }
+}
