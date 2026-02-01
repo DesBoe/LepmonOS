@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        :root {
+            --bg-dark: #1a1a2e;
+            --bg-card: #16213e;
+            --accent: #0f3460;
+            --highlight: #e94560;
+            --text: #eaeaea;
+            --text-dim: #888;
+            --success: #4ade80;
+            --warning: #fbbf24;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: var(--bg-card);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--accent);
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--highlight);
+        }
+        
+        .logo span {
+            color: var(--text);
+        }
+        
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .status-idle {
+            background: var(--success);
+            color: #000;
+        }
+        
+        .status-capturing {
+            background: var(--warning);
+            color: #000;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 2rem;
+        }
+        
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .stream-container {
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .stream-header {
+            padding: 1rem 1.5rem;
+            background: var(--accent);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .stream-header h2 {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+        
+        .stream-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: var(--highlight);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #d63d55;
+        }
+        
+        .btn-secondary {
+            background: var(--accent);
+            color: var(--text);
+            border: 1px solid var(--text-dim);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--bg-card);
+        }
+        
+        .stream-video {
+            width: 100%;
+            display: block;
+            background: #000;
+            min-height: 400px;
+        }
+        
+        .stream-footer {
+            padding: 0.75rem 1.5rem;
+            background: var(--accent);
+            font-size: 0.875rem;
+            color: var(--text-dim);
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .card h3 {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            color: var(--highlight);
+            border-bottom: 1px solid var(--accent);
+            padding-bottom: 0.5rem;
+        }
+        
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--accent);
+        }
+        
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+        
+        .stat-label {
+            color: var(--text-dim);
+        }
+        
+        .stat-value {
+            font-weight: 500;
+            font-family: 'SF Mono', 'Consolas', monospace;
+        }
+        
+        .stat-value.good {
+            color: var(--success);
+        }
+        
+        .stat-value.warning {
+            color: var(--warning);
+        }
+        
+        .focus-meter {
+            margin-top: 1rem;
+            background: var(--accent);
+            border-radius: 8px;
+            overflow: hidden;
+            height: 24px;
+            position: relative;
+        }
+        
+        .focus-meter-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--highlight), var(--success));
+            transition: width 0.3s ease;
+        }
+        
+        .focus-meter-label {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        }
+        
+        .instructions {
+            background: var(--accent);
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+        
+        .instructions h4 {
+            margin-bottom: 0.5rem;
+            color: var(--success);
+        }
+        
+        .instructions ul {
+            margin-left: 1.25rem;
+        }
+        
+        .instructions li {
+            margin: 0.25rem 0;
+            color: var(--text-dim);
+        }
+        
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        .alert-warning {
+            background: rgba(251, 191, 36, 0.2);
+            border: 1px solid var(--warning);
+            color: var(--warning);
+        }
+        
+        .alert-warning.show {
+            display: block;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-dim);
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">LEP<span>MON</span></div>
+        <div id="systemStatus" class="status-badge status-idle">System Idle</div>
+    </header>
+    
+    <main class="container">
+        <div class="stream-container">
+            <div class="stream-header">
+                <h2>📷 Live Camera Stream</h2>
+                <div class="stream-controls">
+                    <button class="btn btn-secondary" onclick="toggleStream()">
+                        <span id="streamToggle">Stop Stream</span>
+                    </button>
+                    <button class="btn btn-primary" onclick="takeSnapshot()">
+                        📸 Snapshot
+                    </button>
+                </div>
+            </div>
+            
+            <div id="captureAlert" class="alert alert-warning">
+                ⚠️ Capturing in progress - camera stream shows status only
+            </div>
+            
+            <img id="streamImage" class="stream-video" src="/stream" alt="Camera Stream">
+            
+            <div class="stream-footer">
+                <span id="streamStatus">Stream active</span>
+                <span id="timestamp">--:--:--</span>
+            </div>
+        </div>
+        
+        <aside class="sidebar">
+            <div class="card">
+                <h3>📊 Focus Analysis</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Focus Score</span>
+                    <span id="focusScore" class="stat-value">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Status</span>
+                    <span id="focusStatus" class="stat-value">--</span>
+                </div>
+                <div class="focus-meter">
+                    <div id="focusMeterFill" class="focus-meter-fill" style="width: 0%"></div>
+                    <span id="focusMeterLabel" class="focus-meter-label">0%</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>📈 System Status</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Capturing</span>
+                    <span id="capturingStatus" class="stat-value">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Images Captured</span>
+                    <span id="imagesCount" class="stat-value">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Stream Viewers</span>
+                    <span id="viewersCount" class="stat-value">--</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>🔧 Camera Info</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Camera</span>
+                    <span id="cameraModel" class="stat-value">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Serial</span>
+                    <span id="cameraSerial" class="stat-value">--</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>📖 Focus Instructions</h3>
+                <div class="instructions">
+                    <h4>Focusing Procedure</h4>
+                    <ul>
+                        <li>Watch the Focus Score value</li>
+                        <li>Turn the focus ring slowly</li>
+                        <li>Maximize the focus score</li>
+                        <li>Values above 225 are sharp</li>
+                        <li>Higher is better!</li>
+                    </ul>
+                </div>
+            </div>
+        </aside>
+    </main>
+    
+    <footer>
+        Lepmon Insect Monitoring System | Allied Vision Camera Interface
+    </footer>
+    
+    <script>
+        let streamActive = true;
+        const streamImage = document.getElementById('streamImage');
+        
+        function toggleStream() {
+            const toggleBtn = document.getElementById('streamToggle');
+            if (streamActive) {
+                streamImage.src = '';
+                toggleBtn.textContent = 'Start Stream';
+                document.getElementById('streamStatus').textContent = 'Stream paused';
+            } else {
+                streamImage.src = '/stream?' + new Date().getTime();
+                toggleBtn.textContent = 'Stop Stream';
+                document.getElementById('streamStatus').textContent = 'Stream active';
+            }
+            streamActive = !streamActive;
+        }
+        
+        function takeSnapshot() {
+            window.open('/snapshot', '_blank');
+        }
+        
+        function updateStatus() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    const statusBadge = document.getElementById('systemStatus');
+                    const captureAlert = document.getElementById('captureAlert');
+                    
+                    if (data.is_capturing) {
+                        statusBadge.textContent = 'Capturing Active';
+                        statusBadge.className = 'status-badge status-capturing';
+                        captureAlert.classList.add('show');
+                    } else {
+                        statusBadge.textContent = 'System Idle';
+                        statusBadge.className = 'status-badge status-idle';
+                        captureAlert.classList.remove('show');
+                    }
+                    
+                    document.getElementById('capturingStatus').textContent = 
+                        data.is_capturing ? 'Yes' : 'No';
+                    document.getElementById('capturingStatus').className = 
+                        'stat-value ' + (data.is_capturing ? 'warning' : 'good');
+                    
+                    document.getElementById('imagesCount').textContent = data.images_captured || '0';
+                    document.getElementById('viewersCount').textContent = data.stream_consumers || '0';
+                    document.getElementById('timestamp').textContent = data.timestamp;
+                })
+                .catch(err => console.error('Status update failed:', err));
+        }
+        
+        function updateFocus() {
+            fetch('/api/focus')
+                .then(response => response.json())
+                .then(data => {
+                    const score = data.focus_score || 0;
+                    const threshold = 225;
+                    const maxScore = 500;  // For display normalization
+                    
+                    document.getElementById('focusScore').textContent = score.toFixed(1);
+                    document.getElementById('focusScore').className = 
+                        'stat-value ' + (score >= threshold ? 'good' : 'warning');
+                    
+                    document.getElementById('focusStatus').textContent = 
+                        score >= threshold ? '✓ Sharp' : '⚠ Adjust Focus';
+                    document.getElementById('focusStatus').className = 
+                        'stat-value ' + (score >= threshold ? 'good' : 'warning');
+                    
+                    // Update meter
+                    const percent = Math.min(100, (score / maxScore) * 100);
+                    document.getElementById('focusMeterFill').style.width = percent + '%';
+                    document.getElementById('focusMeterLabel').textContent = score.toFixed(0);
+                })
+                .catch(err => console.error('Focus update failed:', err));
+        }
+        
+        function updateCameraInfo() {
+            fetch('/api/camera/info')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.available) {
+                        document.getElementById('cameraModel').textContent = data.model || 'Unknown';
+                        document.getElementById('cameraSerial').textContent = data.serial || 'Unknown';
+                    } else {
+                        document.getElementById('cameraModel').textContent = 'Not available';
+                        document.getElementById('cameraSerial').textContent = '-';
+                    }
+                })
+                .catch(err => {
+                    document.getElementById('cameraModel').textContent = 'Error';
+                });
+        }
+        
+        // Initial updates
+        updateStatus();
+        updateFocus();
+        updateCameraInfo();
+        
+        // Periodic updates
+        setInterval(updateStatus, 2000);
+        setInterval(updateFocus, 1000);
+        setInterval(updateCameraInfo, 30000);
+        
+        // Handle stream errors
+        streamImage.onerror = function() {
+            if (streamActive) {
+                setTimeout(() => {
+                    streamImage.src = '/stream?' + new Date().getTime();
+                }, 2000);
+            }
+        };
+    </script>
+</body>
+</html>

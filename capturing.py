@@ -21,6 +21,13 @@ from sensor_data import get_light
 from usb_controller import reset_all_usb_ports
 from Daylightsaving import daylight_saving_check
 from service import *
+from capturing_state import (
+    set_capturing_active, 
+    update_capture_progress, 
+    increment_image_count,
+    is_stop_requested,
+    clear_stop_request
+)
 
 
 def capturing(log_mode):
@@ -29,7 +36,12 @@ def capturing(log_mode):
     gamma_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","image_quality","gamma_correction")
     gamma_value = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","image_quality","gamma_value")
 
-    print("starte Capturing")  
+    print("starte Capturing")
+    
+    # Signal that capturing is starting
+    set_capturing_active(True)
+    clear_stop_request()
+    
     heater,Warteschleife = wait(log_mode)
     log_schreiben("##################################", log_mode)
     log_schreiben("##################################", log_mode)
@@ -194,9 +206,23 @@ def capturing(log_mode):
             lokale_Zeit_string = datetime.strptime(lokale_Zeit, "%H:%M:%S")
             
             while not photo_sanity_check and not good_exposure:
+                # Check for stop request from web UI
+                if is_stop_requested():
+                    log_schreiben("Stop requested from web interface", log_mode)
+                    überleiten_zu_shutdown = True
+                    break
+                    
                 code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie, sensor, length, height, avg_brightness, good_exposure, Exposure, gain = snap_image("jpg", "log", Kamera_Fehlerserie, log_mode, Exposure=Exposure, Gain=gain)
                 write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "current_exposure", Exposure)
                 write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "current_gain", gain)
+                
+                # Update capture state for web UI
+                update_capture_progress(
+                    current_exposure=Exposure,
+                    current_gain=gain,
+                    last_image_path=current_image
+                )
+                
                 time.sleep(1)
                 if Status_Kamera == 1:
                     try:
@@ -214,6 +240,8 @@ def capturing(log_mode):
                 try:
                         aktuelles_Bild = ram_counter(0x0650)
                         print(f"Bild-Counter im Ram Modul erhöht: {aktuelles_Bild}")
+                        # Update web UI with image count
+                        increment_image_count()
                 except Exception as e:
                         print(f"Fehler beim Schreiben des Bild-Counters im Ram Modul: {e}")
 
@@ -318,6 +346,9 @@ def capturing(log_mode):
             log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###",log_mode)
             log_schreiben("##################################",log_mode)
         
+            # Signal that capturing has ended
+            set_capturing_active(False)
+            
             print("hauptschleife beendet")
             return
     
