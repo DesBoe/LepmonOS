@@ -43,7 +43,7 @@ jobs:
 
     - name: Expand image
       run: |
-        dd if=/dev/zero bs=1M count=2048 >> rpi-os-lite.img
+        dd if=/dev/zero bs=1M count=4096 >> rpi-os-lite.img
         sudo losetup -P /dev/loop0 rpi-os-lite.img
         sudo parted /dev/loop0 resizepart 2 100%
         sudo e2fsck -f -y -v /dev/loop0p2 || echo "e2fsck warnings ignored"
