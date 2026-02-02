@@ -8,6 +8,7 @@ from language import *
 from logging_utils import *
 import re
 from end import trap_shutdown
+from json_read_write import get_value_from_section, write_value_to_section
 
 
 def extract_package_info(whl_name):
@@ -112,7 +113,7 @@ def execute_package_installation(lang, log_mode):
         
         
 def install_packages(log_mode):
-    if read_fram_bytes(0x056F, 1) == b'\x00':
+    if read_fram_bytes(0x056F, 1) == b'\x00' or get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "package_up_to_date") == False:
     #if True:
         lang = get_language()
         show_message("package_1", lang=lang)
@@ -122,6 +123,7 @@ def install_packages(log_mode):
         try:
             execute_package_installation(lang,log_mode)
             write_fram_bytes(0x056F , b'\x01')
+            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "package_up_to_date", True)
             log_schreiben("Installation von Python Paketen beendet", log_mode=log_mode)
             log_schreiben("##################################", log_mode=log_mode)
             log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###", log_mode=log_mode)
@@ -139,7 +141,11 @@ def install_packages(log_mode):
         
         
 if __name__ == "__main__":
-    write_fram_bytes(0x056F, b'\x00')
-    print("Kontrollbit für Paketinstallation auf x00 gesetzt.")
+    try:
+        write_fram_bytes(0x056F, b'\x00')
+    except Exception as e:
+        print(f"Fehler beim Setzen der Kontrollbit: {e}")
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "package_up_to_date", False)
+    print("Kontrolle für Paketinstallation auf x00/ false gesetzt.")
     time.sleep(1)
     install_packages(log_mode="manual")

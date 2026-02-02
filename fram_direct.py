@@ -19,47 +19,60 @@ def write_fram(address: int, text: str):
     │ 0x1C00-1FFF│1024 │ Seriennummer, Kalibrierung, Versionen, Produktion    │
     └────────────┴─────┴──────────────────────────────────────────────────────┘
     """
-    data = text.encode("utf-8")
-    for offset, byte in enumerate(data):
-        high = ((address + offset) >> 8) & 0xFF
-        low = (address + offset) & 0xFF
-        bus.write_i2c_block_data(FRAM_ADDRESS, high, [low, byte])
-    #print(f" '{text}' geschrieben an 0x{address:04X}")
+    try:
+        data = text.encode("utf-8")
+        for offset, byte in enumerate(data):
+            high = ((address + offset) >> 8) & 0xFF
+            low = (address + offset) & 0xFF
+            bus.write_i2c_block_data(FRAM_ADDRESS, high, [low, byte])
+        #print(f" '{text}' geschrieben an 0x{address:04X}")
+    except OSError as e:
+        print(f"Fehler beim Schreiben von 0x{address:04X}: {e}")
 
 def read_fram(address: int, length: int) -> str:
     """Liest eine feste Anzahl Bytes ab Adresse und gibt als String zurück."""
-    result = bytearray()
-    for offset in range(length):
-        high = ((address + offset) >> 8) & 0xFF
-        low = (address + offset) & 0xFF
-        bus.write_i2c_block_data(FRAM_ADDRESS, high, [low])
-        byte = bus.read_byte(FRAM_ADDRESS)
-        result.append(byte)
-    decoded = result.decode(errors="ignore").strip()
-    #print(f"Gelesen von 0x{address:04X} (Länge {length}): '{decoded}'")
-    return decoded
+    try:
+        result = bytearray()
+        for offset in range(length):
+            high = ((address + offset) >> 8) & 0xFF
+            low = (address + offset) & 0xFF
+            bus.write_i2c_block_data(FRAM_ADDRESS, high, [low])
+            byte = bus.read_byte(FRAM_ADDRESS)
+            result.append(byte)
+        decoded = result.decode(errors="ignore").strip()
+        #print(f"Gelesen von 0x{address:04X} (Länge {length}): '{decoded}'")
+        return decoded
+    except OSError as e:
+        print(f"Fehler beim Lesen von 0x{address:04X}: {e}")
+        return None
 
 def write_fram(address: int, data):
     """
     Schreibt einen String oder Bytes byteweise an eine Adresse (max 64 kB FRAM).
     """
-    if isinstance(data, str):
-        data = data.encode("utf-8")
-    for offset, byte in enumerate(data):
-        high = ((address + offset) >> 8) & 0xFF
-        low = (address + offset) & 0xFF
-        bus.write_i2c_block_data(FRAM_ADDRESS, high, [low, byte])
-    #print(f"{data} geschrieben an 0x{address:04X}")
+    try:
+        if isinstance(data, str):
+            data = data.encode("utf-8")
+        for offset, byte in enumerate(data):
+            high = ((address + offset) >> 8) & 0xFF
+            low = (address + offset) & 0xFF
+            bus.write_i2c_block_data(FRAM_ADDRESS, high, [low, byte])
+        #print(f"{data} geschrieben an 0x{address:04X}")
+    except OSError as e:
+        print(f"Fehler beim Schreiben von 0x{address:04X}: {e}")
     
 def write_fram_bytes(address: int, data: bytes):
     """
     Schreibt ein Bytes-Objekt byteweise an eine Adresse (max 64 kB FRAM).
     """
-    for offset, byte in enumerate(data):
-        high = ((address + offset) >> 8) & 0xFF
-        low = (address + offset) & 0xFF
-        bus.write_i2c_block_data(FRAM_ADDRESS, high, [low, byte])
-    #print(f"{data} (bytes) geschrieben an 0x{address:04X}")
+    try:
+        for offset, byte in enumerate(data):
+            high = ((address + offset) >> 8) & 0xFF
+            low = (address + offset) & 0xFF
+            bus.write_i2c_block_data(FRAM_ADDRESS, high, [low, byte])
+        #print(f"{data} (bytes) geschrieben an 0x{address:04X}")
+    except OSError as e:
+        print(f"Fehler beim Schreiben von 0x{address:04X}: {e}")
 
     
 def dump_fram(start=0x00, length=0x80):
@@ -85,15 +98,19 @@ def read_fram_bytes(address: int, length: int) -> bytes:
     """
     Liest eine feste Anzahl Bytes ab Adresse und gibt sie als bytes-Objekt zurück.
     """
-    result = bytearray()
-    for offset in range(length):
-        high = ((address + offset) >> 8) & 0xFF
-        low = (address + offset) & 0xFF
-        bus.write_i2c_block_data(FRAM_ADDRESS, high, [low])
-        byte = bus.read_byte(FRAM_ADDRESS)
-        result.append(byte)
-    #print(f"Gelesen (bytes) von 0x{address:04X} (Länge {length}): {result.hex()}")
-    return bytes(result)
+    try:
+        result = bytearray()
+        for offset in range(length):
+            high = ((address + offset) >> 8) & 0xFF
+            low = (address + offset) & 0xFF
+            bus.write_i2c_block_data(FRAM_ADDRESS, high, [low])
+            byte = bus.read_byte(FRAM_ADDRESS)
+            result.append(byte)
+        #print(f"Gelesen (bytes) von 0x{address:04X} (Länge {length}): {result.hex()}")
+        return bytes(result)
+    except OSError as e:
+        print(f"Fehler beim Lesen von 0x{address:04X}: {e}")
+        return None
 
 if __name__ == "__main__":
     print("FRAM-Dump:")

@@ -57,6 +57,10 @@ def get_power():
             shunt_voltage = round(ina.shunt_voltage(), 2)
             current = round(ina.current(), 2) 
             power = round(ina.power()/1000, 2)
+        
+        elif hardware == "Pro_Gen_1" or hardware == "Pro_Gen_2":
+            print("Warnung: Stromsensor ist auf diesem Hardware-Modell nicht verfügbar.")
+            Sensorstatus_Strom = 1
 
     except Exception as e:
         print("Fehler 7 - Stromsensor ausgefallen")
@@ -121,12 +125,12 @@ def read_sensor_data(code,lokale_Zeit, log_mode):
     
         
     bus_voltage, shunt_voltage, current, power, Sensorstatus_Strom = get_power()
-    if Sensorstatus_Strom == 0:
+    if Sensorstatus_Strom == 0 or Sensorstatus_Strom == 1 and get_hardware_version() in ["Pro_Gen_1", "Pro_Gen_2"]:
         update_sensor_data(sensor_data, "bus_voltage_(V)", "---")
         update_sensor_data(sensor_data, "shunt_voltage_(V)", "---")
         update_sensor_data(sensor_data, "current_(mA)", "---")
         update_sensor_data(sensor_data, "power_(W)", "---")
-    elif Sensorstatus_Strom == 1:
+    elif Sensorstatus_Strom == 1 and not get_hardware_version() in ["Pro_Gen_1", "Pro_Gen_2"]:
         
         update_sensor_data(sensor_data, "bus_voltage_(V)", f"{bus_voltage:.2f}")
         update_sensor_data(sensor_data, "shunt_voltage_(V)", f"{shunt_voltage:.2f}")

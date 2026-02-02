@@ -301,8 +301,10 @@ def capturing(log_mode):
                     Status_LED = "---"
                 
                 sensors["Status_Visible_LED"] = Status_LED 
-                sensors["Power_Visible_LED_(W)"] = f"{power_on:.2f}" 
-                        
+                if not power_on == "---":
+                    sensors["Power_Visible_LED_(W)"] = f"{power_on:.2f}" 
+                elif power_on == "---":
+                    sensors["Power_Visible_LED_(W)"] = "---"                    
                 if UV_active:
                     sensors["LepiLED"] = "active" 
                 elif not UV_active:

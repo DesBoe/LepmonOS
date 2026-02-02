@@ -6,6 +6,7 @@ from times import *
 from logging_utils import *
 from fram_operations import read_fram
 from sensor_data import *
+from hardware import get_device_info
 
 def erstelle_und_aktualisiere_csv(sensor_data, log_mode):
     path = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
@@ -41,11 +42,21 @@ def erstelle_und_aktualisiere_csv(sensor_data, log_mode):
             sensor_id = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")  
             dusk_treshold = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "dusk_treshold")
             interval = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "interval")
+
+            sensor = get_device_info("sensor")
+            kamera = get_device_info("camera")
+            length = get_device_info("length")
+            height = get_device_info("height")
             
             with open(csv_path, mode='w', newline='') as csvfile:
                 csv_writer = csv.writer(csvfile, delimiter='\t')  # Setze den Tabulator als Trennzeichen
+                csv_writer.writerow(["#Machine ID:",                sensor_id])
                 csv_writer.writerow(["#Software:",                  f"{Version} vom {date}"])    
-                csv_writer.writerow(["ARNI-Generation:",            ARNI_Gen])   
+                csv_writer.writerow(["ARNI-Generation:",            ARNI_Gen])  
+                csv_writer.writerow(["#Kamera:",                    kamera])
+                csv_writer.writerow(["#Sensor:",                    sensor])
+                csv_writer.writerow(["#Auflösung:",                 f"{length} x {height}"])
+
                 csv_writer.writerow(["#Stromversorgung:",           Strom])         
                 csv_writer.writerow([])  
                 csv_writer.writerow(["#Experiment Parameter:",])            
@@ -64,7 +75,6 @@ def erstelle_und_aktualisiere_csv(sensor_data, log_mode):
                 csv_writer.writerow(["#Beginn Monitoring:",         experiment_start_time])
                 csv_writer.writerow(["#Ende Monitoring:",           experiment_end_time])
                 csv_writer.writerow([])
-                csv_writer.writerow(["#Machine ID:",                sensor_id])
                 csv_writer.writerow(["#Dämmerungs Schwellenwert:",  f"{dusk_treshold} Lux"])
                 csv_writer.writerow(["#Aufnahme Intervall:",        f"{interval} min"])
                 csv_writer.writerow([])

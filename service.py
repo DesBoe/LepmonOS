@@ -100,7 +100,7 @@ def get_usb_path(log_mode):
             time.sleep(.5)
             turn_off_led("gelb")
         if search_counter > 24:
-            print("USB Stick nach 25 versuchen nicht gefunden. Zielverzeichneis ist None")
+            print("USB Stick nach 25 versuchen nicht gefunden. Zielverzeichnis ist None")
             zielverzeichnis = "Kein USB-Stick gefunden"
             return zielverzeichnis, status
         if os.path.exists(media_path):
