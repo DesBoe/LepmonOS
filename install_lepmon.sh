@@ -15,6 +15,10 @@ apt-get install -y python3 python3-pip python3-dev build-essential pkg-config \
 apt-get install -y hostapd dnsmasq iptables-persistent wpasupplicant \
                   rfkill iproute2 nftables python3-prctl libcap2-bin
 
+# Clean apt cache to free up space
+apt-get clean
+rm -rf /var/lib/apt/lists/*
+
 # --- User / auto-login / SSH (Bookworm boot path is /boot/firmware) ---
 if ! id Ento >/dev/null 2>&1; then 
   useradd -m -s /bin/bash -G sudo,video,gpio,i2c,spi,dialout Ento
@@ -72,6 +76,10 @@ pip install --break-system-packages \
 if [ -d /home/Ento/LepmonOS/packages ]; then
   pip install --break-system-packages /home/Ento/LepmonOS/packages/*.whl || true
 fi
+
+# Clean pip cache to free up space
+pip cache purge 2>/dev/null || true
+rm -rf /root/.cache/pip
 
 # Set capability for Python after pip installs
 which python3.11 && setcap 'cap_net_bind_service=+ep' $(which python3.11) || true

@@ -43,7 +43,7 @@ jobs:
 
     - name: Expand image
       run: |
-        dd if=/dev/zero bs=1M count=2048 >> rpi-os-lite.img
+        dd if=/dev/zero bs=1M count=3072 >> rpi-os-lite.img
         sudo losetup -P /dev/loop0 rpi-os-lite.img
         sudo parted /dev/loop0 resizepart 2 100%
         sudo e2fsck -f -y -v /dev/loop0p2 || echo "e2fsck warnings ignored"
@@ -60,8 +60,21 @@ jobs:
         sudo mount -t sysfs sysfs /tmp/rpi-root/sys
         sudo mount --bind /dev /tmp/rpi-root/dev
         sudo mount --bind /dev/pts /tmp/rpi-root/dev/pts
+        
+        # Copy LepmonOS files (exclude large directories to save space)
         sudo mkdir -p /tmp/rpi-root/home/Ento/LepmonOS
-        sudo cp -r ./* /tmp/rpi-root/home/Ento/LepmonOS/ || true
+        sudo mkdir -p /tmp/rpi-root/home/Ento/LepmonOS/packages
+        sudo mkdir -p /tmp/rpi-root/home/Ento/LepmonOS/geo_ref_shapes
+        
+        # Copy Python files and configs
+        sudo cp -r *.py *.sh *.json *.xml *.md /tmp/rpi-root/home/Ento/LepmonOS/ 2>/dev/null || true
+        
+        # Copy templates directory if it exists
+        if [ -d templates ]; then sudo cp -r templates /tmp/rpi-root/home/Ento/LepmonOS/; fi
+        
+        # Copy packages and geo_ref_shapes
+        sudo cp -r packages/* /tmp/rpi-root/home/Ento/LepmonOS/packages/ 2>/dev/null || true
+        sudo cp -r geo_ref_shapes/* /tmp/rpi-root/home/Ento/LepmonOS/geo_ref_shapes/ 2>/dev/null || true
 
     - name: Install in chroot
       run: |
