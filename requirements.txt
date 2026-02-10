@@ -1,0 +1,53 @@
+# Lepmon OS Python Dependencies
+# Install with: pip install --break-system-packages -r requirements.txt
+
+# --- Web Service ---
+fastapi
+uvicorn[standard]
+jinja2
+python-multipart
+aiofiles
+
+# --- Camera (Allied Vision) ---
+# VmbPy is installed separately via VimbaX SDK setup
+# https://github.com/alliedvision/VmbPy/releases
+Pillow
+imutils
+opencv-python-headless
+
+# --- Sensors & Hardware ---
+RPi.GPIO
+gpiozero
+smbus2
+board
+adafruit-blinka
+adafruit-circuitpython-bh1750
+adafruit-circuitpython-pct2075
+adafruit-circuitpython-ds3231
+bme280
+
+# --- Display ---
+luma.core
+luma.oled
+
+# --- Power Monitoring ---
+# INA226 driver installed from GitHub
+# https://github.com/e71828/pi_ina226/archive/refs/heads/main.zip
+
+# --- Communication ---
+pyserial
+
+# --- Time & Location ---
+pytz
+ephem
+timezonefinder==6.5.7
+
+# --- Data & Config ---
+numpy
+pyyaml
+pycountry
+
+# --- GitHub-based packages (installed separately) ---
+# https://github.com/alliedvision/VimbaPython/archive/refs/heads/master.zip
+# https://github.com/e71828/pi_ina226/archive/refs/heads/main.zip
+# https://github.com/openUC2/imswitchclient/archive/refs/heads/main.zip

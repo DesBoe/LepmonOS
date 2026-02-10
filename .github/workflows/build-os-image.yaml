@@ -43,7 +43,7 @@ jobs:
 
     - name: Expand image
       run: |
-        dd if=/dev/zero bs=1M count=3072 >> rpi-os-lite.img
+        dd if=/dev/zero bs=1M count=5120 >> rpi-os-lite.img
         sudo losetup -P /dev/loop0 rpi-os-lite.img
         sudo parted /dev/loop0 resizepart 2 100%
         sudo e2fsck -f -y -v /dev/loop0p2 || echo "e2fsck warnings ignored"
@@ -66,8 +66,8 @@ jobs:
         sudo mkdir -p /tmp/rpi-root/home/Ento/LepmonOS/packages
         sudo mkdir -p /tmp/rpi-root/home/Ento/LepmonOS/geo_ref_shapes
         
-        # Copy Python files and configs
-        sudo cp -r *.py *.sh *.json *.xml *.md /tmp/rpi-root/home/Ento/LepmonOS/ 2>/dev/null || true
+        # Copy Python files, configs, requirements, docs
+        sudo cp -r *.py *.sh *.json *.xml *.md *.txt /tmp/rpi-root/home/Ento/LepmonOS/ 2>/dev/null || true
         
         # Copy templates directory if it exists
         if [ -d templates ]; then sudo cp -r templates /tmp/rpi-root/home/Ento/LepmonOS/; fi
@@ -156,12 +156,12 @@ jobs:
           - User: Ento
           - Password: lepmon
           - WiFi AP SSID: Lepmon-XXXX-XXXX (unique per device)
-          - WiFi AP Password: lepmon
+          - WiFi AP Password: lepmon12
           
           ### Quick Start
           1. Flash this image to an SD card (8GB+ recommended)
           2. Boot the Raspberry Pi
-          3. Connect to WiFi AP "Lepmon-XXXX-XXXX" (password: lepmon)
+          3. Connect to WiFi AP "Lepmon-XXXX-XXXX" (password: lepmon12)
           4. Access the web interface at http://192.168.4.1:8080/
           5. Or via Ethernet at http://<eth0-ip>:8080/
         prerelease: ${{ github.event.inputs.prerelease || false }}

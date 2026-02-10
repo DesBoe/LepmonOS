@@ -1,212 +1,288 @@
 #!/usr/bin/env bash
 set -e
 
+# ===========================================================================
+# Lepmon OS Installation Script
+# Runs inside aarch64 chroot during SD card image build
+# ===========================================================================
+
 export DEBIAN_FRONTEND=noninteractive
 echo "nameserver 8.8.8.8" > /etc/resolv.conf
 apt-get update
 
-# Install system dependencies for Lepmon
-apt-get install -y python3 python3-pip python3-dev build-essential pkg-config \
-                  git curl wget i2c-tools python3-smbus python3-gpiozero \
-                  python3-rpi.gpio libatlas-base-dev libopenblas-dev \
-                  python3-opencv python3-numpy python3-pil
+# ---------------------------------------------------------------------------
+# System packages
+# ---------------------------------------------------------------------------
+apt-get install -y --no-install-recommends \
+  python3 python3-pip python3-dev python3-venv \
+  build-essential pkg-config \
+  git curl wget \
+  i2c-tools python3-smbus python3-gpiozero python3-rpi.gpio \
+  libatlas-base-dev libopenblas-dev \
+  python3-opencv python3-numpy python3-pil \
+  libusb-1.0-0 libcap2-bin
 
-# Install networking and access point tools
-apt-get install -y hostapd dnsmasq iptables-persistent wpasupplicant \
-                  rfkill iproute2 nftables python3-prctl libcap2-bin
+# Networking / Access-Point
+apt-get install -y --no-install-recommends \
+  hostapd dnsmasq iptables-persistent wpasupplicant \
+  rfkill iproute2 nftables python3-prctl
 
-# Clean apt cache to free up space
+# SSH server (ensure it is present)
+apt-get install -y --no-install-recommends openssh-server
+
+# Free space immediately
 apt-get clean
 rm -rf /var/lib/apt/lists/*
 
-# --- User / auto-login / SSH (Bookworm boot path is /boot/firmware) ---
-if ! id Ento >/dev/null 2>&1; then 
+# ---------------------------------------------------------------------------
+# User / auto-login / SSH
+# ---------------------------------------------------------------------------
+if ! id Ento >/dev/null 2>&1; then
   useradd -m -s /bin/bash -G sudo,video,gpio,i2c,spi,dialout Ento
 fi
 echo "Ento:lepmon" | chpasswd
 
-# Add capability to bind to privileged ports for Ento user
-setcap 'cap_net_bind_service=+ep' /usr/bin/python3.11 || echo "Warning: Could not set capability for Python"
+# Sudo without password (helpful in field)
+echo "Ento ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ento-nopasswd
+chmod 440 /etc/sudoers.d/ento-nopasswd
 
-# Configure auto-login for getty on tty1
+# -- Auto-login on tty1 --
 mkdir -p /etc/systemd/system/getty@tty1.service.d
-cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf << 'AUTOLOGIN'
+cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf <<'EOF'
 [Service]
 ExecStart=
 ExecStart=-/sbin/agetty --autologin Ento --noclear %I $TERM
-AUTOLOGIN
+EOF
 
-# Configure auto-login for serial console
+# -- Auto-login on serial console --
 mkdir -p /etc/systemd/system/serial-getty@ttyS0.service.d
-cat > /etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf << 'SERIALAUTOLOGIN'
+cat > /etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf <<'EOF'
 [Service]
 ExecStart=
 ExecStart=-/sbin/agetty --autologin Ento --noclear %I 115200,38400,9600 vt102
-SERIALAUTOLOGIN
+EOF
 
 # Disable first-boot user configuration wizards
 systemctl disable userconfig.service 2>/dev/null || true
-systemctl mask userconfig.service 2>/dev/null || true
-systemctl disable piwiz.service 2>/dev/null || true
-systemctl mask piwiz.service 2>/dev/null || true
+systemctl mask    userconfig.service 2>/dev/null || true
+systemctl disable piwiz.service      2>/dev/null || true
+systemctl mask    piwiz.service      2>/dev/null || true
 
-# Enable SSH
+# -- SSH: enable multiple ways to be safe --
+systemctl enable ssh.service 2>/dev/null || true
 touch /boot/firmware/ssh
 
-# Set up user credentials for first boot (Bookworm requirement)
+# Bookworm userconf.txt so the image boots with Ento user
 echo 'Ento:$6$rounds=656000$lepmonrandomsalt$gV8Q7nKxJrP2wM5L4fH9Y6t3R0uS1aZ8c4E7b2N5xW6vD3kF8jG1hI0mJ9oK2pL4qM6nO7rP8sQ9tU0wV1xY2zA' > /boot/firmware/userconf.txt
 
-# --- Lepmon App Install ---
+# ---------------------------------------------------------------------------
+# Enable I2C, SPI and Serial (UART) in config.txt
+# ---------------------------------------------------------------------------
+CFG=/boot/firmware/config.txt
+
+grep -q '^dtparam=i2c_arm=on'       "$CFG" || echo "dtparam=i2c_arm=on"       >> "$CFG"
+grep -q '^dtparam=spi=on'           "$CFG" || echo "dtparam=spi=on"           >> "$CFG"
+grep -q '^enable_uart=1'            "$CFG" || echo "enable_uart=1"            >> "$CFG"
+grep -q '^dtoverlay=pwm-2chan'      "$CFG" || echo "dtoverlay=pwm-2chan"      >> "$CFG"
+grep -q '^dtoverlay=i2c-rtc,ds3231' "$CFG" || echo "dtoverlay=i2c-rtc,ds3231" >> "$CFG"
+
+grep -q '^i2c-dev' /etc/modules || echo "i2c-dev" >> /etc/modules
+grep -q '^spi-dev' /etc/modules || echo "spi-dev" >> /etc/modules
+
+# ---------------------------------------------------------------------------
+# Lepmon application files (already copied by workflow)
+# ---------------------------------------------------------------------------
 mkdir -p /home/Ento/LepmonOS
 chown -R Ento:Ento /home/Ento
-
-# Copy files are already in place from mount step
 chown -R Ento:Ento /home/Ento/LepmonOS
 chmod +x /home/Ento/LepmonOS/*.sh 2>/dev/null || true
 chmod +x /home/Ento/LepmonOS/*.py 2>/dev/null || true
 
+# ---------------------------------------------------------------------------
+# Python dependencies from requirements.txt
+# ---------------------------------------------------------------------------
 cd /home/Ento/LepmonOS || true
 
-# Install Python dependencies for Lepmon
-pip install --break-system-packages \
-  fastapi==0.110.0 uvicorn[standard]==0.29.0 jinja2==3.1.3 \
-  python-multipart==0.0.9 aiofiles==23.2.1 || true
+if [ -f requirements.txt ]; then
+  pip install --break-system-packages -r requirements.txt || true
+fi
 
-# Install local wheel packages if they exist
+# GitHub-hosted packages
+pip install --break-system-packages \
+  "https://github.com/alliedvision/VimbaPython/archive/refs/heads/master.zip" \
+  "https://github.com/e71828/pi_ina226/archive/refs/heads/main.zip" \
+  "https://github.com/openUC2/imswitchclient/archive/refs/heads/main.zip" \
+  || true
+
+# Install local wheel packages shipped in the repo
 if [ -d /home/Ento/LepmonOS/packages ]; then
   pip install --break-system-packages /home/Ento/LepmonOS/packages/*.whl || true
 fi
 
-# Clean pip cache to free up space
+# ---------------------------------------------------------------------------
+# VimbaX SDK for Allied Vision cameras
+# ---------------------------------------------------------------------------
+VIMBA_DIR="/opt/VimbaX"
+if [ ! -d "$VIMBA_DIR" ]; then
+  echo "Installing VimbaX SDK..."
+  cd /tmp
+  wget -q https://github.com/openUC2/ImSwitchDockerInstall/releases/download/imswitch-master/VimbaX_Setup-2025-1-Linux_ARM64.tar.gz || true
+  if [ -f VimbaX_Setup-2025-1-Linux_ARM64.tar.gz ]; then
+    tar -xzf VimbaX_Setup-2025-1-Linux_ARM64.tar.gz -C /opt
+    mv /opt/VimbaX_2025-1 "$VIMBA_DIR" 2>/dev/null || true
+    rm -f VimbaX_Setup-2025-1-Linux_ARM64.tar.gz
+
+    # Register GenTL transport layer
+    if [ -d "$VIMBA_DIR/cti" ]; then
+      cd "$VIMBA_DIR/cti"
+      bash ./Install_GenTL_Path.sh || true
+    fi
+  fi
+fi
+
+# Environment variables for VimbaX (available to all users)
+cat > /etc/profile.d/vimbax.sh <<'VENV'
+export GENICAM_GENTL64_PATH="/opt/VimbaX/cti"
+VENV
+
+# Install VmbPy wheel
+pip install --break-system-packages \
+  "https://github.com/alliedvision/VmbPy/releases/download/1.2.1_beta1/vmbpy-1.2.1-py3-none-manylinux_2_27_aarch64.whl" \
+  || true
+
+# ---------------------------------------------------------------------------
+# Clean pip cache
+# ---------------------------------------------------------------------------
 pip cache purge 2>/dev/null || true
 rm -rf /root/.cache/pip
 
-# Set capability for Python after pip installs
-which python3.11 && setcap 'cap_net_bind_service=+ep' $(which python3.11) || true
-which python3 && setcap 'cap_net_bind_service=+ep' $(which python3) || true
+# ---------------------------------------------------------------------------
+# Set Python capability for privileged port binding
+# ---------------------------------------------------------------------------
+which python3.11 && setcap 'cap_net_bind_service=+ep' "$(which python3.11)" || true
+which python3    && setcap 'cap_net_bind_service=+ep' "$(which python3)"    || true
 
-# Create log directory
+# ---------------------------------------------------------------------------
+# Log directory
+# ---------------------------------------------------------------------------
 mkdir -p /var/log/lepmon
 chown Ento:Ento /var/log/lepmon
 
-# --- Lepmon Main Service (Main.py) ---
+# ===========================================================================
+# systemd services
+# ===========================================================================
+
 cat <<'UNIT' > /etc/systemd/system/lepmon-main.service
 [Unit]
 Description=Lepmon Main Application - Insect Timelapse Capture
 After=network.target lepmon-web.service
 Wants=lepmon-web.service
+
 [Service]
 Type=simple
 User=Ento
 WorkingDirectory=/home/Ento/LepmonOS
+Environment=GENICAM_GENTL64_PATH=/opt/VimbaX/cti
 ExecStart=/usr/bin/python3 /home/Ento/LepmonOS/Main.py
 Restart=on-failure
 RestartSec=10
 StandardOutput=append:/var/log/lepmon/main.log
 StandardError=append:/var/log/lepmon/main.log
+
 [Install]
 WantedBy=multi-user.target
 UNIT
 
-# --- Lepmon Web Service (FastAPI for camera streaming) ---
 cat <<'UNIT' > /etc/systemd/system/lepmon-web.service
 [Unit]
 Description=Lepmon Web Service - FastAPI Camera Streaming and Focus UI
 After=network.target
+
 [Service]
 Type=simple
 User=Ento
 WorkingDirectory=/home/Ento/LepmonOS
+Environment=GENICAM_GENTL64_PATH=/opt/VimbaX/cti
 ExecStart=/usr/bin/python3 /home/Ento/LepmonOS/lepmon_web_service.py --host 0.0.0.0 --port 8080
 Restart=on-failure
 RestartSec=5
 StandardOutput=append:/var/log/lepmon/web.log
 StandardError=append:/var/log/lepmon/web.log
+
 [Install]
 WantedBy=multi-user.target
 UNIT
 
 systemctl enable lepmon-main.service
 systemctl enable lepmon-web.service
-systemctl enable ssh
 
-# --- Make NetworkManager ignore wlan0 (critical for AP) ---
+# ===========================================================================
+# WiFi Access Point
+# ===========================================================================
+
+# NetworkManager must NOT manage wlan0
 mkdir -p /etc/NetworkManager/conf.d
-cat > /etc/NetworkManager/conf.d/99-unmanaged-wlan0.conf << 'NM'
+cat > /etc/NetworkManager/conf.d/99-unmanaged-wlan0.conf <<'EOF'
 [keyfile]
 unmanaged-devices=interface-name:wlan0
-NM
+EOF
 
-# Also create the main NetworkManager config to ensure it doesn't interfere
-cat > /etc/NetworkManager/NetworkManager.conf << 'NMCONF'
+cat > /etc/NetworkManager/NetworkManager.conf <<'EOF'
 [main]
 plugins=ifupdown,keyfile
 
 [ifupdown]
 managed=false
-NMCONF
+EOF
 
-# --- Don't let wpa_supplicant grab wlan0 while in AP mode ---
-systemctl disable wpa_supplicant.service wpa_supplicant@wlan0.service 2>/dev/null || true
-systemctl mask wpa_supplicant.service wpa_supplicant@wlan0.service 2>/dev/null || true
+# wpa_supplicant must NOT grab wlan0
+systemctl disable wpa_supplicant.service       2>/dev/null || true
+systemctl disable wpa_supplicant@wlan0.service 2>/dev/null || true
+systemctl mask    wpa_supplicant.service       2>/dev/null || true
+systemctl mask    wpa_supplicant@wlan0.service 2>/dev/null || true
 
-# --- SSID generator (runtime, MAC-based, first-boot) ---
+# -- SSID generator (Python, MAC-based) --
 install -d /etc/lepmon
 cat <<'PY' > /usr/local/bin/lepmon-generate-ssid
 #!/usr/bin/env python3
-import hashlib, pathlib, sys
-ADJ=["Swift","Quick","Bright","Smart","Rapid","Sharp","Clear","Fast","Light","Active"]
-NOUN=["Trap","Monitor","Sensor","Detector","Scanner","Watcher","Observer","Tracker","Logger","Capture"]
-def mac(path='/sys/class/net/wlan0/address'):
-    return pathlib.Path(path).read_text().strip()
-m = bytes.fromhex(mac().replace(':',''))
-h = hashlib.sha256(m).digest()
-ssid = f"Lepmon-{ADJ[((h[0]<<8)|h[1])%len(ADJ)]}-{NOUN[((h[2]<<8)|h[3])%len(NOUN)]}"
-print(ssid)
+import hashlib, pathlib
+ADJ  = ["Swift","Quick","Bright","Smart","Rapid","Sharp","Clear","Fast","Light","Active"]
+NOUN = ["Trap","Monitor","Sensor","Detector","Scanner","Watcher","Observer","Tracker","Logger","Capture"]
+mac  = pathlib.Path('/sys/class/net/wlan0/address').read_text().strip()
+m    = bytes.fromhex(mac.replace(':',''))
+h    = hashlib.sha256(m).digest()
+print(f"Lepmon-{ADJ[((h[0]<<8)|h[1])%len(ADJ)]}-{NOUN[((h[2]<<8)|h[3])%len(NOUN)]}")
 PY
 chmod +x /usr/local/bin/lepmon-generate-ssid
 
-# Write hostapd.conf at first boot with MAC-based SSID
+# -- AP configurator (runs on every boot) --
+# NOTE: WPA2 passphrase MUST be 8-63 characters
 cat > /usr/local/bin/lepmon-configure-ap <<'AP'
 #!/bin/bash
 set -e
-
-# Log to syslog for debugging
 exec 1> >(logger -s -t lepmon-configure-ap) 2>&1
 
 echo "Starting Lepmon AP configuration..."
-
-PASSPHRASE="lepmon"
+PASSPHRASE="lepmon12"
 SSID_FILE="/etc/lepmon/ssid"
 
-# Wait for wlan0 to be available
 for i in {1..10}; do
-  if [ -e /sys/class/net/wlan0/address ]; then
-    echo "wlan0 interface found"
-    break
-  fi
-  echo "Waiting for wlan0... attempt $i/10"
-  sleep 1
+  [ -e /sys/class/net/wlan0/address ] && break
+  echo "Waiting for wlan0... $i/10"; sleep 1
 done
+[ ! -e /sys/class/net/wlan0/address ] && { echo "ERROR: wlan0 not found"; exit 1; }
 
-if [ ! -e /sys/class/net/wlan0/address ]; then
-  echo "ERROR: wlan0 not found after 10 seconds"
-  exit 1
-fi
-
-# CRITICAL: Always regenerate SSID if file doesn't exist or is empty
 if [ ! -s "$SSID_FILE" ]; then
   SSID="$(/usr/local/bin/lepmon-generate-ssid)"
-  echo "Generated new SSID based on MAC address: $SSID"
+  echo "Generated SSID: $SSID"
   install -d /etc/lepmon
   echo "$SSID" > "$SSID_FILE"
   chmod 644 "$SSID_FILE"
 else
   SSID="$(cat "$SSID_FILE")"
-  echo "Using existing SSID from cache: $SSID"
+  echo "Using cached SSID: $SSID"
 fi
 
-# Always regenerate hostapd.conf to ensure it uses the correct SSID
 install -d /etc/hostapd
 cat > /etc/hostapd/hostapd.conf <<EOF
 interface=wlan0
@@ -229,15 +305,11 @@ ieee80211n=1
 EOF
 
 echo 'DAEMON_CONF="/etc/hostapd/hostapd.conf"' > /etc/default/hostapd
-
-echo "Lepmon AP configuration completed successfully"
-echo "SSID: $SSID"
-echo "Password: $PASSPHRASE"
-echo "MAC Address: $(cat /sys/class/net/wlan0/address)"
+echo "AP ready  SSID=$SSID  Pass=$PASSPHRASE  MAC=$(cat /sys/class/net/wlan0/address)"
 AP
 chmod +x /usr/local/bin/lepmon-configure-ap
 
-# --- dnsmasq ---
+# -- dnsmasq --
 mkdir -p /etc/dnsmasq.d
 cat > /etc/dnsmasq.d/lepmon-ap.conf <<'DNS'
 interface=wlan0
@@ -251,16 +323,15 @@ server=8.8.8.8
 server=8.8.4.4
 DNS
 
-# --- IP forwarding + nftables NAT ---
+# -- IP forwarding + nftables NAT --
 echo 'net.ipv4.ip_forward=1' > /etc/sysctl.d/99-lepmon-ipforward.conf
 cat > /etc/nftables.conf <<'NFT'
 flush ruleset
 table inet filter {
   chain forward {
-    type filter hook forward priority 0;
-    policy drop;
+    type filter hook forward priority 0; policy drop;
     iifname "wlan0" oifname "eth0" accept
-    iifname "eth0" oifname "wlan0" ct state related,established accept
+    iifname "eth0"  oifname "wlan0" ct state related,established accept
   }
 }
 table ip nat {
@@ -272,13 +343,14 @@ table ip nat {
 NFT
 systemctl enable nftables
 
-# --- Prepare wlan0 before hostapd/dnsmasq on boot ---
+# -- Hotspot bootstrap service --
 cat > /etc/systemd/system/lepmon-hotspot.service <<'HOTSPOT'
 [Unit]
 Description=Prepare wlan0 for Lepmon Access Point
 After=network-online.target
 Wants=network-online.target
 Before=hostapd.service dnsmasq.service
+
 [Service]
 Type=oneshot
 RemainAfterExit=yes
@@ -291,6 +363,7 @@ ExecStart=/bin/bash -c 'ip addr flush dev wlan0 || true'
 ExecStart=/bin/bash -c 'ip addr add 192.168.4.1/24 dev wlan0 || true'
 ExecStart=/bin/bash -c 'ip link set wlan0 up || true'
 ExecStart=/usr/local/bin/lepmon-configure-ap
+
 [Install]
 WantedBy=multi-user.target
 HOTSPOT
@@ -298,19 +371,9 @@ systemctl enable lepmon-hotspot.service
 systemctl enable hostapd
 systemctl enable dnsmasq
 
-# --- Enable I2C and SPI for sensors ---
-echo "dtparam=i2c_arm=on" >> /boot/firmware/config.txt
-echo "dtparam=spi=on" >> /boot/firmware/config.txt
-echo "i2c-dev" >> /etc/modules
-echo "spi-dev" >> /etc/modules
-
-# Enable hardware PWM for LEDs
-echo "dtoverlay=pwm-2chan" >> /boot/firmware/config.txt
-
-# Enable RTC if used
-echo "dtoverlay=i2c-rtc,ds3231" >> /boot/firmware/config.txt
-
-# --- Lepmon Info helper ---
+# ===========================================================================
+# Lepmon-info helper (shown on login)
+# ===========================================================================
 cat <<'INFO' > /usr/local/bin/lepmon-info
 #!/bin/bash
 echo "╔══════════════════════════════════════════╗"
@@ -318,59 +381,42 @@ echo "║       Lepmon System Information          ║"
 echo "║   Insect Timelapse Monitoring System     ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""
-echo "Services Status:"
-systemctl is-active lepmon-main >/dev/null 2>&1 && echo "  ✓ lepmon-main: active" || echo "  ✗ lepmon-main: inactive"
-systemctl is-active lepmon-web >/dev/null 2>&1 && echo "  ✓ lepmon-web: active" || echo "  ✗ lepmon-web: inactive"
-systemctl is-active hostapd >/dev/null 2>&1 && echo "  ✓ hostapd (AP): active" || echo "  ✗ hostapd (AP): inactive"
-systemctl is-active dnsmasq >/dev/null 2>&1 && echo "  ✓ dnsmasq (DHCP): active" || echo "  ✗ dnsmasq (DHCP): inactive"
-systemctl is-active lepmon-hotspot >/dev/null 2>&1 && echo "  ✓ lepmon-hotspot: active" || echo "  ✗ lepmon-hotspot: inactive"
+echo "Services:"
+for svc in lepmon-main lepmon-web hostapd dnsmasq lepmon-hotspot; do
+  systemctl is-active "$svc" >/dev/null 2>&1 \
+    && echo "  ✓ $svc: active" \
+    || echo "  ✗ $svc: inactive"
+done
 echo ""
-echo "Network Configuration:"
-ETH_IP=$(ip addr show eth0 2>/dev/null | sed -n 's/^\s*inet\s\+\([0-9.\/]\+\).*/\1/p')
-[ -n "$ETH_IP" ] && echo "  eth0 IP: $ETH_IP" || echo "  eth0 IP: not configured"
 
+ETH_IP=$(ip -4 addr show eth0 2>/dev/null | sed -n 's|.*inet \([0-9./]*\).*|\1|p')
+echo "Network:"
+echo "  eth0 IP : ${ETH_IP:-not configured}"
 if [ -e /sys/class/net/wlan0/address ]; then
-  WLAN_IP=$(ip addr show wlan0 2>/dev/null | sed -n 's/^\s*inet\s\+\([0-9.\/]\+\).*/\1/p')
-  [ -n "$WLAN_IP" ] && echo "  wlan0 IP (AP): $WLAN_IP" || echo "  wlan0 IP (AP): not configured"
-  SSID=$(iw dev wlan0 info 2>/dev/null | sed -n 's/^\s\+ssid\s\+\(.*\)$/\1/p')
-  [ -n "$SSID" ] && echo "  SSID: $SSID" || echo "  SSID: not broadcasting"
-else
-  echo "  wlan0: not available"
+  WLAN_IP=$(ip -4 addr show wlan0 2>/dev/null | sed -n 's|.*inet \([0-9./]*\).*|\1|p')
+  echo "  wlan0 IP: ${WLAN_IP:-not configured}"
 fi
-
 if [ -f /etc/lepmon/ssid ]; then
   echo ""
-  echo "WiFi Access Point:"
-  echo "  SSID: $(cat /etc/lepmon/ssid)"
-  echo "  Password: lepmon"
-  echo "  AP IP: 192.168.4.1"
+  echo "WiFi AP:"
+  echo "  SSID    : $(cat /etc/lepmon/ssid)"
+  echo "  Password: lepmon12"
+  echo "  AP IP   : 192.168.4.1"
 fi
 
 echo ""
-echo "Access Information:"
-echo "  1. Connect to WiFi AP: $(cat /etc/lepmon/ssid 2>/dev/null || echo 'Lepmon-XXXX-XXXX')"
-echo "  2. Web Interface: http://192.168.4.1:8080/"
-echo "  3. Or via Ethernet: http://<eth0-ip>:8080/"
-echo "  4. SSH: ssh Ento@192.168.4.1 (or eth0 IP)"
-echo "  5. Password: lepmon"
+echo "Quick access:"
+echo "  Web UI : http://192.168.4.1:8080/  (or http://${ETH_IP%/*}:8080/)"
+echo "  SSH    : ssh Ento@192.168.4.1       Password: lepmon"
 echo ""
-echo "Logs:"
-echo "  Main: /var/log/lepmon/main.log"
-echo "  Web:  /var/log/lepmon/web.log"
-echo ""
-echo "Commands:"
-echo "  View main logs: sudo journalctl -u lepmon-main -f"
-echo "  View web logs:  sudo journalctl -u lepmon-web -f"
-echo "  View AP logs:   sudo journalctl -u lepmon-hotspot -u hostapd -f"
-echo "  Restart main:   sudo systemctl restart lepmon-main"
-echo "  Restart web:    sudo systemctl restart lepmon-web"
-echo "  Restart AP:     sudo systemctl restart lepmon-hotspot hostapd dnsmasq"
-echo "  Stop capturing: sudo systemctl stop lepmon-main"
+echo "Manage services:           (see SERVICE_GUIDE.md for details)"
+echo "  sudo systemctl status  lepmon-main"
+echo "  sudo systemctl restart lepmon-main"
+echo "  sudo journalctl -u lepmon-main -f"
 echo ""
 INFO
 chmod +x /usr/local/bin/lepmon-info
 
-# Add info display to user's bashrc
 cat >> /home/Ento/.bashrc <<'BASHRC'
 
 # Display Lepmon info on login
@@ -380,4 +426,6 @@ fi
 BASHRC
 chown Ento:Ento /home/Ento/.bashrc
 
+# ---------------------------------------------------------------------------
 systemctl daemon-reload
+echo "=== Lepmon installation complete ==="
