@@ -267,7 +267,7 @@ def compare_hardware_version():
         ARNI_Gen_json = get_value_from_section("/home/Ento/serial_number.json", "general", "Fallenversion")
         print("Lese ARNI_Gen aus der JSON Datei nach FRAM Fehler")
     except Exception as e:
-                print(f"Fehler beim Lesen der ARNI_Gen aus der JSON: {e}")
+        print(f"Fehler beim Lesen der ARNI_Gen aus der JSON: {e}")
     
     if ARNI_Gen_ram != None:
         if ARNI_Gen_ram == ARNI_Gen_json:

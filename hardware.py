@@ -5,7 +5,7 @@ def get_hardware_version():
     Gibt die Geräte-Generation zurück.
     Default: "Pro_Gen_3"
     """
-    default = "Pro_Gen_3"
+    default = "Pro_Gen_3" 
 
     try:
         # lesen und Null-Bytes/Leerzeichen entfernen
@@ -17,7 +17,7 @@ def get_hardware_version():
     if not ARNI_Gen:
         try:
             ARNI_Gen = get_value_from_section(
-                "/home/Ento/serial_number.json", "general", "Fallenversion"
+                "/home/Ento/LepmonOS/serial_number.json", "general", "Fallenversion"
             ).strip()
         except Exception as e:
             print(f"Fehler beim Lesen der ARNI_Gen aus der JSON: {e}")

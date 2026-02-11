@@ -8,6 +8,7 @@ from GPIO_Setup import *
 from hardware import get_hardware_version
 from messages import MESSAGE_REGISTER 
 
+print("Loading Font from :", os.path.join(os.path.dirname(__file__), 'FreeSans.ttf'))
 oled_font = ImageFont.truetype(os.path.join(os.path.dirname(__file__), 'FreeSans.ttf'), 14)
 
 # OLED-Setup

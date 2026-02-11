@@ -32,6 +32,13 @@ Lepmon runs as several **systemd** services:
 
 ---
 
+
+## Checking devices
+
+```
+i2cdetect -y 1
+```
+
 ## Checking Service Status
 
 ```bash
