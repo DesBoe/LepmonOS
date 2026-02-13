@@ -1,4 +1,4 @@
-from vimba import *
+from vmbpy import *
 from Lights import *
 from json_read_write import *
 import time
@@ -30,34 +30,35 @@ def get_frame(Exposure,cam_mode,log_mode,Gain):
             show_message("cam_1",lang=lang)
         cam_Initiliase_tries += 1
         time.sleep(0.1)
-        with Vimba.get_instance() as vimba:
-            cams = vimba.get_all_cameras()
+        with VmbSystem.get_instance() as vmb:
+            cams = vmb.get_all_cameras()
 
             try:
                 with cams[0] as cam:
-                    formats = cam.get_pixel_formats()
+                    # Set pixel format
+                    cam.PixelFormat.set(PixelFormat.Bgr8)
 
-                    cam.set_pixel_format(PixelFormat.Bgr8)
-
+                    # Load camera settings if available
                     settings_file = '/home/Ento/LepmonOS/Kamera_Einstellungen.xml'.format(cam.get_id())
-                    cam.load_settings(settings_file, PersistType.All)
+                    try:
+                        cam.load_settings(settings_file, PersistType.All)
+                    except:
+                        pass
 
+                    # Set exposure time (convert ms to microseconds)
+                    cam.ExposureTime.set(Exposure * 1000)
+                    print(f"Exposure in Kamera Einstellungen geändert:{(cam.ExposureTime.get()/1000):.0f}")
                     
-                    exposure_time = cam.ExposureTime
-                    exposure_time.set(Exposure*1000)
-                    print(f"Exposure in Kamera Einstellungen geändert:{(exposure_time.get()/1000):.0f}")
-                    
-
-                    gain_value = cam.Gain
-                    gain_value.set(Gain)
-                    print(f"Gain in Kamera Einstellungen geändert:{gain_value.get()}")
-
+                    # Set gain
+                    cam.Gain.set(Gain)
+                    print(f"Gain in Kamera Einstellungen geändert:{cam.Gain.get()}")
 
                     if cam_mode != "focus" and cam_mode != "Sensor_Suche":
                         dim_up()
                         
                         _, _, _, power_vis, _ = get_power()
-                        
+                    
+                    # Capture frame using new API
                     frame = cam.get_frame(timeout_ms=5000).as_opencv_image()
                     
                     if cam_mode != "focus" and cam_mode != "Sensor_Suche":

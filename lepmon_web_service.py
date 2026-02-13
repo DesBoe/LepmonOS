@@ -49,20 +49,21 @@ DEFAULT_GAIN = 5
 
 def get_vimba_frame(exposure: int = DEFAULT_EXPOSURE, gain: float = DEFAULT_GAIN) -> Optional[np.ndarray]:
     """
-    Capture a single frame from the Allied Vision camera using Vimba SDK.
+    Capture a single frame from the Allied Vision camera using VmbPy SDK.
     Returns the frame as a numpy array or None if capture fails.
     """
     try:
-        from vimba import Vimba, PixelFormat, PersistType
+        from vmbpy import VmbSystem, PixelFormat, PersistType
         
-        with Vimba.get_instance() as vimba:
-            cams = vimba.get_all_cameras()
+        with VmbSystem.get_instance() as vmb:
+            cams = vmb.get_all_cameras()
             if not cams:
                 logger.warning("No Allied Vision camera found")
                 return None
             
             with cams[0] as cam:
-                cam.set_pixel_format(PixelFormat.Bgr8)
+                # Set pixel format using new API
+                cam.PixelFormat.set(PixelFormat.Bgr8)
                 
                 # Load settings if available
                 settings_file = '/home/Ento/LepmonOS/Kamera_Einstellungen.xml'
@@ -84,8 +85,7 @@ def get_vimba_frame(exposure: int = DEFAULT_EXPOSURE, gain: float = DEFAULT_GAIN
                 return frame
                 
     except ImportError:
-        logger.error("Vimba SDK not available - using test pattern")
-        return generate_test_pattern()
+        logger.error("VmbPy SDK not available - using test pattern")
     except Exception as e:
         logger.error(f"Error capturing frame: {e}")
         return None
@@ -345,10 +345,10 @@ async def get_status():
 async def camera_info():
     """Get camera information."""
     try:
-        from vimba import Vimba
+        from vmbpy import VmbSystem
         
-        with Vimba.get_instance() as vimba:
-            cams = vimba.get_all_cameras()
+        with VmbSystem.get_instance() as vmb:
+            cams = vmb.get_all_cameras()
             if cams:
                 with cams[0] as cam:
                     return {
@@ -360,7 +360,7 @@ async def camera_info():
             else:
                 return {"available": False, "error": "No camera found"}
     except ImportError:
-        return {"available": False, "error": "Vimba SDK not installed"}
+        return {"available": False, "error": "VmbPy SDK not installed"}
     except Exception as e:
         return {"available": False, "error": str(e)}
 

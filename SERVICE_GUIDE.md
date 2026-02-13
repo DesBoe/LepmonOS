@@ -183,17 +183,51 @@ ip addr show wlan0
 sudo systemctl restart lepmon-hotspot hostapd dnsmasq
 ```
 
-### Camera not detected
+### Camera not detected / Vimba import errors
 
+If you get `VimbaSystemError: No suitable Vimba installation found`:
+
+**First, verify VimbaX is actually installed:**
 ```bash
-# Ensure VimbaX environment is loaded
-echo $GENICAM_GENTL64_PATH    # Should show /opt/VimbaX/cti
+ls -la /opt/VimbaX/api/lib/libVimbaC.so
+```
 
-# If empty, source it
+**If file NOT found, VimbaX is missing - install it:**
+```bash
+sudo bash /home/Ento/LepmonOS/install_vimbax_manual.sh
+```
+
+**If file exists, check environment variables:**
+```bash
+# Check all VimbaX environment variables
+echo $VIMBA_HOME              # Should show /opt/VimbaX
+echo $GENICAM_GENTL64_PATH    # Should show /opt/VimbaX/cti
+echo $LD_LIBRARY_PATH         # Should include /opt/VimbaX/api/lib
+
+# If empty, load environment
 source /etc/profile.d/vimbax.sh
 
-# Check USB devices
-lsusb
+# Verify library is registered
+ldconfig -p | grep VimbaC
+
+# Test import
+python3 -c "from vmbpy import *; print('VmbPy OK')"
+```
+
+**Common issues:**
+1. **VimbaX not installed**: The download may have failed during image build. Run manual install script.
+2. **Wrong Python package**: Make sure you have `vmbpy` not `vimba` old version
+3. **USB permissions**: Camera may need udev rules (usually auto-configured by VimbaX installer)
+
+**Check USB camera:**
+```bash
+lsusb | grep Allied
+# Should show Allied Vision camera
+```
+
+**For systemd services:** The environment is already set in the service files. Restart services after fixing:
+```bash
+sudo systemctl restart lepmon-main lepmon-web
 ```
 
 ### Python import errors

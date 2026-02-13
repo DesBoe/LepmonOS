@@ -124,31 +124,95 @@ fi
 # ---------------------------------------------------------------------------
 VIMBA_DIR="/opt/VimbaX"
 if [ ! -d "$VIMBA_DIR" ]; then
-  echo "Installing VimbaX SDK..."
+  echo "=== Installing VimbaX SDK ==="
   cd /tmp
-  wget -q https://github.com/openUC2/ImSwitchDockerInstall/releases/download/imswitch-master/VimbaX_Setup-2025-1-Linux_ARM64.tar.gz || true
-  if [ -f VimbaX_Setup-2025-1-Linux_ARM64.tar.gz ]; then
-    tar -xzf VimbaX_Setup-2025-1-Linux_ARM64.tar.gz -C /opt
-    mv /opt/VimbaX_2025-1 "$VIMBA_DIR" 2>/dev/null || true
-    rm -f VimbaX_Setup-2025-1-Linux_ARM64.tar.gz
-
+  
+  # Download with retries and better error handling
+  VIMBA_URL="https://github.com/openUC2/ImSwitchDockerInstall/releases/download/imswitch-master/VimbaX_Setup-2025-1-Linux_ARM64.tar.gz"
+  VIMBA_TAR="VimbaX_Setup-2025-1-Linux_ARM64.tar.gz"
+  
+  echo "Downloading VimbaX from $VIMBA_URL ..."
+  wget --tries=3 --timeout=30 -O "$VIMBA_TAR" "$VIMBA_URL"
+  
+  if [ ! -f "$VIMBA_TAR" ] || [ ! -s "$VIMBA_TAR" ]; then
+    echo "ERROR: VimbaX download failed or file is empty!"
+    echo "Please install VimbaX manually after boot."
+  else
+    echo "Extracting VimbaX..."
+    tar -xzf "$VIMBA_TAR" -C /opt
+    
+    # Find the actual extracted directory
+    EXTRACTED_DIR=$(find /opt -maxdepth 1 -type d -name "VimbaX*" 2>/dev/null | head -1)
+    if [ -n "$EXTRACTED_DIR" ] && [ "$EXTRACTED_DIR" != "/opt/VimbaX" ]; then
+      rm -rf "$VIMBA_DIR" 2>/dev/null || true
+      mv "$EXTRACTED_DIR" "$VIMBA_DIR"
+      echo "VimbaX extracted to $VIMBA_DIR"
+    elif [ -d "$VIMBA_DIR" ]; then
+      echo "VimbaX extracted to $VIMBA_DIR"
+    else
+      echo "ERROR: VimbaX extraction failed - directory not found!"
+    fi
+    
+    rm -f "$VIMBA_TAR"
+    
     # Register GenTL transport layer
     if [ -d "$VIMBA_DIR/cti" ]; then
+      echo "Registering GenTL transport layer..."
       cd "$VIMBA_DIR/cti"
-      bash ./Install_GenTL_Path.sh || true
+      bash ./Install_GenTL_Path.sh || echo "GenTL registration failed"
+    fi
+    
+    # Find libVmbC.so in the actual structure
+    VIMBA_LIB=$(find "$VIMBA_DIR" -name "libVmbC.so" 2>/dev/null | head -1)
+    if [ -n "$VIMBA_LIB" ]; then
+      LIB_DIR=$(dirname "$VIMBA_LIB")
+      echo "✓ VimbaX installation verified (libVmbC.so): $VIMBA_LIB"
+      
+      # Update environment with actual library location
+      cat > /etc/profile.d/vimbax.sh <<VENV2
+export VIMBA_HOME="$VIMBA_DIR"
+export GENICAM_GENTL64_PATH="$VIMBA_DIR/cti"
+export LD_LIBRARY_PATH="\${LD_LIBRARY_PATH:+\${LD_LIBRARY_PATH}:}$LIB_DIR"
+VENV2
+      
+      # Register with ldconfig
+      echo "$LIB_DIR" > /etc/ld.so.conf.d/vimbax.conf
+      ldconfig
+    else
+      echo "✗ WARNING: VimbaX installation incomplete - libVmbC.so not found!"
     fi
   fi
+else
+  echo "VimbaX already installed at $VIMBA_DIR"
 fi
 
 # Environment variables for VimbaX (available to all users)
 cat > /etc/profile.d/vimbax.sh <<'VENV'
+export VIMBA_HOME="/opt/VimbaX"
 export GENICAM_GENTL64_PATH="/opt/VimbaX/cti"
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+${LD_LIBRARY_PATH}:}/opt/VimbaX/api/lib"
 VENV
 
+# Register VimbaX libraries with ldconfig
+if [ -d "$VIMBA_DIR/api/lib" ]; then
+  echo "$VIMBA_DIR/api/lib" > /etc/ld.so.conf.d/vimbax.conf
+  ldconfig
+  echo "✓ VimbaX libraries registered with ldconfig"
+else
+  echo "✗ WARNING: $VIMBA_DIR/api/lib not found - skipping ldconfig"
+fi
+
 # Install VmbPy wheel
+echo "Installing VmbPy Python bindings..."
 pip install --break-system-packages \
-  "https://github.com/alliedvision/VmbPy/releases/download/1.2.1_beta1/vmbpy-1.2.1-py3-none-manylinux_2_27_aarch64.whl" \
-  || true
+  "https://github.com/alliedvision/VmbPy/releases/download/1.2.1_beta1/vmbpy-1.2.1-py3-none-manylinux_2_27_aarch64.whl"
+
+# Verify VmbPy installation
+if python3 -c "import vmbpy" 2>/dev/null; then
+  echo "✓ VmbPy installed successfully"
+else
+  echo "✗ WARNING: VmbPy import failed"
+fi
 
 # ---------------------------------------------------------------------------
 # Clean pip cache
@@ -182,7 +246,9 @@ Wants=lepmon-web.service
 Type=simple
 User=Ento
 WorkingDirectory=/home/Ento/LepmonOS
+Environment=VIMBA_HOME=/opt/VimbaX
 Environment=GENICAM_GENTL64_PATH=/opt/VimbaX/cti
+Environment=LD_LIBRARY_PATH=/opt/VimbaX/api/lib
 ExecStart=/usr/bin/python3 /home/Ento/LepmonOS/Main.py
 Restart=on-failure
 RestartSec=10
@@ -202,7 +268,9 @@ After=network.target
 Type=simple
 User=Ento
 WorkingDirectory=/home/Ento/LepmonOS
+Environment=VIMBA_HOME=/opt/VimbaX
 Environment=GENICAM_GENTL64_PATH=/opt/VimbaX/cti
+Environment=LD_LIBRARY_PATH=/opt/VimbaX/api/lib
 ExecStart=/usr/bin/python3 /home/Ento/LepmonOS/lepmon_web_service.py --host 0.0.0.0 --port 8080
 Restart=on-failure
 RestartSec=5

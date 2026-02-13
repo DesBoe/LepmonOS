@@ -8,7 +8,7 @@ import time
 import board
 import busio
 import smbus2
-from vimba import *
+from vmbpy import *
 import cv2
 import os
 import random
