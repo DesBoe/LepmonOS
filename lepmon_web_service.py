@@ -62,11 +62,8 @@ def get_vimba_frame(exposure: int = DEFAULT_EXPOSURE, gain: float = DEFAULT_GAIN
                 return None
             
             with cams[0] as cam:
-                # Set pixel format using correct API
-                try:
-                    cam.set_pixel_format(PixelFormat.Bgr8)
-                except Exception as e:
-                    logger.warning(f"Could not set pixel format: {e}")
+                # Don't force pixel format - use whatever camera supports
+                # Most Allied Vision cameras default to Mono8 or BayerRG8
                 
                 # Load settings if available
                 settings_file = '/home/Ento/LepmonOS/Kamera_Einstellungen.xml'
@@ -152,7 +149,14 @@ def calculate_focus_score(frame: np.ndarray) -> float:
     if frame is None:
         return 0.0
     
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    # Convert to grayscale if needed
+    if len(frame.shape) == 3 and frame.shape[2] == 3:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    elif len(frame.shape) == 3 and frame.shape[2] == 1:
+        gray = frame[:, :, 0]  # Extract single channel
+    else:
+        gray = frame  # Already grayscale
+    
     laplacian = cv2.Laplacian(gray, cv2.CV_64F)
     variance = laplacian.var()
     return float(variance)
@@ -163,7 +167,14 @@ def calculate_brightness(frame: np.ndarray) -> float:
     if frame is None:
         return 0.0
     
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    # Convert to grayscale if needed
+    if len(frame.shape) == 3 and frame.shape[2] == 3:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    elif len(frame.shape) == 3 and frame.shape[2] == 1:
+        gray = frame[:, :, 0]  # Extract single channel
+    else:
+        gray = frame  # Already grayscale
+    
     return float(gray.mean())
 
 
