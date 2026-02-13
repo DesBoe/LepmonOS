@@ -22,6 +22,7 @@ from fastapi.templating import Jinja2Templates
 import uvicorn
 import os
 import sys
+import json
 from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Optional, Generator
@@ -43,8 +44,37 @@ stream_consumers = 0
 stream_consumers_lock = threading.Lock()
 
 # Camera settings
+CAMERA_SETTINGS_FILE = "/home/Ento/LepmonOS/camera_web_settings.json"
 DEFAULT_EXPOSURE = 140  # ms
 DEFAULT_GAIN = 5
+STREAM_DOWNSCALE = 4  # Downscale factor for streaming (reduces bandwidth)
+
+# Global camera settings (loaded from file)
+camera_settings = {
+    "exposure": DEFAULT_EXPOSURE,
+    "gain": DEFAULT_GAIN
+}
+
+def load_camera_settings():
+    """Load camera settings from JSON file."""
+    global camera_settings
+    try:
+        if os.path.exists(CAMERA_SETTINGS_FILE):
+            with open(CAMERA_SETTINGS_FILE, 'r') as f:
+                loaded = json.load(f)
+                camera_settings.update(loaded)
+                logger.info(f"Loaded camera settings: {camera_settings}")
+    except Exception as e:
+        logger.warning(f"Could not load camera settings: {e}")
+
+def save_camera_settings():
+    """Save camera settings to JSON file."""
+    try:
+        with open(CAMERA_SETTINGS_FILE, 'w') as f:
+            json.dump(camera_settings, f, indent=2)
+        logger.info(f"Saved camera settings: {camera_settings}")
+    except Exception as e:
+        logger.error(f"Could not save camera settings: {e}")
 
 
 def get_vimba_frame(exposure: int = DEFAULT_EXPOSURE, gain: float = DEFAULT_GAIN) -> Optional[np.ndarray]:
@@ -192,8 +222,9 @@ def frame_generator() -> Generator[bytes, None, None]:
     logger.info(f"Stream consumer connected. Total consumers: {stream_consumers}")
     
     try:
-        exposure = DEFAULT_EXPOSURE
-        gain = DEFAULT_GAIN
+        # Use global camera settings
+        exposure = camera_settings["exposure"]
+        gain = camera_settings["gain"]
         
         while True:
             # Check if capturing is active - if so, don't compete for camera
@@ -212,14 +243,21 @@ def frame_generator() -> Generator[bytes, None, None]:
                 frame = get_vimba_frame(exposure, gain)
             
             if frame is not None:
+                # Downscale raw image first to reduce processing time
+                h, w = frame.shape[:2]
+                if STREAM_DOWNSCALE > 1:
+                    new_w = w // STREAM_DOWNSCALE
+                    new_h = h // STREAM_DOWNSCALE
+                    frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
+                
                 # Apply min/max stretch for better visibility
                 stretched = apply_min_max_stretch(frame)
                 
-                # Calculate and overlay focus score
+                # Calculate and overlay focus score (use original scale for accuracy)
                 focus_score = calculate_focus_score(frame)
                 brightness = calculate_brightness(frame)
                 
-                # Resize for streaming (reduce bandwidth)
+                # Resize for streaming if still too large (> 1280px wide)
                 h, w = stretched.shape[:2]
                 if w > 1280:
                     scale = 1280 / w
@@ -231,6 +269,8 @@ def frame_generator() -> Generator[bytes, None, None]:
                 cv2.putText(stretched, f"Brightness: {brightness:.1f}", (10, 60),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                 cv2.putText(stretched, f"Exp: {exposure}ms Gain: {gain}", (10, 90),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                cv2.putText(stretched, f"Scale: 1/{STREAM_DOWNSCALE}", (10, 120),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                 
                 current_frame = stretched
@@ -281,6 +321,7 @@ def create_status_frame(message: str) -> np.ndarray:
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     logger.info("Lepmon Web Service starting...")
+    load_camera_settings()
     yield
     logger.info("Lepmon Web Service shutting down...")
 
@@ -394,6 +435,53 @@ async def get_focus_score():
         return {"focus_score": score, "is_sharp": score >= 225.0}
     else:
         return {"focus_score": 0.0, "is_sharp": False, "error": "No frame available"}
+
+
+@app.get("/api/camera/settings")
+async def get_camera_settings():
+    """Get current camera settings."""
+    return camera_settings
+
+
+@app.post("/api/camera/settings")
+async def update_camera_settings(settings: dict):
+    """Update camera settings and save to file."""
+    global camera_settings
+    
+    try:
+        # Validate and update settings
+        if "exposure" in settings:
+            exposure = float(settings["exposure"])
+            if 1 <= exposure <= 10000:  # 1ms to 10s
+                camera_settings["exposure"] = exposure
+            else:
+                return JSONResponse(
+                    {"error": "Exposure must be between 1 and 10000 ms"},
+                    status_code=400
+                )
+        
+        if "gain" in settings:
+            gain = float(settings["gain"])
+            if 0 <= gain <= 48:  # Typical range for Allied Vision cameras
+                camera_settings["gain"] = gain
+            else:
+                return JSONResponse(
+                    {"error": "Gain must be between 0 and 48"},
+                    status_code=400
+                )
+        
+        # Save to file
+        save_camera_settings()
+        
+        return {
+            "success": True,
+            "settings": camera_settings
+        }
+    except ValueError as e:
+        return JSONResponse(
+            {"error": f"Invalid value: {str(e)}"},
+            status_code=400
+        )
 
 
 @app.post("/api/capture/stop")

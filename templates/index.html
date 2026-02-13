@@ -269,6 +269,43 @@
             display: block;
         }
         
+        .settings-input {
+            width: 80px;
+            padding: 0.25rem 0.5rem;
+            background: var(--accent);
+            border: 1px solid var(--text-dim);
+            border-radius: 4px;
+            color: var(--text);
+            font-family: 'SF Mono', 'Consolas', monospace;
+            font-size: 0.875rem;
+        }
+        
+        .settings-input:focus {
+            outline: none;
+            border-color: var(--highlight);
+        }
+        
+        .settings-status {
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            text-align: center;
+            display: none;
+        }
+        
+        .settings-status.success {
+            background: rgba(74, 222, 128, 0.2);
+            color: var(--success);
+            display: block;
+        }
+        
+        .settings-status.error {
+            background: rgba(233, 69, 96, 0.2);
+            color: var(--highlight);
+            display: block;
+        }
+        
         footer {
             text-align: center;
             padding: 2rem;
@@ -348,6 +385,30 @@
                     <span class="stat-label">Camera</span>
                     <span id="cameraModel" class="stat-value">--</span>
                 </div>
+                <div class="stat-row">
+                    <span class="stat-label">Serial</span>
+                    <span id="cameraSerial" class="stat-value">--</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>⚙️ Camera Settings</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Exposure (ms)</span>
+                    <input type="number" id="exposureInput" class="settings-input" 
+                           min="1" max="10000" step="1" value="140">
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Gain (dB)</span>
+                    <input type="number" id="gainInput" class="settings-input" 
+                           min="0" max="48" step="0.5" value="5">
+                </div>
+                <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" 
+                        onclick="applyCameraSettings()">
+                    Apply & Save
+                </button>
+                <div id="settingsStatus" class="settings-status"></div>
+            </div>
                 <div class="stat-row">
                     <span class="stat-label">Serial</span>
                     <span id="cameraSerial" class="stat-value">--</span>
@@ -467,10 +528,56 @@
                 });
         }
         
+        function loadCameraSettings() {
+            fetch('/api/camera/settings')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('exposureInput').value = data.exposure || 140;
+                    document.getElementById('gainInput').value = data.gain || 5;
+                })
+                .catch(err => console.error('Failed to load camera settings:', err));
+        }
+        
+        function applyCameraSettings() {
+            const exposure = parseFloat(document.getElementById('exposureInput').value);
+            const gain = parseFloat(document.getElementById('gainInput').value);
+            const statusDiv = document.getElementById('settingsStatus');
+            
+            fetch('/api/camera/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    exposure: exposure,
+                    gain: gain
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    statusDiv.textContent = '✓ Settings saved!';
+                    statusDiv.className = 'settings-status success';
+                    setTimeout(() => {
+                        statusDiv.style.display = 'none';
+                    }, 3000);
+                } else {
+                    statusDiv.textContent = '✗ ' + (data.error || 'Failed');
+                    statusDiv.className = 'settings-status error';
+                }
+            })
+            .catch(err => {
+                statusDiv.textContent = '✗ Connection error';
+                statusDiv.className = 'settings-status error';
+                console.error('Failed to save settings:', err);
+            });
+        }
+        
         // Initial updates
         updateStatus();
         updateFocus();
         updateCameraInfo();
+        loadCameraSettings();
         
         // Periodic updates
         setInterval(updateStatus, 2000);
