@@ -16,10 +16,10 @@ apt-get update
 apt-get install -y --no-install-recommends \
   python3 python3-pip python3-dev python3-venv \
   build-essential pkg-config \
-  git curl wget \
+  git curl wget lsof \
   i2c-tools python3-smbus python3-gpiozero python3-rpi.gpio \
   libatlas-base-dev libopenblas-dev \
-  python3-opencv python3-numpy python3-pil \
+  python3-opencv python3-numpy python3-pil python3-picamera2 \
   libusb-1.0-0 libcap2-bin
 
 # Networking / Access-Point

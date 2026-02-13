@@ -61,6 +61,15 @@ jobs:
         sudo mount --bind /dev /tmp/rpi-root/dev
         sudo mount --bind /dev/pts /tmp/rpi-root/dev/pts
         
+        # Configure boot/config.txt for I2C, SPI, UART
+        CONFIG_FILE=/tmp/rpi-root/boot/firmware/config.txt
+        sudo bash -c "grep -q '^enable_uart=1' $CONFIG_FILE || echo 'enable_uart=1' >> $CONFIG_FILE"
+        sudo bash -c "grep -q '^dtparam=i2c_arm=on' $CONFIG_FILE || echo 'dtparam=i2c_arm=on' >> $CONFIG_FILE"
+        sudo bash -c "grep -q '^dtparam=spi=on' $CONFIG_FILE || echo 'dtparam=spi=on' >> $CONFIG_FILE"
+        
+        # Enable SSH by default
+        sudo touch /tmp/rpi-root/boot/firmware/ssh
+        
         # Copy LepmonOS files (exclude large directories to save space)
         sudo mkdir -p /tmp/rpi-root/home/Ento/LepmonOS
         sudo mkdir -p /tmp/rpi-root/home/Ento/LepmonOS/packages

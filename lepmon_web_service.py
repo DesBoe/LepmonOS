@@ -62,8 +62,11 @@ def get_vimba_frame(exposure: int = DEFAULT_EXPOSURE, gain: float = DEFAULT_GAIN
                 return None
             
             with cams[0] as cam:
-                # Set pixel format using new API
-                cam.PixelFormat.set(PixelFormat.Bgr8)
+                # Set pixel format using correct API
+                try:
+                    cam.set_pixel_format(PixelFormat.Bgr8)
+                except Exception as e:
+                    logger.warning(f"Could not set pixel format: {e}")
                 
                 # Load settings if available
                 settings_file = '/home/Ento/LepmonOS/Kamera_Einstellungen.xml'
@@ -115,9 +118,14 @@ def apply_min_max_stretch(frame: np.ndarray) -> np.ndarray:
     """
     Apply min/max contrast stretch to enhance image visibility.
     This normalizes the image histogram to use the full dynamic range.
+    Handles both grayscale and color images.
     """
     if frame is None:
         return None
+    
+    # Handle grayscale images - convert to BGR first
+    if len(frame.shape) == 2 or (len(frame.shape) == 3 and frame.shape[2] == 1):
+        frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
     
     # Convert to float for processing
     frame_float = frame.astype(np.float32)

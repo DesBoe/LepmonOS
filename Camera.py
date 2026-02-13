@@ -36,14 +36,17 @@ def get_frame(Exposure,cam_mode,log_mode,Gain):
             try:
                 with cams[0] as cam:
                     # Set pixel format
-                    cam.PixelFormat.set(PixelFormat.Bgr8)
+                    try:
+                        cam.set_pixel_format(PixelFormat.Bgr8)
+                    except Exception as e:
+                        print(f"Could not set pixel format: {e}")
 
                     # Load camera settings if available
                     settings_file = '/home/Ento/LepmonOS/Kamera_Einstellungen.xml'.format(cam.get_id())
                     try:
                         cam.load_settings(settings_file, PersistType.All)
-                    except:
-                        pass
+                    except Exception as e:
+                        print(f"Could not load settings: {e}")
 
                     # Set exposure time (convert ms to microseconds)
                     cam.ExposureTime.set(Exposure * 1000)
