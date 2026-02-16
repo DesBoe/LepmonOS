@@ -6,31 +6,35 @@ from libcamera import controls, Transform
 import os
 from picamera2 import Picamera2, Preview 
 import cv2
-from LepmonOS_Service_camera_rpi import check_connected_camera
 import numpy as np
+from hardware import *
+from OLED_panel import *
 
 
 ##################################
 ### beide Kameras###
 ##################################
-def check_image(dateipfad, sensor, length, height, log_mode = "log"):
+def check_image(dateipfad, log_mode = "log"):
     if log_mode == "log":
         write_timestamp(0x07E0)
+
     try:
-        sanity_level = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","image_quality","black_sanity_level")
+        sanity_level = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","frame_brightness","black_sanity_level")
     except Exception as e:
         print(f"Fehler beim Lesen des Sanity Levels aus der Konfigurationsdatei: {e}")
         error_message(14,e, log_mode)
         sanity_level = 0.05  # Standardwert, falls das Lesen fehlschlägt
+
+    camera = get_device_info("camera")
+    length = get_device_info("length")
+    height = get_device_info("height")
     try:
         with Image.open(dateipfad) as img:
             img.load()
 
-
-            if (sensor == "imx183" and ( length != 5496 or height != 3672)) or \
-                (sensor == "imx708" and (length != 4608 or height != 2592)) or \
-                (sensor == "imx477" and (length != 4056 or height != 3040)):
-                raise ValueError("Falsche Bildgröße")
+            if img.width != length or img.height != height:
+                raise ValueError(f"Falsche Bildgröße: erwartet {length}x{height} von {camera}, erhalten {img.width}x{img.height}")
+            
             
             
             
@@ -51,12 +55,19 @@ def check_image(dateipfad, sensor, length, height, log_mode = "log"):
         return False
     
 
-def first_exp(Night, log_mode):
+def first_exp(Night, log_mode, camera):
     exposure,gain = 160,9
     if Night == 0: # False --> Nacht hat noch nicht begonnen und Kamera fängt mit default werten an
         try:
-            exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","capture_mode","initial_exposure"))
-            gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","capture_mode","initial_gain"))
+            if camera == "AV__Alvium_1800_U-2050":
+                exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_exposure"))
+                gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_gain_10"))/10
+            elif camera == "RPI_Module_3":
+                exposure = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","initial_exposure_10")/10
+                gain = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","initial_gain_10")/10
+            elif camera == "RPI_HQ":
+                exposure = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","initial_exposure_10")/10
+                gain = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","initial_gain_10")/10
             print(f"Initialer Exposure: {exposure}, Initialer Gain: {gain}")
         except Exception as e:
             print(f"Fehler beim Lesen des initialen Exposure und Gain aus der Konfigurationsdatei: {e}")
@@ -64,8 +75,9 @@ def first_exp(Night, log_mode):
     
     elif Night == 1:
         try:
+
             gain_bytes = read_fram_bytes(0x069C, 1)
-            gain = int.from_bytes(gain_bytes, byteorder='big')
+            gain = int.from_bytes(gain_bytes, byteorder='big')/10
             print(f"Gelesener Gain: {gain}")
 
             exposure_bytes = read_fram_bytes(0x0698, 1)
@@ -73,17 +85,26 @@ def first_exp(Night, log_mode):
             print(f"Gelesene Exposure: {exposure}")
 
             # Prüfen, ob Werte 0 sind, falls ja, Default-Werte verwenden
-            if gain > 26 or not 85 < exposure < 9999982:
-                print(f"Warnung: Gain oder Exposure im FRAM nicht im gültigen Bereich: Gain={gain}, Exposure={exposure}. Nutze Werte aus der Konfigurationsdatei.")
-                exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","capture_mode","initial_exposure"))
-                gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","capture_mode","initial_gain"))
-                print(f"Default Exposure: {exposure}, Default Gain: {gain}")
+            #if gain > 26 or not 85 < exposure < 9999982:
+            #    print(f"Warnung: Gain oder Exposure im FRAM nicht im gültigen Bereich: Gain={gain}, Exposure={exposure}. Nutze Werte aus der Konfigurationsdatei.")
+            #    exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","capture_mode","initial_exposure"))
+            #    gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","capture_mode","initial_gain"))
+            #    print(f"Default Exposure: {exposure}, Default Gain: {gain}")
         except Exception as e:
             print(f"Fehler beim Lesen des aktuellen Exposure und Gain aus dem FRAM: {e}")
             error_message(9,e, log_mode)
             try:
-                exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","capture_mode","current_exposure"))
-                gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","capture_mode","current_gain"))
+                if camera == "AV__Alvium_1800_U-2050":
+                    exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_exposure"))
+                    gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_gain_10"))/10
+                elif camera == "RPI_Module_3":
+                    exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","current_exposure_10"))/10
+                    gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","current_gain_10"))/10
+                elif camera == "RPI_HQ":
+                    exposure = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","current_exposure_10")/10
+                    gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","current_gain_10"))/10
+                print(f"Initialer Exposure: {exposure}, Initialer Gain: {gain}")
+
                 print(f"Initialer Exposure: {exposure}, Initialer Gain: {gain}")
             except Exception as e:
                 print(f"Fehler beim Lesen des initialen Exposure und Gain aus der Konfigurationsdatei: {e}")
@@ -93,15 +114,38 @@ def first_exp(Night, log_mode):
     return exposure, gain
  
     
-def calculate_Exposure_and_gain(current_image, initial_exposure, initial_gain, log_mode="log"):
-    brightness_tolerance = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","image_quality","brightness_tolerance")
-    brightness_reference = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","image_quality","brightness_reference")
-    minimal_gain = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","image_quality","minimal_gain")
-    maximal_gain = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","image_quality","maximal_gain")
-    step_gain = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","image_quality","step_gain")
-    maximal_exposure = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","image_quality","maximal_exposure")
-    minimal_exposure = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","image_quality","minimal_exposure")
-    step_exposure = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","image_quality","step_exposure")
+def calculate_Exposure_and_gain(current_image, initial_exposure, initial_gain, camera, log_mode="log"):
+    # general
+    brightness_tolerance = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","frame_brightness","brightness_tolerance")
+    brightness_reference = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","frame_brightness","brightness_reference")
+
+    # camera specific
+    if camera == "AV__Alvium_1800_U-2050":
+        minimal_gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","minimal_gain_10"))/10
+        maximal_gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","maximal_gain_10"))/10
+        step_gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","step_gain_10"))/10
+        maximal_exposure = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","maximal_exposure")
+        minimal_exposure = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","minimal_exposure")
+        step_exposure = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","step_exposure")
+
+    elif camera == "RPI_Module_3":
+        minimal_gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","minimal_gain_10"))/10
+        maximal_gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","maximal_gain_10"))/10
+        step_gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","step_gain_10"))/10
+        maximal_exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","maximal_exposure_10"))/10
+        minimal_exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","minimal_exposure_10"))/10
+        step_exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","step_exposure_10"))/10
+    
+    elif camera == "RPI_HQ":
+        minimal_gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","minimal_gain_10"))/10
+        maximal_gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","maximal_gain_10"))/10
+        step_gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","step_gain_10"))/10
+        maximal_exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","maximal_exposure_10"))/10
+        minimal_exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","minimal_exposure_10"))/10
+        step_exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","step_exposure_10"))/10 
+
+    
+    
     avg_brightness = 1000
     new_gain = initial_gain
     new_exposure = initial_exposure
@@ -126,13 +170,16 @@ def calculate_Exposure_and_gain(current_image, initial_exposure, initial_gain, l
         
         control = avg_brightness - brightness_reference
         if control <= -brightness_tolerance:
+
             if initial_exposure < maximal_exposure:
                 new_exposure = initial_exposure + step_exposure
+                print(f"Exposure erhöht von {initial_exposure} auf {new_exposure}")
                 log_schreiben(f"Exposure erhöht von {initial_exposure} auf {new_exposure}", log_mode=log_mode)
             elif initial_gain < maximal_gain:
                 new_gain = initial_gain + step_gain
+                print(f"Gain erhöht von {initial_gain} auf {new_gain}")
                 log_schreiben(f"Gain erhöht von {initial_gain} auf {new_gain}", log_mode=log_mode)
-                write_current_exp(new_exposure, new_gain, log_mode)
+                write_current_exp(new_exposure, new_gain, camera, log_mode)
             
             elif initial_exposure == maximal_exposure and initial_gain == maximal_gain:
                 print("Sowohl Exposure als auch Gain haben das Maximum erreicht. Keine weitere Erhöhung möglich.")
@@ -149,7 +196,7 @@ def calculate_Exposure_and_gain(current_image, initial_exposure, initial_gain, l
             elif initial_exposure > minimal_exposure:
                 new_exposure = initial_exposure - step_exposure
                 log_schreiben(f"Exposure verringert von {initial_exposure} auf {new_exposure}",log_mode)
-                write_current_exp(new_exposure, new_gain, log_mode)
+                write_current_exp(new_exposure, new_gain,camera, log_mode)
                 
             elif initial_exposure == minimal_exposure and initial_gain == minimal_gain:
                 print("Sowohl Exposure als auch Gain haben das Minimum erreicht. Keine weitere Verringerung möglich.")
@@ -163,19 +210,25 @@ def calculate_Exposure_and_gain(current_image, initial_exposure, initial_gain, l
             print("Helligkeit im optimalen Bereich. Keine Anpassung von Exposure oder Gain erforderlich.")
             good_exposure = True
         
+        
         else:
             print(f"Unbekannter Kontrollwert für die Helligkeitsanpassung: {control}")
+        
+        print("Helligkeitsberechnung beendet")
+        time.sleep(7)
             
         
     return avg_brightness, new_exposure, new_gain, good_exposure
        
           
        
-def write_current_exp(exposure, gain, log_mode):
+def write_current_exp(exposure, gain, camera, log_mode):
     try:
         # Sicherstellen, dass Werte Integer sind
         if not isinstance(exposure, int):
             exposure = int(round(exposure))
+        gain = gain*10
+        print(f"Zu schreibender Gain : {gain}")
         if not isinstance(gain, int):
             gain = int(round(gain))
         write_fram_bytes(0x0698, exposure.to_bytes(1, byteorder='big'))
@@ -186,16 +239,19 @@ def write_current_exp(exposure, gain, log_mode):
         error_message(9,e, log_mode)  
     
     try:
-        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "current_exposure", str(exposure))
-        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "current_gain", str(gain))
+        if camera == "AV__Alvium_1800_U-2050":
+            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "current_exposure", str(exposure))
+            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "current_gain_10", str(gain))
+        elif camera == "RPI_Module_3":
+            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "RPI_Module_3", "current_exposure_10", str(exposure))
+            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "RPI_Module_3", "current_gain_10", str(gain))
+        elif camera == "RPI_HQ":
+            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "RPI_HQ", "current_exposure_10", exposure)
+            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "RPI_HQ", "current_gain_10", gain)
         print(f"Aktuelle Exposure ({exposure}) und Gain ({gain}) in config geschrieben")
     except Exception as e:
         print(f"Fehler beim Schreiben von Exposure und Gain in die Konfigurationsdatei: {e}")
         
-        
-##################################
-### RPI Camera Modul 3 ###
-##################################
 
 
     
@@ -219,7 +275,7 @@ def set_focus_rpi_cam():
     return saved_focus 
 
     
-def check_focus(current_image, threshold=100.0):
+def check_focus(current_image, camera, log_mode):
     """
     Analysiert die Schärfe eines aufgenommenen Bildes oder eines Frames und entscheidet, ob es scharf ist.
     
@@ -231,7 +287,16 @@ def check_focus(current_image, threshold=100.0):
         bool: True, wenn das Bild scharf ist, False, wenn neu fokussiert werden muss.
         float: Die berechnete Varianz des Laplace-Operators (Schärfewert).
     """
-    threshold = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","image_quality","focus_threshold")
+
+
+    if camera == "RPI_Module_3":
+        threshold = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","focus_threshold")
+    elif camera == "RPI_HQ":
+        threshold = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","focus_threshold")
+    elif camera == "AV__Alvium_1800_U-2050":
+        threshold = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","focus_threshold")
+
+    
     try:
         # Prüfen, ob current_image ein Dateipfad (String) oder ein Frame (NumPy-Array) ist
         if isinstance(current_image, str):
@@ -249,14 +314,39 @@ def check_focus(current_image, threshold=100.0):
         
         print(f"Fokus-Varianz: {variance:.2f}")
         
-        if variance >= threshold:
-            print("Bild ist scharf.")
+        if variance >= float(threshold) and camera == "AV__Alvium_1800_U-2050":
+            log_schreiben(f"Bilder der {camera} sind scharf: Schwellenwert: {threshold}, gemessene Fokusvarianz: {variance:.2f}", log_mode)
             return True, variance
+        elif variance >= float(threshold) and camera == "RPI_Module_3":
+            log_schreiben(f"Bilder der {camera} sind scharf: Schwellenwert: {threshold}, gemessene Fokusvarianz: {variance:.2f}", log_mode)
+            return True, variance
+        elif variance >= float(threshold) and camera == "RPI_HQ":
+            log_schreiben(f"Bilder der {camera} sind scharf: Schwellenwert: {threshold}, gemessene Fokusvarianz: {variance:.2f}", log_mode)
+            return True, variance
+
         else:
             print("Bild ist unscharf. Neu fokussieren erforderlich.")
+            log_schreiben(f"WARNUNG: Bilder der {camera} sind verschwommen: Schwellenwert: {threshold}, gemessene Fokusvarianz: {variance:.2f}", log_mode)
             return False, variance
     except Exception as e:
         print(f"Fehler bei der Fokusanalyse: {e}")
         return False, 0.0
     
+
+if "__main__" == __name__:
+    path = "/media/Ento/LEPMON/Belichtungsreihe_RPI_HQ/RPI_HQ_50_1.jpg"
+    if not os.path.exists(path):
+        print(f"Datei existiert nicht: {path}\nnutze Logo")
+        path = "/home/Ento/LepmonOS/startscreen/LepmonOS_Logo_9_9.jpg"
+    log_mode = "manual"
+        
+    camera = get_device_info("camera")
+
+    print("---------------------------------")
+    print("Sanity Check")
+    check_image(path, log_mode)
+    print("---------------------------------")
+    print("Focus Check")
+    check_focus(path, camera, log_mode)
+    print("---------------------------------")
     

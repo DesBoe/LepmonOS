@@ -170,6 +170,7 @@ def update_folder_and_log(json_path, province_old, Kreis_code_old, province, Kre
 
     if province_old not in current_folder or Kreis_code_old not in current_folder or f"_{province_old}_{Kreis_code_old}_" not in current_folder:
         print("Die alten Werte sind nicht im aktuellen Ordnerpfad enthalten. Ordner- und Log-Umbenennung wird übersprungen.")
+        print(f"Ein möglicher Grund ist der aktuelle Logmode 'manual': {log_mode == 'manual'}")
         log_schreiben("Die alten Werte sind nicht im aktuellen Ordnerpfad enthalten. Ordner- und Log-Umbenennung wird übersprungen.", log_mode=log_mode)
         return
     

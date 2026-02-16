@@ -128,6 +128,8 @@ def install_packages(log_mode):
             log_schreiben("##################################", log_mode=log_mode) 
             trap_shutdown(log_mode,5)
             os.system("sudo reboot now")
+            show_message("blank", lang=lang)
+            time.sleep(10)
             return
         except Exception as e:
             log_schreiben(f"Fehler bei der Paketinstallation: {e}", log_mode=log_mode)

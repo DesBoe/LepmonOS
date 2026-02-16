@@ -220,12 +220,8 @@ def set_hwc(rtc_mode, log_mode, date_time_list=None, ):
         _, _, _, _, _, _, date_time_list = input_time(log_mode)
     
     if rtc_mode == "manual":
-        #print("Eingabe der Uhrzeit im Format:\nJJJJMMTTSSMMHH")
-        #date_time_list = input("")
-        #date_time_list = [int(char) for char in date_time_list if char.isdigit()]
-        print("Uhrzeit auf Raspnerry stellen mit Befehl:")
-        print('sudo date -s "2026-05-14 20:37:00"')
-        return
+        date_time_list = date_time_list
+        date_time_list = [int(char) for char in date_time_list if char.isdigit()]
     
     if rtc_mode == "daylight_saving":
         date_time_list = date_time_list
@@ -281,4 +277,14 @@ def set_hwc(rtc_mode, log_mode, date_time_list=None, ):
     time.sleep(0.5)
 
 if __name__ == "__main__":
-    set_hwc(rtc_mode="hmi", log_mode="manual")
+        ################
+        # time string # 
+        ################
+                            #"JJJJMMTTSSMMHH"
+        date_time_list =     "20260202190000"  
+
+        if len(date_time_list) != 14 or not date_time_list.isdigit():
+            print("Fehler: Die Eingabe muss genau 14 Ziffern enthalten und nur Ziffern!")
+            exit()
+        else:
+            set_hwc(rtc_mode="manual", log_mode="manual", date_time_list=date_time_list)

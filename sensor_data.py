@@ -49,8 +49,7 @@ def get_power():
     bus_voltage, shunt_voltage, current, power, Sensorstatus_Strom = "---", "---", "---", "---", 0
     hardware = get_hardware_version()
     try:         
-        if hardware == "Pro_Gen_2" or hardware == "Pro_Gen_3":
-            ina.wake(3)
+        if hardware != "Pro_Gen_1" and hardware != "Pro_Gen_2":
             time.sleep(0.2)
             Sensorstatus_Strom = 1
 
@@ -103,8 +102,9 @@ def read_sensor_data(code,lokale_Zeit, log_mode):
 
     try:
         if get_hardware_version() == "Pro_Gen_1":
-            Temp_in = adafruit_bmp280.Adafruit_BMP280_I2C(i2c) 
-        elif get_hardware_version() == "Pro_Gen_2" or get_hardware_version() == "Pro_Gen_3":    
+            Temp_in = adafruit_bmp280.Adafruit_BMP280_I2C(i2c)
+        elif hardware in ["Pro_Gen_2","Pro_Gen_3",
+                          "CSL_Gen_1","CSS_Gen_1"]:  
             Temp_in = adafruit_pct2075.PCT2075(i2c)             
 
         Temp_in = round(Temp_in.temperature, 2) 
@@ -239,9 +239,16 @@ if __name__ == "__main__":
         print("-------------------")
         
         _, lokale_Zeit,_ = Zeit_aktualisieren(log_mode="manual")
-        read_sensor_data("Manueller_Test",lokale_Zeit, log_mode="manual")
+        sensor_data, sensor_status = read_sensor_data("Manueller_Test",lokale_Zeit, log_mode="manual")
         for key, value in sensor_data.items():
             print(f"{key}: {value}")  
+
+        print("-------------------")
+        print("Sensor-Status:")
+        print(sensor_status)
+        print("-------------------")
+        print("Sensor_Daten:")
+        print(sensor_data)
     
 
         

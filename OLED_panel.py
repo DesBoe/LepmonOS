@@ -8,8 +8,11 @@ from GPIO_Setup import *
 from hardware import get_hardware_version
 from messages import MESSAGE_REGISTER 
 
-print("Loading Font from :", os.path.join(os.path.dirname(__file__), 'FreeSans.ttf'))
-oled_font = ImageFont.truetype(os.path.join(os.path.dirname(__file__), 'FreeSans.ttf'), 14)
+try:
+    print("Loading Font from :", os.path.join(os.path.dirname(__file__), 'FreeSans.ttf'))
+    oled_font = ImageFont.truetype(os.path.join(os.path.dirname(__file__), 'FreeSans.ttf'), 14)
+except Exception as e:
+    print(f"Error loading font: {e}")
 
 # OLED-Setup
 Display = i2c(port=1, address=0x3C)
@@ -54,7 +57,7 @@ def display_text_and_image(line1, line2, line3, image_path,sleeptime =0):
             draw.text((3, 5), line1, font=oled_font, fill="white")
             draw.text((3, 25), line2, font=oled_font, fill="white")
             draw.text((3, 45), line3, font=oled_font, fill="white")
-            time.sleep(sleeptime)
+    
     except Exception as e:
         print(f"Error displaying text on OLED: {e}")        
         for _ in range(3):
@@ -62,6 +65,8 @@ def display_text_and_image(line1, line2, line3, image_path,sleeptime =0):
             time.sleep(0.25)
             turn_off_led("rot")
             time.sleep(0.25)        
+    time.sleep(sleeptime)
+
     
 def display_text_with_arrows(line1, line2, line3=None, x_position=None, sleeptime=0):
     try:

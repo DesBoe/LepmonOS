@@ -37,7 +37,7 @@ def wait(log_mode):
         countdown = (experiment_start_time - lokale_Zeit).total_seconds()
         countdown_time = experiment_start_time - lokale_Zeit
         log_schreiben(f"warte bis Nachtbeginn: {countdown_time}", log_mode=log_mode)
-
+        
         for _ in range(60):
             hours, remainder = divmod(int(countdown), 3600)  # Stunden berechnen
             minutes, seconds = divmod(remainder, 60)  # Minuten und Sekunden berechnen

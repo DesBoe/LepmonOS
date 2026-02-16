@@ -1,3 +1,4 @@
+import time
 # Zentrales Nachrichten-Register für das OLED-Display - Struktur
 ## code: { 
 #       "sleep": Sekunden,
@@ -48,7 +49,7 @@ MESSAGE_REGISTER = {
        "hmi_06": {
         "sleep": 1,
         "de": ("Stromversorgung:","▲= Solar →= zurück","▼= Netz"),
-        "en": ("Power supply:","▲= Solar","▼= Mains","→= back"),
+        "en": ("Power supply:","▲= Solar","▼= Grid","→= back"),
         "es": ("Fuente de energía:","▲= Solar","▼= Red","→= atrás")
     },          
     "hmi_07": {
@@ -60,7 +61,7 @@ MESSAGE_REGISTER = {
     "hmi_08": {
         "sleep": 2,
         "de": ("Stromversorgung","Netz", ""),
-        "en": ("Power supply","Mains",""),
+        "en": ("Power supply","Grid",""),
         "es": ("Fuente de energía","Red","")
     },
     "hmi_09": {
@@ -126,7 +127,7 @@ MESSAGE_REGISTER = {
     "hmi_19": {
         "sleep": 0.1,
         "de": ("N-S: {latitude}", "O-W: {longitude}","▲neu ▼ok →zurück"),
-        "en": ("N-S: {latitude}","E-W: {longitude}","▲= ew ▼=ok →=back"),
+        "en": ("N-S: {latitude}","E-W: {longitude}","▲=new ▼=ok →=back"),
         "es": ("N-S: {latitude}","E-O: {longitude}","▲=nuevo ▼=ok →=atrás")
     },  
     "hmi_20": {
@@ -162,8 +163,8 @@ MESSAGE_REGISTER = {
     "hmi_25": {
         "sleep": 0,
         "de": ("▲ = Testlauf starten","","→ = zurück"),
-        "en": ("Start test run","","→ = back"),
-        "es": ("Iniciar prueba","","→ = atrás")
+        "en": ("▲ = Start test run","","→ = back"),
+        "es": ("▲ = Iniciar prueba","","→ = atrás")
     },
     "hmi_26": {
         "sleep": 1,
@@ -186,7 +187,7 @@ MESSAGE_REGISTER = {
     "hmi_29": {
         "sleep": 3,
         "de": ("USB Speicher","gesamt: {total_space} GB","frei: {free_space} GB"),
-        "en": ("USB storage","total: {total_space} GB","free: {free_space} GB"),
+        "en": ("USB storage","total: {total_space} GB","available: {free_space} GB"),
         "es": ("Almacenamiento USB","total: {total_space} GB","libre: {free_space} GB")
     },
     "hmi_30": {
@@ -198,7 +199,7 @@ MESSAGE_REGISTER = {
     "hmi_31": {
         "sleep": 3,
         "de": ("USB Speicher","fast voll","leeren"),
-        "en": ("USB storage","almost full","clear"),
+        "en": ("USB storage","almost full","delete"),
         "es": ("Almacenamiento USB","casi lleno", "vaciar")
     },
     "hmi_32": {
@@ -215,14 +216,14 @@ MESSAGE_REGISTER = {
     },      
     "hmi_35": {
         "sleep": 1,
-        "de": ("Testlauf beendet","Übernehme neuen","Code"),
-        "en": ("Test run finished","adopting new","code"),
-        "es": ("Prueba terminada","adoptando nuevo","código")
+        "de": ("Testlauf beendet","Übernehme neuen","LEPMON-Code"),
+        "en": ("Test run finished","adopting new","LEPMON-Code"),
+        "es": ("Prueba terminada","adoptando nuevo","LEPMON-Code")
     },   
     "hmi_36": {
         "sleep": 2,
         "de": ("Testlauf beendet","Deckel","schließen"),
-        "en": ("Test run finished","close","housing cover"),
+        "en": ("Test run finished","close","lid"),
         "es": ("Prueba terminada","cierre","la cubierta")
     },               
     "hmi_gps_check_1": {
@@ -247,13 +248,13 @@ MESSAGE_REGISTER = {
     "hmi_sensor_check_2": {
         "sleep": 3,
         "de": ("Alle Sensoren","gefunden",""),
-        "en": ("All sensors", "found", ""),
+        "en": ("All sensors", "present", ""),
         "es": ("Todos los sensores", "encontrados", "")
     }, 
     "hmi_sensor_check_3": {
         "sleep": 3,
         "de": ("Sensor fehlt","weiterhin","fahre fort"),
-        "en": ("Sensor missing", "still", "continue"),
+        "en": ("Sensor still", "missing", "continue anyways"),
         "es": ("Falta el sensor", "todavía", "continuar")
     },  
     
@@ -297,7 +298,7 @@ MESSAGE_REGISTER = {
     "update_9": {
         "sleep": 2,
         "de": ("Downgrade","nicht erlaubt",""),
-        "en": ("Downgrade","not allowed",""),
+        "en": ("Downgrade","not permitted",""),
         "es": ("Volver a la", "versión anterior", "no permitido")
     },   
     "update_10": {
@@ -448,16 +449,16 @@ MESSAGE_REGISTER = {
     },
     "focus_3": {
         "sleep": 3,
-        "de": ("nach Neustart", "mit Fokussieren", "fortfahren"),
-        "en": ("after restart", "continue", "focusing"),
+        "de": ("Setze Fokussieren", "nach Neustart", "fort"),
+        "en": ("continue focusing", "after restart", ""),
         "es": ("después del reinicio", "continuar", "enfocando")
     },      
 
     "focus_4": {
         "sleep": 1,
         "de": ("Belichtung gefunden","",""),
-        "en": ("Exposure determined","",""),
-        "es": ("Exposición determinada","","")
+        "en": ("Exposure","determined",""),
+        "es": ("Exposición","determinada","")
     },    
 
     "focus_5": {
@@ -507,10 +508,21 @@ MESSAGE_REGISTER = {
     "focus_12": {
         "sleep": 4,
         "de": ("Notfallabschaltung", "Visible LED", "nach 5 Minuten"),
-        "en": ("Emergency shutdown", "Visible LED", "after 5 minutes"),
+        "en": ("Emergency stop", "Visible LED", "after 5 minutes"),
         "es": ("Apagado de emergencia", "LED visible", "después de 5 minutos")
     },
-    
+    "focus_RPI_M3_1": {
+        "sleep": 1,
+        "de": ("Fokusschleife", "startet", ""),
+        "en": ("Focusing loop", "starts", ""),
+        "es": ("Bucle de enfoque", "comienza", "")
+    },
+    "focus_RPI_M3_2": {
+        "sleep": 3,
+        "de": ("Foksieren beendet", "Dioptrien alt: {dioptrien_alt}", "Dioptrien neu: {dioptrien_neu}"),
+        "en": ("Focusing ended", "Diopters old: {dioptrien_alt}", "Diopters new: {dioptrien_neu}"),
+        "es": ("Enfoque terminado", "Dioptrías antiguas: {dioptrien_alt}", "Dioptrías nuevas: {dioptrien_neu}")
+    },
     ### rtc ###
     "rtc_1": {
         "sleep": 0,
@@ -527,37 +539,37 @@ MESSAGE_REGISTER = {
     "rtc_3": {
         "sleep": 3,
         "de": ("ungültiges Jahr","neu eingeben",""),
-        "en": ("Invalid year","enter again",""),
+        "en": ("Invalid year","try again",""),
         "es": ("Año inválido","ingresar de nuevo","")
     },  
     "rtc_4": {
         "sleep": 3,
         "de": ("ungültiger Monat", " neu eingeben",""),
-        "en": ("Invalid month","enter again",""),
+        "en": ("Invalid month","try again",""),
         "es": ("Mes inválido","ingresar de nuevo","")
     },  
     "rtc_5": {
         "sleep": 3,
         "de": ("ungültiger Tag","neu eingeben",""),
-        "en": ("Invalid day","enter again",""),
+        "en": ("Invalid day","try again",""),
         "es": ("Día inválido","ingresar de nuevo","")
     },
     "rtc_6": {
         "sleep": 3,
         "de": ("ungültige Stunde", "neu eingeben",""),
-        "en": ("Invalid hour","enter again",""),
+        "en": ("Invalid hour","try again",""),
         "es": ("Hora inválida","ingresar de nuevo","")
     },  
     "rtc_7": {
         "sleep": 3,
         "de": ("ungültige Minute", "neu eingeben",""),
-        "en": ("Invalid minute","enter again",""),
+        "en": ("Invalid minute","try again",""),
         "es": ("Minuto inválido","ingresar de nuevo","")
     },  
     "rtc_8": {
         "sleep": 3,
         "de": ("ungültige Sekunde", "neu eingeben",""),
-        "en": ("Invalid second","enter again",""),
+        "en": ("Invalid second","try again",""),
         "es": ("Segundo inválido","ingresar de nuevo","")
     },  
     "rtc_9": {
@@ -593,7 +605,7 @@ MESSAGE_REGISTER = {
         "es": ("Prueba de cámara","Acceso","fallido")
     },   
     "cam_4": {
-        "sleep": 1,
+        "sleep": 0,
         "de": ("Kamera Test","Kamera wird", "eingeschaltet"),
         "en": ("Camera test","Camera is","powering on"),
         "es": ("Prueba de cámara","La cámara se","enciende")
@@ -607,7 +619,7 @@ MESSAGE_REGISTER = {
     "cam_6": {
         "sleep": 1,
         "de": ("Dimme","UV Lampe","runter"),
-        "en": ("Dim"," UV lamp","down"),
+        "en": ("Dim","UV lamp","down"),
         "es": ("Disminuir","lámpara UV","")
     },   
     "cam_7": {
@@ -618,7 +630,7 @@ MESSAGE_REGISTER = {
     },  
     
     "cam_UV": {
-        "sleep": 2,
+        "sleep": 3.5,
         "de": ("","UV",""),
         "en": ("","UV",""),
         "es": ("","UV","")
@@ -702,8 +714,8 @@ MESSAGE_REGISTER = {
     "side_4": {
         "sleep": 2,
         "de": ("Auswahl","abgeschlossen",""),
-        "en": ("Selection","completed",""),
-        "es": ("Selección","completada","")
+        "en": ("Selection","finished",""),
+        "es": ("Selección","finalizada","")
     },   
     "side_5": {
         "sleep": 3,
@@ -752,7 +764,7 @@ MESSAGE_REGISTER = {
     "err_2": {
         "sleep": 3,
         "de": ("Fehler 2", "Kamera überfordert", "nicht initialisiert"),
-        "en": ("Error 2", "Camera overwhelmed", "not initialized"),
+        "en": ("Error 2", "Camera busy", "not initialized"),
         "es": ("Error 2", "Cámara saturada", "no inicializada")
     }, 
     "err_3": {
@@ -770,13 +782,13 @@ MESSAGE_REGISTER = {
     "err_5": {
         "sleep": 3,
         "de": ("Fehler 5", "Außensensor - Prüfe", "Sensorkabel"),
-        "en": ("Error 5", "Outdoor sensor - Check", "sensor cable"),
-        "es": ("Error 5", "Sensor exterior - Verifique", "cable del sensor")
+        "en": ("Error 5", "Outdoor sensor - ", "Check sensor cable"),
+        "es": ("Error 5", "Sensor exterior - ", "Verifique cable")
     }, 
     "err_6": {
         "sleep": 3,
         "de": ("Fehler 6", "Innensensor", "Platinenfehler"),
-        "en": ("Error 6", "Indoor sensor", "board error"),
+        "en": ("Error 6", "Inner sensor", "board error"),
         "es": ("Error 6", "Sensor interior", "error de placa")
     }, 
     "err_7": {
@@ -812,14 +824,14 @@ MESSAGE_REGISTER = {
     "err_12": {
         "sleep": 3,
         "de": ("Fehler 12", "Beleuchtungs LED", "verdunkelt"),
-        "en": ("Error 12", "Lighting LED", "dimmed"),
+        "en": ("Error 12", "Visible LED", "darkened"),
         "es": ("Error 12", "Iluminación LED", "atenuada")
     }, 
     "err_13": {
         "sleep": 3,
         "de": ("Fehler 13", "Metadaten Tabelle", "Software/ USB Fehler"),
-        "en": ("Error 13", "Metadata table", "Software/USB error"),
-        "es": ("Error 13", "Tabla de metadatos", "Error de software/USB")
+        "en": ("Error 13", "Metadata table", "Software/ USB error"),
+        "es": ("Error 13", "Tabla de metadatos", "Error de software/ USB")
     }, 
     "err_14": {
         "sleep": 3,
@@ -835,9 +847,9 @@ MESSAGE_REGISTER = {
     },
     "err_16": {
         "sleep": 3,
-        "de": ("Fehler 16", "Land/Region","nicht bestimmt"),
-        "en": ("Error 16", "Country/Region","not determined"),
-        "es": ("Error 16", "País/Región","no determinado")
+        "de": ("Fehler 16", "Land/ Region","nicht bestimmt"),
+        "en": ("Error 16", "Country/ Region","not determined"),
+        "es": ("Error 16", "País/ Región","no determinado")
     },
                             
     ### blank ###
@@ -849,8 +861,80 @@ MESSAGE_REGISTER = {
     }
 }    
 
+
+
+def show_message_register(start_key=None, lang="de", dummy_values=None):
+    """
+    Zeigt alle Nachrichten aus dem MESSAGE_REGISTER nacheinander auf dem OLED an.
+    Startpunkt kann per Schlüsselname gesetzt werden. Platzhalter werden mit Dummy-Werten ersetzt.
+    :param start_key: Schlüsselname, ab dem gestartet wird (inklusive)
+    :param lang: Sprache ('de', 'en', 'es', ...)
+    :param dummy_values: Dict mit Dummy-Werten für Platzhalter
+    """
+    from OLED_panel import show_message
+    keys = list(MESSAGE_REGISTER.keys())
+    if start_key is not None:
+        try:
+            start_idx = keys.index(start_key)
+        except ValueError:
+            print(f"Startschlüssel '{start_key}' nicht gefunden. Starte bei erstem Eintrag.")
+            start_idx = 0
+    else:
+        start_idx = 0
+
+    if dummy_values is None:
+        dummy_values = {
+            "hardware": "HW1",
+            "sn": "123456",
+            "version": "1.0.0",
+            "date": "01.01.2026",
+            "time": "12:00",
+            "provinz": "TestProvinz",
+            "Kreiscode": "000",
+            "latitude": "50.0N",
+            "longitude": "8.0E",
+            "country_name": "Deutschland",
+            "region_name": "Hessen",
+            "package": "testpkg",
+            "Exposure": "100",
+            "Gain": "1.0",
+            "average_brightness": "128",
+            "variance_old": "10",
+            "variance_new": "12",
+            "dioptrien_alt": "1.0",
+            "dioptrien_neu": "1.5",
+            "Breite": "50.0N",
+            "Länge": "8.0E",
+            "country": "Deutschland",
+            "province": "Hessen",
+            "Kreis": "TestKreis",
+            "total_space": "32",
+            "free_space": "16",
+            "sunset": "18:00",
+            "sunrise": "06:00",
+            "hours": "01",
+            "minutes": "00",
+            "seconds": "00",
+            "zaehler": "1",
+            "gesamtzahl": "10",
+            "tries": "1",
+        }
+
+    for key in keys[start_idx:]:
+        entry = MESSAGE_REGISTER[key]
+        # Platzhalter mit Dummy-Werten füllen, falls nötig
+        try:
+            show_message(key, lang, **dummy_values)
+            time.sleep(3)
+            print(f"Angezeigte Nachricht: '{key}' in Sprache '{lang}'")
+        except Exception as e:
+            print(f"Fehler bei Nachricht '{key}': {e}")
+
+
+
 if __name__ == "__main__":
-    print("gebe alle Nachrichten aus, die im OLED Panel angezeigt werden")
+    '''
+    print("alle Nachrichten des Registers")
     print("-------------------------------------------------------\n")
     # test print all messages
     for key in MESSAGE_REGISTER:
@@ -865,3 +949,11 @@ if __name__ == "__main__":
         for line in MESSAGE_REGISTER[key]["es"]:
             print(f"  {line}")
         print("\n")
+    '''
+    print("Gebe Start Key zur Anzeige auf OLED ein")
+    start_key = str(input())
+    print("-------------------------------------------------------\n")
+    print("-------------------------------------------------------\n")
+    print("-------------------------------------------------------\n")
+
+    show_message_register(start_key=start_key, lang="en")

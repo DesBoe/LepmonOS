@@ -12,6 +12,10 @@ from language import get_language
 from hardware import get_hardware_version
 import re
 from GPIO_Setup import *
+import shutil
+import re
+
+
 
 lang = get_language()
 
@@ -67,12 +71,13 @@ def get_Lepmon_code(log_mode):
         error_message(9,e,log_mode)
     time.sleep(.5)
     
-    if sn == None:
-        print("Konnte sn nicht aus Ram lesen, nutze Konfigurationsdatei")
+    if sn is None or sn == "" or not re.match(r"^SN\d{6}$", sn):
+        print(f"Konnte sn nicht aus Ram lesen, nutze Konfigurationsdatei. gelesen aus RAM:{sn}")
         try:        
             sn = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","general","serielnumber")  
         except Exception as e:
             error_message(11,e,log_mode)
+            print("Warnung: sn ist ungültig, setze Fallback-Wert 'Fehler_sn'")
             sn = "Fehler_sn"      
                 
     return project_name,province, Kreis_code, sn
@@ -90,12 +95,12 @@ def get_usb_path(log_mode):
         search_counter += 1  
         if search_counter == 3:
             error_message(3, "USB-Stick nicht gefunden", log_mode)
-        if 4 < search_counter < 9:
+        if 4 < search_counter < 24:
             turn_on_led("gelb")
             time.sleep(.5)
             turn_off_led("gelb")
-        if search_counter > 10:
-            print("USB Stick nach 10 versuchen nicht gefunden. Zielverzeichneis ist None")
+        if search_counter > 24:
+            print("USB Stick nach 25 versuchen nicht gefunden. Zielverzeichneis ist None")
             zielverzeichnis = "Kein USB-Stick gefunden"
             return zielverzeichnis, status
         if os.path.exists(media_path):
@@ -111,56 +116,75 @@ def get_usb_path(log_mode):
     return zielverzeichnis, status      
             
 def erstelle_ordner(log_mode, Cameramodel = "None"):
-    project_name, province, Kreis_code,sn = get_Lepmon_code(log_mode)
-    zielverzeichnis,_ = get_usb_path(log_mode)
+    project_name, province, Kreis_code, sn = get_Lepmon_code(log_mode)
+    zielverzeichnis, _ = get_usb_path(log_mode)
     jetzt_local, _, _ = Zeit_aktualisieren(log_mode)
     jetzt_local = datetime.strptime(jetzt_local, "%Y-%m-%d %H:%M:%S")
     aktueller_nachtordner = None
+
+    # Alle Variablen auf Nullbytes prüfen und bereinigen
+    def clean_var(var):
+        if var is None:
+            return ""
+        if isinstance(var, str):
+            return var.replace('\x00', '').replace('\0', '')
+        return str(var)
+
+    project_name_clean = clean_var(project_name)
+    province_clean = clean_var(province)
+    Kreis_code_clean = clean_var(Kreis_code)
+    sn_clean = clean_var(sn)
+
+    # Debug: repr-Ausgabe aller Variablen
+    print(f"project_name: {repr(project_name_clean)}")
+    print(f"province: {repr(province_clean)}")
+    print(f"Kreis_code: {repr(Kreis_code_clean)}")
+    print(f"sn: {repr(sn_clean)}")
+
     try:
-        #if aktueller_nachtordner is None or not os.path.exists(aktueller_nachtordner):
         if log_mode == "log":
-            ordnername = f"{project_name}{sn}_{province}_{Kreis_code}_{jetzt_local.strftime('%Y')}-{jetzt_local.strftime('%m')}-{jetzt_local.strftime('%d')}_T_{jetzt_local.strftime('%H%M')}"
+            ordnername = f"{project_name_clean}{sn_clean}_{province_clean}_{Kreis_code_clean}_{jetzt_local.strftime('%Y')}-{jetzt_local.strftime('%m')}-{jetzt_local.strftime('%d')}_T_{jetzt_local.strftime('%H%M')}"
             aktueller_nachtordner = os.path.join(zielverzeichnis, ordnername)
             os.makedirs(aktueller_nachtordner, exist_ok=True)
             print(f"Ordner erstellt: {aktueller_nachtordner}")
-            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder",aktueller_nachtordner)
+            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder", aktueller_nachtordner)
             write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "Control_End", True)
             write_fram_bytes(0x07A0, b'\x01')
             print("Pfad des Ausgabe Ordner in der Konfigurationsdatei gespeichert")
             return aktueller_nachtordner
         elif log_mode == "manual":
-            ordnername = f"{project_name}{sn}_Manueller_TestRun_{jetzt_local.strftime('%Y')}-{jetzt_local.strftime('%m')}-{jetzt_local.strftime('%d')}_T_{jetzt_local.strftime('%H%M')}"
+            ordnername = f"{project_name_clean}{sn_clean}_Manueller_TestRun_{jetzt_local.strftime('%Y')}-{jetzt_local.strftime('%m')}-{jetzt_local.strftime('%d')}_T_{jetzt_local.strftime('%H%M')}"
             aktueller_nachtordner = os.path.join(zielverzeichnis, ordnername)
+            print(aktueller_nachtordner)
             os.makedirs(aktueller_nachtordner, exist_ok=True)
             print(f"Ordner für Manuellen Testlauf erstellt: {aktueller_nachtordner}")
-            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder",aktueller_nachtordner)
+            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder", aktueller_nachtordner)
             print("Pfad des Ausgabe Ordner in der Konfigurationsdatei gespeichert")
             return aktueller_nachtordner
         elif log_mode == "kamera_test":
-            print("Debug1")
-            ordnername = f"Belichtungsreihe_{Cameramodel}"
+            zeitstring = jetzt_local.strftime("%Y-%m-%d__%H_%M_%S")
+            ordnername = f"Belichtungsreihe_{Cameramodel}__{zeitstring}"
             aktueller_nachtordner = os.path.join(zielverzeichnis, ordnername)
             os.makedirs(aktueller_nachtordner, exist_ok=True)
             print(f"Ordner Kameratestlauf erstellt: {aktueller_nachtordner}")
-            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder",aktueller_nachtordner)
+            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder", aktueller_nachtordner)
             print("Pfad des Kamera Test Ordner in der Konfigurationsdatei gespeichert")
             return aktueller_nachtordner
     except Exception as e:
-        error_message(3,e, log_mode)
+        print(f"Fehler beim Anlegen des Ordners: {e}")
+        error_message(3, e, log_mode)
         return aktueller_nachtordner
         
 
 def delete_USB_content(log_mode):  
     zielverzeichnis,_ = get_usb_path(log_mode)
     aktueller_nachtordner = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
-    do_not_delete_path = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "locality", "do_not_delete_path")
     try:
         ordner_liste = [
             os.path.join(zielverzeichnis, item)
             for item in os.listdir(zielverzeichnis)
             if os.path.isdir(os.path.join(zielverzeichnis, item))
             and os.path.abspath(os.path.join(zielverzeichnis, item)) != os.path.abspath(aktueller_nachtordner)
-            and os.path.abspath(os.path.join(zielverzeichnis, item)) != os.path.abspath(do_not_delete_path)
         ]
         gesamtzahl = len(ordner_liste)
         zaehler = 0
@@ -199,8 +223,14 @@ def initialisiere_logfile(log_mode):
   ordnername = os.path.basename(aktueller_nachtordner)
   log_dateiname = f"{ordnername}.log"
   log_dateipfad = os.path.join(aktueller_nachtordner, log_dateiname)
+
+  if log_mode == "Diagnose":
+      log_dateipfad = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","general","current_log") 
   
-  try:
+  try:  
+        if not os.path.exists(aktueller_nachtordner):
+            time.sleep(1)
+            #erstelle_ordner(log_mode)
         # Initiales Erstellen des Logfiles
         if not os.path.exists(log_dateipfad):
             with open(log_dateipfad, 'w') as f:
@@ -276,9 +306,9 @@ def compare_hardware_version():
         if ARNI_Gen_ram != ARNI_Gen_json:
             write_value_to_section("/home/Ento/serial_number.json", "general", "Fallenversion",ARNI_Gen_ram)    
             print(f"ARNI Generation im Jsonfile aktualisiert:")
-            print(f"    ARNI Generation aus RAM  gelesen:    {ARNI_Gen_ram}")    
-            print(f"    ARNI Generation aus JSON gelesen:    {ARNI_Gen_json}")  
-            print(f"    ARNI Generation in JSON geschrieben: {ARNI_Gen_ram}")       
+            print(f"    ARNI Gen aus RAM  gelesen:    {ARNI_Gen_ram}")    
+            print(f"    ARNI Gen aus JSON gelesen:    {ARNI_Gen_json}")  
+            print(f"    ARNI Gen in JSON geschrieben: {ARNI_Gen_ram}")       
                 
     
             
@@ -293,7 +323,8 @@ def compare_sn(log_mode):
     except Exception as e:
         print(f"Fehler beim Lesen der Seriennnummer aus der separaten json Datei: {e}")    
         
-    if hardware == "Pro_Gen_3":
+    if hardware in ["Pro_Gen_3", 
+                    "CSL_Gen_1", "CSS_Gen_1"]:
         try: 
             sn_ram = read_fram(0x0110, 8).strip()
             print(f"Serial Number from FRAM: {sn_ram}") 
@@ -351,6 +382,12 @@ if __name__ == "__main__":
     usb_path, status = get_usb_path(log_mode="manual")
     print(f"USB-Stick Pfad: {usb_path}")
     print("---------------------------------")
+    ordner = erstelle_ordner(log_mode="manual", Cameramodel = "None")
+    print(f"Testordner erstellt: {ordner}")
+
+    shutil.rmtree(ordner)
+    print("Testordner gelöscht")
+    print("---------------------------------")
     print("Speicherplatz des USB-Sticks abfragen...")
     total_space_gb, used_space_gb, free_space_gb, used_percent, free_percent = get_disk_space(log_mode="manual")
     print("---------------------------------")
@@ -362,3 +399,31 @@ if __name__ == "__main__":
     print("---------------------------------")
     print("Vergleiche Seriennummer zwischen FRAM und JSON...")
     compare_sn(log_mode="manual")
+    print("---------------------------------")
+    print("---------------------------------")
+
+
+    Korrektur_INA = 0.0049400
+    Korrektur_Write = f"{Korrektur_INA:.14f}" # 14 Nachkommstellen, String mit 16 Zeichen
+    print(f"Korrekturfaktor für INA: {Korrektur_INA}")
+    print(f"Korrekturfaktor für INA als String: {Korrektur_Write}")
+
+    write_fram(0x0190, Korrektur_Write)
+
+    Korrektur_INA_gelesen = read_fram(0x0190, len(Korrektur_Write))
+    Korrektur_INA_gelesen_clean = Korrektur_INA_gelesen.replace('\x00', '').replace('\0', '').strip()
+    print(f"Gelesener Korrekturfaktor aus FRAM (String): {Korrektur_INA_gelesen_clean}")
+
+    try:
+        Korrektur_return = float(Korrektur_INA_gelesen_clean)
+        print(f"Gelesener Korrekturfaktor aus FRAM (float): {Korrektur_return}")
+    except ValueError as e:
+        print(f"Fehler beim Umwandeln des Korrekturfaktors: {e}")
+
+
+
+
+    print(f"Gelesener Korrekturfaktor aus FRAM: {Korrektur_return}")
+    print("---------------------------------")
+    print("--------------Ende---------------")
+    print("---------------------------------")

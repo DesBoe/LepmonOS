@@ -79,6 +79,23 @@ FRAM_MEMORY_MAP = {
         "description": "Lieferdatum_an_PMJ",
         "type": "Setup Prozess"
     },
+#### Kalibrierungsdaten Strom ####
+    (0x0180, 0x018F): {
+        "size": 16,
+        "description": "INA_Correction",
+        "type": "Label"
+    },
+    (0x0190, 0x020F): {
+        "size": 32,
+        "description": "INA_Correction Value",
+        "type": "Setup Prozess"
+    },
+
+    (0x0210, 0x02FF): {
+        "size": 240,
+        "description": "FREE",
+        "type": "RPI"
+    },
 #### Laufzeit Daten ####
     (0x0300, 0x030E): {
         "size": 16,
@@ -178,14 +195,11 @@ FRAM_MEMORY_MAP = {
         "description": "Daylights Saving timestamp+controllbit",
         "type": "RPI"
     },
-    
-    
     (0x0490, 0x049F): {
         "size": 16,
         "description": "Land",
         "type": "Label"
     },
-    
     (0x04A0, 0x04BF): {
         "size": 32,
         "description": "Land",
@@ -239,22 +253,25 @@ FRAM_MEMORY_MAP = {
     }, 
 
     (0x0580, 0x058F): {
-        "size": 64,
-        "description": "FREE"
+        "size": 16,
+        "description": "Development + Kontrollbit",
+        "type": "Setup_Prozess"
     }, 
-        
+    (0x0590, 0x05FF): {
+        "size": 112,
+        "description": "FREE",
+        "type": "Label"
+    },  
     (0x0600, 0x060F): {
         "size": 16,
         "description": "language",
         "type": "Label"
     },     
-
     (0x0610, 0x061F): {
         "size": 16,
         "description": "language",
         "type": "RPI"
     }, 
-    
     (0x0620, 0x062F): {
         "size": 16,
         "description": "images_expected",

@@ -13,6 +13,17 @@
     "Tiranë": ["TR", "TR", "KJ"],
     "Vlorë": ["VL", "VL", "DL", "SR"]
   },
+  "Austria": {
+    "Burgenland": ["B", "E", "GD", "HN", "JU", "OW", "WE"],
+    "Kärnten": ["K", "CL", "DO", "FR", "KL", "SP", "SV"],
+    "Niederösterreich": ["N", "BL", "GM", "HO", "KR", "LA", "ME", "MD", "MI", "NE", "PO", "SK", "SW", "TU", "WN"],
+    "Oberösterreich": ["OO", "BR", "EF", "FR", "GR", "KI", "LL", "PE", "RO", "SD", "UR"],
+    "Salzburg": ["S", "AB", "JO", "LI", "SL"],
+    "Steiermark": ["ST", "BM", "DL", "FB", "GU", "HF", "JO", "LB", "MU", "RA", "VO"],
+    "Tirol": ["T", "IL", "KU", "LA", "RE"],
+    "Vorarlberg": ["V", "B","DO","FR","HO","MO"],
+    "Wien": ["W","W"]
+  },
   "Belgium": {
     "Antwerpen": ["VAN", "AN"],
     "Brussels-Capital": ["BRU", "BX"],

@@ -66,9 +66,12 @@ def start_up(log_mode):
         print(f"Fehler beim USB Stick:{e}")
     if not status_USB:   
         print(f"Fehler beim Erkennen des USB-Sticks")
-        log_schreiben("##################################", log_mode=log_mode)
-        log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###", log_mode=log_mode)
-        log_schreiben("##################################", log_mode=log_mode) 
+        try:
+            log_schreiben("##################################", log_mode=log_mode)
+            log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###", log_mode=log_mode)
+            log_schreiben("##################################", log_mode=log_mode) 
+        except Exception as e:
+            pass
         trap_shutdown(log_mode,10)
         return
         
@@ -116,13 +119,18 @@ def start_up(log_mode):
     initialisiere_logfile(log_mode)
     
     display_text_and_image("Wel-","come", "", "/home/Ento/LepmonOS/startsequenz/Logo_5_9.png",1)
-    log_schreiben(f"ARNI ID: {sn}", log_mode=log_mode)
-    log_schreiben(f"ARNI Generation: {hardware}", log_mode=log_mode)
+    log_schreiben(f"ARNI SN Nummer:   {sn}", log_mode=log_mode)
+    log_schreiben(f"ARNI Generation:  {hardware}", log_mode=log_mode)
+    log_schreiben(f"verbaute Kamera:  {get_device_info('camera')}",log_mode=log_mode)
+    log_schreiben(f"verbauter Sensor: {get_device_info('sensor')}",log_mode=log_mode)
+    log_schreiben(f"Auflösung (LxB):  {get_device_info('length')} x {get_device_info('height')}",log_mode=log_mode)
+
+
     if device_run is not None:
-        log_schreiben(f"ARNI run: {sn}__{device_run}", log_mode=log_mode)
+        log_schreiben(f"ARNI run:         {sn}__{device_run}", log_mode=log_mode)
     
     Version = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "version")
-    log_schreiben(f"Firmware- Version: {Version} vom {date}", log_mode=log_mode)
+    log_schreiben(f"Firmware:         {Version} vom {date}", log_mode=log_mode)
     
     display_text_and_image("Wel-","come", "", "/home/Ento/LepmonOS/startsequenz/Logo_6_9.png",1)   
     power_on, power_off = get_times_power()

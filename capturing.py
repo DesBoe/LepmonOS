@@ -1,5 +1,6 @@
 from Lights import *
-from Camera import *
+from Camera_AV import *
+from Camera_RPI import *
 from sensor_data import read_sensor_data
 from times import *
 from json_read_write import *
@@ -21,6 +22,9 @@ from sensor_data import get_light
 from usb_controller import reset_all_usb_ports
 from Daylightsaving import daylight_saving_check
 from service import *
+from hardware import *
+
+'''
 from capturing_state import (
     set_capturing_active, 
     update_capture_progress, 
@@ -28,20 +32,42 @@ from capturing_state import (
     is_stop_requested,
     clear_stop_request
 )
-
+'''
 
 def capturing(log_mode):
     überleiten_zu_shutdown = False
 
     gamma_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","image_quality","gamma_correction")
-    gamma_value = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","image_quality","gamma_value")
+    dusk_treshold = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "dusk_treshold")
+    interval = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "interval")
+    camera = get_device_info('camera')
 
-    print("starte Capturing")
-    
+    if camera == "RPI_Module_3":
+        gamma_value = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","gamma_value")
+        Exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","initial_exposure_10"))/10
+        gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","initial_gain_10"))/10
+        compression_quality = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","compression_quality")
+       
+        focus = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "RPI_Module_3", "focus")
+    elif camera == "RPI_HQ":
+        gamma_value = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","gamma_value")
+        Exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","initial_exposure_10"))/10
+        gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","initial_gain_10"))/10
+        compression_quality = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","compression_quality")
+    elif camera == "AV__Alvium_1800_U-2050":
+        gamma_value = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","gamma_value")
+        Exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_exposure"))
+        gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_gain_10"))/10
+
+
+    print("starte Capturing")  
+    '''
     # Signal that capturing is starting
     set_capturing_active(True)
     clear_stop_request()
-    
+    '''
+
+
     heater,Warteschleife = wait(log_mode)
     log_schreiben("##################################", log_mode)
     log_schreiben("##################################", log_mode)
@@ -76,15 +102,6 @@ def capturing(log_mode):
     experiment_start_time, experiment_end_time, _, _ = get_experiment_times()
     _, sunrise, _ = get_sun()
     sunrise = sunrise.strftime('%H:%M:%S')
-
-    try:
-        dusk_treshold = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "dusk_treshold")
-        interval = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "interval")
-        Exposure = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "initial_exposure")
-        gain = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "initial_gain")
-    except Exception as e:
-        error_message(11,e, log_mode)
-        
 
     Fang_begonnen = False
     UV_active = False
@@ -130,16 +147,17 @@ def capturing(log_mode):
         error_message(9,e, log_mode)
         print(f"Fehler beim Löschen des Bildzählers und Schreiben der erwarteten Bilder in den RAM: {e}")
 
-    # Kameraeinstellungen kopieren
-    try:
-        ordner = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
-        Dateiname = os.path.basename(ordner)
-        zieldatei = os.path.join(ordner, f"{Dateiname}_Kameraeinstellungen.xml")
-        shutil.copy("/home/Ento/LepmonOS/Kamera_Einstellungen.xml", zieldatei)
-        checklist(zieldatei, log_mode, algorithm="md5")
-        print("Kameraeinstellungen kopiert")
-    except Exception as e:
-        print(f"Fehler beim Kopieren der Kameraeinstellungen: {e}")
+    # Kameraeinstellungen kopieren - bei Raspberry Kameras übernimmt das die Bildaufnahme Funktion
+    if camera == "AV__Alvium_1800_U-2050":
+        try:
+            ordner = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
+            Dateiname = os.path.basename(ordner)
+            zieldatei = os.path.join(ordner, f"{Dateiname}_Kameraeinstellungen.xml")
+            shutil.copy("/home/Ento/LepmonOS/Kamera_Einstellungen.xml", zieldatei)
+            checklist(zieldatei, log_mode, algorithm="md5")
+            print("Kameraeinstellungen kopiert")
+        except Exception as e:
+            print(f"Fehler beim Kopieren der Kameraeinstellungen: {e}")
         
     # erste Belichtung
     try:
@@ -150,7 +168,7 @@ def capturing(log_mode):
             Night = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "Control_Night")
         except Exception as e:
             print(f"Fehler beim Schreiben in die Konfigurationsdatei: {e}")
-    Exposure, gain = first_exp(Night,log_mode)
+    Exposure, gain = first_exp(Night,log_mode, camera)
     
     usb_reset = False
 
@@ -180,12 +198,12 @@ def capturing(log_mode):
                     turn_off_led("Heizung")
                     log_schreiben("Scheibenheizung nach 8 Bildern ausgeschaltet",log_mode)
                     print("Scheibenheizung nach 8 Bildern ausgeschaltet")
-                    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "Heizung", False)
+                    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "powermode", "Heizung", False)
                     Heizung_active = False
                     heater = False
                     
             if not Fang_begonnen:
-                LepiLED_start()
+                LepiLED_start("show")
                 log_schreiben("LepiLED eingeschaltet",log_mode)
                 log_schreiben("------------------",log_mode)
                 send_lora("LepiLED eingeschaltet")
@@ -205,28 +223,41 @@ def capturing(log_mode):
             experiment_start_string = datetime.strptime(experiment_start_time, "%H:%M:%S")
             lokale_Zeit_string = datetime.strptime(lokale_Zeit, "%H:%M:%S")
             
+            print(f"Aufnahmezeitpunkt: {lokale_Zeit_string.strftime('%H:%M:%S')}")
+            print(Exposure, gain)
+            time.sleep(5)
             while not photo_sanity_check and not good_exposure:
-                # Check for stop request from web UI
+
+                '''
                 if is_stop_requested():
                     log_schreiben("Stop requested from web interface", log_mode)
                     überleiten_zu_shutdown = True
                     break
-                    
-                code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie, sensor, length, height, avg_brightness, good_exposure, Exposure, gain = snap_image("jpg", "log", Kamera_Fehlerserie, log_mode, Exposure=Exposure, Gain=gain)
-                write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "current_exposure", Exposure)
-                write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "current_gain", gain)
-                
-                # Update capture state for web UI
+                '''
+                if camera == "AV__Alvium_1800_U-2050":
+                    code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, gain = snap_image_AV("jpg", "log", Kamera_Fehlerserie, log_mode, Exposure=Exposure, Gain=gain)
+                    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "current_exposure", Exposure)
+                    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "current_gain", gain)
+                elif camera == "RPI_Module_3":
+                    code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, gain,_ ,_ = snap_image_rpi("jpg","log", Kamera_Fehlerserie, log_mode, camera, Exposure=int(Exposure), Gain=gain, focus=focus)
+                elif camera == "RPI_HQ":
+                    code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, gain,_ ,_ = snap_image_rpi("jpg","log", Kamera_Fehlerserie, log_mode, camera, Exposure=int(Exposure), Gain=gain)
+
+                elif camera not in ["AV__Alvium_1800_U-2050","RPI_Module_3","RPI_HQ"]:
+                    log_schreiben(f"unbekannte Kamera gefunden:{camera}.", log_mode)
+
+                '''
                 update_capture_progress(
                     current_exposure=Exposure,
                     current_gain=gain,
-                    last_image_path=current_image
-                )
-                
+                    last_image_path=current_image)
+                '''
+
                 time.sleep(1)
+
                 if Status_Kamera == 1:
                     try:
-                        photo_sanity_check = check_image(current_image, sensor, length, height)
+                        photo_sanity_check = check_image(current_image)
                     except Exception as e:
                         print(f"Fehler bei der Bildprüfung: {e}")
                         photo_sanity_check = False
@@ -240,8 +271,10 @@ def capturing(log_mode):
                 try:
                         aktuelles_Bild = ram_counter(0x0650)
                         print(f"Bild-Counter im Ram Modul erhöht: {aktuelles_Bild}")
+                        '''
                         # Update web UI with image count
                         increment_image_count()
+                        '''
                 except Exception as e:
                         print(f"Fehler beim Schreiben des Bild-Counters im Ram Modul: {e}")
 
@@ -297,6 +330,13 @@ def capturing(log_mode):
                 show_message("blank", lang = lang)
                 
                 if 0 <= lokale_Zeit.minute <= 15 and not usb_reset:
+                    sharp,_ = check_focus(current_image, camera, log_mode)
+                    if not sharp and camera == "RPI_Module_3":
+                        log_schreiben("Unscharfe Bilder erkannt. Starte Fokussierung ...", log_mode)
+                        dioptrien_alt = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "RPI_Module_3", "focus")
+                        dioptrien_neu = set_focus_rpi_cam()
+                        log_schreiben(f"Fokus RPI Module 3 geändert von {dioptrien_alt} auf {dioptrien_neu}", log_mode=log_mode)
+                        time.sleep(5)
                     reset_all_usb_ports(log_mode)
                     usb_reset = True
                 
@@ -310,6 +350,7 @@ def capturing(log_mode):
             überleiten_zu_shutdown = True
         
         if überleiten_zu_shutdown:
+            LepiLED_ende("show")
             daylight_saving_check(log_mode)
             print("Beende Aufnahme Schleife\nLeite zum Ausschalten über")
             log_schreiben("##################################",log_mode)
@@ -346,9 +387,10 @@ def capturing(log_mode):
             log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###",log_mode)
             log_schreiben("##################################",log_mode)
         
+            '''
             # Signal that capturing has ended
-            set_capturing_active(False)
-            
+            set_capturing_active(False)            
+            '''
             print("hauptschleife beendet")
             return
     
@@ -356,4 +398,4 @@ if __name__ == "__main__":
     erstelle_ordner("manual")
     initialisiere_logfile("manual")
     log_schreiben("Logeinträge werden im Terminal angezeigt bei Manueller ausführung von Capturing", "log")
-    capturing("log")
+    capturing("manual")

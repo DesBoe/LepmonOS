@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.1.5] 2025-01--21
+## [2.1.6] 2025-02-09
 ### Geändert
 - Visible nur bei Befehl der Frame erstellung an
 - Strom Sensor nur 1x initialisiert, nicht bei jedem Lesen
@@ -29,8 +29,8 @@
 - Gamma Korrektur der aufgenommenen Frames, um Schatten aufzuhellen (Schrittweise, je 1/3 des Frames gleichzeitig)
 - Daylight Saving: Uhrumstellung im Frühjahr und Herbst
 - im HMI kann für eine Korrektur bei der Eingabe mit der Taste "Rechts" zurückgegangen werden
-- im HMI wird nach der Raspberry Kamera gesucht, falls die AV Kamera nicht gefunden wird
 - Nach der GPS Koordinaten Eingabe ermittelt ARNI das Land und die Provinz, in der die eingegebenen Koordinaten liegen. Der Nutzer muss dies bestätigen oder die Koordinaten neu eingeben. Diese Angaben haben keine Auswirkungen auf den LEPMON-Code
+- Unterstützung für Raspberry "Pi HQ Camera" und "Raspberry Pi Camera Module 3"
 
 ### Behoben
 - Fehler 3 wird bei gezogenem USB Stick während der Aufnahme Schleife angezeigt

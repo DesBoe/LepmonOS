@@ -11,6 +11,7 @@ from logging_utils import log_schreiben
 from end import trap_shutdown
 import stat
 from language import get_language
+from hardware import *
 
 lang = get_language()
 
@@ -110,7 +111,7 @@ def is_update_allowed(log_mode):
 
 
 def write_to_fram():
-
+    camera = get_device_info("camera")
     try:
         write_fram(0x0620, "images_expected".ljust(16))
         write_fram(0x0640, "images_count".ljust(16))
@@ -124,6 +125,9 @@ def write_to_fram():
         write_fram(0x0600," language".ljust(16))
         write_fram(0x0460, "Zeitumstellung".ljust(16))
         write_fram(0x0560, "new_package".ljust(16))
+        if camera == "RPI_Module_3":
+            write_fram_bytes(0x078F, b'\x01') # Fokusieren bei RPI Module 3 erzwingen
+
     except:
         pass    
 
@@ -229,6 +233,8 @@ def update(log_mode):
             trap_shutdown(log_mode, 5)
             time.sleep(1)
             os.system("sudo reboot now")
+            show_message("blank", lang=lang)
+            time.sleep(10)
 
         except Exception as e:
             print(f"Fehler beim Update: {e}")

@@ -1,5 +1,6 @@
 import faulthandler; faulthandler.enable()
-from Camera import snap_image
+from Camera_AV import snap_image_AV
+from Camera_RPI import snap_image_rpi
 from GPIO_Setup import turn_on_led, turn_off_led, button_pressed
 from OLED_panel import *
 import time
@@ -12,18 +13,17 @@ from sensor_data import *
 from service import *
 from logging_utils import log_schreiben
 from Lights import *
-from find_focus import focus
+from find_focus import set_focus
 from site_selection import *
 import os
 from fram_operations import *
 from updater import *
 from end import trap_shutdown    
 from service import *
-from hardware import get_hardware_version
+from hardware import *
 from json_read_write import get_value_from_section, write_value_to_section
 from language import *
 from runtime import write_timestamp
-from RPi_cam import check_connected_camera
 from coordinates_region_check import find_country_and_region
 
 def display_sensor_status_with_text(sensor_data, sensor_status, log_mode):
@@ -41,7 +41,9 @@ def display_sensor_status_with_text(sensor_data, sensor_status, log_mode):
             ("Environment_Sensor", "Temp_out_(°C)", "°C")
         ]
         log_schreiben("Power_Sensor nicht verbaut in Pro Gen 1 und 2", log_mode=log_mode)
-    elif hardware == "Pro_Gen_3":    
+    
+    elif hardware in ["Pro_Gen_3", 
+                      "CSL_Gen_1", "CSS_Gen_1"]:
         sensors = [
             ("Light_Sensor", "LUX_(Lux)", "Lux"),
             ("Inner_Sensor", "Temp_in_(°C)", "°C"),
@@ -86,7 +88,9 @@ def open_trap_hmi(log_mode, start_step = 0):
     if hardware == "Pro_Gen_1":
         show_message("hmi_01", lang=lang)
         print("Eingabe Menü mit der Taste Enter ganz links unten öffnen")
-    elif hardware == "Pro_Gen_2" or hardware == "Pro_Gen_3":
+    
+    elif hardware in ["Pro_Gen_2","Pro_Gen_3", 
+                      "CSL_Gen_1", "CSS_Gen_1"]:
         show_message("hmi_02", lang=lang)            
         print("Eingabe Menü mit der Taste Enter ganz rechts unten öffnen")
         
@@ -109,8 +113,8 @@ def open_trap_hmi(log_mode, start_step = 0):
                 if read_fram_bytes(0x052F, 1) == b'\x01': # Erzwingen durch Update zurückgesetzt                        
                     write_fram_bytes(0x052F, b'\x00')
                 if read_fram_bytes(0x078F, 1) == b'\x01':
-                     write_fram_bytes(0x078F, b'\x00') # Erzwingen durch fehlerhaftem Fokussieren zurückgesetzt     
-                     show_message("blank", lang=lang)
+                    write_fram_bytes(0x078F, b'\x00') # Erzwingen durch fehlerhaftem Fokussieren zurückgesetzt     
+                show_message("blank", lang=lang)
                      
                 break
             except Exception as e:
@@ -145,22 +149,15 @@ def open_trap_hmi(log_mode, start_step = 0):
     
     
     
-    
-    
-                  
-                  
-                  
-                  
-                  
-                  
-                  
-                  
                   
                   
                   
                   
 def menu_options(log_mode, set_new_location_code, lang, start_step = 0):        
                 print("Eingabe Menü geöffnet")
+                hardware = get_hardware_version()
+                camera = get_device_info('camera') 
+                print("erwartete Kamera: {camera}")
                 show_message("hmi_03", lang=lang)
                 log_schreiben("------------------", log_mode=log_mode)
                 try:
@@ -176,8 +173,10 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                 province_old = Kreis_code_old = province = Kreis_code = None
                 latitude_ohne_Vorzeichen = longitude_ohne_Vorzeichen = None
                 
-                
-                steps = ["hidden","power", "delete_usb", "heat", "time", "gps","diagnose_return","diagnose_start"]
+                if hardware in ["Pro_Gen_2", "Pro_Gen_3", "Pro_Gen_4"]:
+                    steps = ["hidden","power", "delete_usb", "heat", "time", "gps","diagnose_return","diagnose_start"]
+                elif hardware in ["Pro_Gen_1","CSL_Gen_1", "CSS_Gen_1"]:
+                    steps = ["hidden","power", "delete_usb", "time", "gps","diagnose_return","diagnose_start"]
                 
                 print(log_mode, start_step)
                 if log_mode == "manual" and start_step > 0:
@@ -203,10 +202,11 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                 print("Rechts gedrückt. Öffne Fokusmenü")
                                 log_schreiben("------------------", log_mode=log_mode)
                                 log_schreiben("lokale Fokussierhilfe geöffnet", log_mode=log_mode)
-                                focus(log_mode)
+                                set_focus(log_mode)
                                 turn_off_led("gelb")
                                 show_message("hmi_03", lang=lang)
                                 hidden_menu_start = time.time()
+                                
                                     
                             if button_pressed("oben"):
                                 print("Oben gedrückt. Öffne Update Menü")
@@ -336,9 +336,8 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                 time.sleep(.05)
                         else:
                             write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "powermode", "Heizung", False)
-                            log_schreiben("Keine Scheibenheizung auf Pro Gen 1 vorhanden.", log_mode=log_mode)
-                            print("Keine Scheibenheizung auf Pro Gen 1 vorhanden.")
-                            step += 1
+                            log_schreiben("Keine Scheibenheizung auf diesem ARNI vorhanden.", log_mode=log_mode)
+                            print("Keine Scheibenheizung auf diesem ARNI vorhanden.")
                     if current == "time":
                         print("Hardware Clock neu stellen?\nOben = Ja\nUnten = Nein\nRechts = Zurück")
                         show_message("hmi_16", lang=lang)
@@ -455,8 +454,6 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                                 log_schreiben("Menü zum Ändern der Provinz und Kreistkürzel beendet. Es wurden Änderungen eingegeben. Nach dem Systemcheck erfolgt die Übernahme", log_mode=log_mode)
                                                 show_message("hmi_23", lang=lang)
                                                 turn_off_led("blau")
-                                                do_not_delete_path = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
-                                                write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "locality", "do_not_delete_path", do_not_delete_path)
                                         elif button_pressed("unten"):
                                             turn_off_led("blau")
                                             user_selection_Code = True
@@ -473,7 +470,6 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                             elif button_pressed("unten"):
                                 log_schreiben("Menü für Koordinaten und Lepmon Code nicht geöffnet", log_mode=log_mode)
                                 print("Menü für Koordinaten und Lepmon Code nicht geöffnet")
-                                write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "locality", "do_not_delete_path", "")
                                 turn_off_led("blau")
                                 write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "GPS", "latitude", latitude_ohne_Vorzeichen)
                                 write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "GPS", "longitude", longitude_ohne_Vorzeichen)
@@ -547,41 +543,76 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                             show_message("hmi_26", lang=lang)
                             Status_Kamera = 0
                             Versuche_Kamera = 0
-                            while Versuche_Kamera < 3 and Status_Kamera != 1:    
-                                try:
-                                    gain = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "initial_gain")
-                                    #_, _, Status_Kamera, _, _ = snap_image("jpg","display",0,80,gain)
-                                    code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie, sensor, length, height,_ ,_ ,_ ,_ = snap_image("jpg", "display", 0, log_mode ,Exposure=80, Gain=gain)
-                                    if Status_Kamera == 0:
-                                        Versuche_Kamera += 1
-  
-                                except Exception as e:
-                                    print(f"Kamera Test fehlgeschlagen: {e}")
-                                    Versuche_Kamera += 1
-                                
-                                if Versuche_Kamera >=3:
-                                    print("Suche alternative Kameras")
+
+                            #### AV #####
+                            if camera == "AV__Alvium_1800_U-2050":
+                                print("Teste Allied Vision Kamera")
+                                exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_exposure"))
+                                gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_gain_10"))/10
+                                while Versuche_Kamera < 3 and Status_Kamera != 1:    
                                     try:
-                                        sensor, length, height = check_connected_camera()
-                                        if sensor is not None:
-                                            print("Alternative Kamera gefunden, versuche Bildaufnahme")
-                                            log_schreiben("Alternative Kamera gefunden, versuche Bildaufnahme", log_mode=log_mode)
-                                            # funktion für RPi Kamera Bildaufnahme hier einfügen
-                                    except Exception as e:
-                                        print(f"Fehler bei der Suche nach alternativer Kamera: {e}")
-                                        log_schreiben(f"Keine alternative Kamera gefunden: {e}", log_mode=log_mode)
-                                    
-                                    break
                                         
+                                        code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie,_ ,_ ,_ ,_ = snap_image_AV("jpg", "display", 0, log_mode ,Exposure=exposure, Gain=gain)
+                                        if Status_Kamera == 0:
+                                            Versuche_Kamera += 1
+    
+                                    except Exception as e: 
+                                        print(f"Kamera Test fehlgeschlagen: {e}")
+                                        Versuche_Kamera += 1
+                                    
+                                    if Versuche_Kamera >=3:
+                                        break
+                            
+                            #### HQ #####
+                            if camera == "RPI_Module_3": 
+                                print("Teste RPI_Module_3 Kamera")
+                                gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "RPI_Module_3", "initial_gain_10"))/10
+                                Exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "RPI_Module_3", "initial_exposure_10"))/10
+                                focus = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "RPI_Module_3", "focus")
+                                while Versuche_Kamera < 3 and Status_Kamera != 1: 
+                                    try:
+                                        code, dateipfad, Status_Kamera, power_on, Kamera_Fehlerserie, _, _, _, _, _, _ = snap_image_rpi("jpg","display", 0, log_mode, camera, int(Exposure), Gain=gain, focus=focus)
+                                        if Status_Kamera == 0:
+                                            Versuche_Kamera += 1
+
+                                    except Exception as e:
+                                        print(f"Kamera Test fehlgeschlagen: {e}")
+                                        Versuche_Kamera += 1
+
+                                    if Versuche_Kamera >=3:
+                                        break
+                    
+                            #### Module 3 #####
+                            if camera == "RPI_HQ":
+                                print("Teste RPI HQ Kamera")
+                                gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "RPI_HQ", "initial_gain_10"))/10
+                                Exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "RPI_HQ", "initial_exposure_10"))/10
+                                while Versuche_Kamera < 3 and Status_Kamera != 1:      
+                                    try:
+                                        code, dateipfad, Status_Kamera, power_on, Kamera_Fehlerserie, _, _, _, _, _, _ = snap_image_rpi("jpg","display", 0, log_mode, camera, int(Exposure), Gain=gain)
+                                        if Status_Kamera == 0:
+                                            Versuche_Kamera += 1
+    
+                                    except Exception as e:
+                                        print(f"Kamera Test fehlgeschlagen: {e}")
+                                        Versuche_Kamera += 1
+                                    
+                                    if Versuche_Kamera >=3:
+                                        break                   
+                                         
 
                             if Status_Kamera == 0:
-                                    show_message("hmi_27", lang=lang)
-                                    log_schreiben("Kamera Test fehlgeschlagen, Kamera nicht verfügbar",log_mode=log_mode)
-                                    log_schreiben("#####\nSELBSTINDUZIERTER SHUTDOWN\n#####", log_mode=log_mode)
-                                    trap_shutdown(log_mode,5)
+                                        show_message("hmi_27", lang=lang)
+                                        log_schreiben("Kamera Test fehlgeschlagen, Kamera nicht verfügbar",log_mode=log_mode)
+                                        log_schreiben("#####\nSELBSTINDUZIERTER SHUTDOWN\n#####", log_mode=log_mode)
+                                        trap_shutdown(log_mode,5)
+                                        os.system('sudo reboot')
+                                        show_message("blank", lang=lang)
+                                        time.sleep(10)
+                                        
                             elif Status_Kamera == 1:        
-                                show_message("hmi_28", lang=lang)  
-                                log_schreiben("Kamera Test erfolgreich beendet",log_mode)
+                                    show_message("hmi_28", lang=lang)  
+                                    log_schreiben("Kamera Test erfolgreich beendet",log_mode)
                                 
                             USB = 0
                             while USB == 0:
@@ -642,13 +673,13 @@ if __name__ == "__main__":
     print("#################")
     print("Hinweis: Die Tasteneingaben 'Oben', 'Unten', 'Links' und 'Rechts' können durch eintippen dieser Worte im Terminal simuliert werden.")
     print("#################")
-    open_trap_hmi(log_mode="manual", start_step=4)
+    open_trap_hmi(log_mode="manual", start_step=6)
     
     # MENÜ Punkte:      start_step:
     #hidden             0
     #power              1   
     #delete_usb         2
-    #heat               3
+    #heat               3 --> nur Pro_Gen_2, Pro_Gen_3, Pro_Gen_4
     #time               4
     #gps                5
     #diagnose_return    6

@@ -26,12 +26,18 @@ def log_schreiben(text, log_mode):
     
     lokale_Zeit = datetime.now().strftime("%H:%M:%S")
     
+
     if log_mode == "manual":
         print(f"{lokale_Zeit}; {text}")
         return
 
     if log_mode == "log":
-        log_dateipfad = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","general","current_log")
+        log_dateipfad = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","general","current_log") 
+        if not os.path.exists(log_dateipfad):
+            print(f"WARNUNG: Logfile muss neu erstellt werden, weil Pfad nicht existiert: {log_dateipfad}")
+            time.sleep(5)
+            from service import initialisiere_logfile
+            initialisiere_logfile(log_mode)
 
         for attempt in range(30):
             try:
@@ -42,7 +48,17 @@ def log_schreiben(text, log_mode):
             except Exception as e:
                 if attempt ==3:
                     print(f"Versuche log zu schreiben. Versuch Nr. {attempt} -- Fehler: {e}")
-                    error_message(10, e, log_mode)
+                    try:
+                        Errorcode = int.from_bytes(read_fram_bytes(0x0810, 4), byteorder='big')
+                        time.sleep(.5)
+                    except Exception as e:  
+                        try:
+                            Errorcode = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "error_code"))
+                        except Exception:
+                            Errorcode = 0
+                    print(f"Fehlercode: {Errorcode}")
+                    if Errorcode != 3:
+                        error_message(10, e, log_mode)
                 if 4 <= attempt < 29:
                     print(f"Versuche log zu schreiben. Versuch Nr. {attempt} -- Fehler: {e}")
                     turn_on_led("blau")

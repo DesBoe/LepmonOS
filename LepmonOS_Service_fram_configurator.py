@@ -1,33 +1,20 @@
 from fram_direct import *
-from configparser import ConfigParser
 from datetime import datetime, timedelta
 from json_read_write import *
+from logging_utils import log_schreiben
+import configparser
 
 
-from LepmonOS_Service_fram_delete import clear_fram
 
-CONFIG_PATH = "LepmonOS_Service_fram_config.ini"
-CONFIG_PATH = "/home/Ento/LepmonOS/LepmonOS_Service_fram_config.ini"
 
-def write_config_to_fram():
+def write_config_to_fram(ARNI_version, backplane_version, lieferdatum_an_PMJ,log_mode):
     now = datetime.now()
     ts_now = now.strftime("%Y-%m-%d %H:%M:%S")
     ts_plus1h = (now + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S")
     ts_minus1y = (now - timedelta(days=365)).strftime("%Y-%m-%d %H:%M:%S")
     
 
-    config = ConfigParser()
-    try:
-        config.read(CONFIG_PATH)
-        if "FRAM" not in config.sections():
-            print("Sektion [FRAM] fehlt! Datei oder Pfad prüfen.")
-        elif"FRAM" in config.sections():
-            print("FRAM Konfigurationsdatei erfolgreich gelesen.")
-    except Exception as e:
-        print(f"Fehler beim Lesen der FRAM Konfigurationsdatei: {e}")
-        
-    
-        return
+
  ####Attiny Data####       
     write_fram(0x0000, "power_on")
     write_fram(0x0010, ts_now)
@@ -38,11 +25,11 @@ def write_config_to_fram():
 #### Raspi Data ####  
     write_fram(0x0100, "serial_number")
     write_fram(0x0120, "trap_version") 
-    write_fram(0x0130, config.get("FRAM", "fallen_version"))    
+    write_fram(0x0130, ARNI_version)    
     write_fram(0x0140, "backplane_vers") 
-    write_fram(0x0150, config.get("FRAM", "backplane_version")) 
+    write_fram(0x0150, backplane_version) 
     write_fram(0x0160, "delivery_PMJ")  
-    write_fram(0x0170, config.get("FRAM", "lieferdatum_an_PMJ"))  
+    write_fram(0x0170, lieferdatum_an_PMJ)  
     
 #### laufzeit Labels ####
     write_fram(0x0300, "boot_counter")
@@ -94,10 +81,29 @@ def write_config_to_fram():
     
 ### Current Exp/Gain ###    
     write_fram(0x0680, "current_Exp_Gain".ljust(16))
-    current_exposure = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","capture_mode","initial_exposure")
-    current_gain = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","capture_mode","initial_gain")
-    write_fram_bytes(0x0698, (current_exposure).to_bytes(1, byteorder='big'))
-    write_fram_bytes(0x069C, (current_gain).to_bytes(1, byteorder='big'))
+    if ARNI_version == "Pro_Gen_4" or ARNI_version == "Pro_Gen_3":
+        current_exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_exposure"))
+        current_gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_gain_10"))
+
+    elif ARNI_version == "CSL_Gen_1":
+        current_exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","initial_exposure_10"))/10
+        current_gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","initial_gain_10"))
+    elif ARNI_version == "CSS_Gen_1":
+        current_exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","initial_exposure_10"))/10
+        current_gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","initial_gain_10"))
+    
+
+    # Wertebereich für 1 Byte absichern (0-255)
+    try:
+        exposure_byte = max(0, min(255, int(float(current_exposure))))
+    except Exception:
+        exposure_byte = 255
+    try:
+        gain_byte = max(0, min(255, int(float(current_gain))))
+    except Exception:
+        gain_byte = 0
+    write_fram_bytes(0x0698, exposure_byte.to_bytes(1, byteorder='big'))
+    write_fram_bytes(0x069C, gain_byte.to_bytes(1, byteorder='big'))
     #write_fram(0x0698, str(current_exposure))
     #write_fram(0x069C, str(current_gain))
     
@@ -127,10 +133,21 @@ def write_config_to_fram():
     write_fram(0x09D0, "Err14")
 
 
-    print("Alle Werte erfolgreich in FRAM geschrieben.")
+    log_schreiben("FRAM Konfiguration erfolgreich abgeschlossen.", log_mode)
+    log_schreiben("beachte FRAM Tabelle für alle Einträge", log_mode)
+    print("RAM Konfiguration erfolgreich")
 
 if __name__ == "__main__":
-    clear_fram("setup")
-    print("FRAM Configurator GEN 2")
-    write_config_to_fram()
+    log_mode = "manual"
+    config = configparser.ConfigParser()
+    config.read("LepmonOS_Service_fram_config.ini")
+
+    arni_version = config.get("FRAM", "ARNI_version")
+    backplane_version = config.get("FRAM", "backplane_version")
+    lieferdatum = config.get("FRAM", "lieferdatum_an_PMJ")
+
+    print(arni_version, backplane_version, lieferdatum)
+    write_config_to_fram(arni_version, backplane_version, lieferdatum,log_mode)
+
+    print("FRAM Konfiguration in Diagnose, Schritt 5 eingebaut. Nur FRAM Anzeigen")
     dump_fram(0x0000, 0x09EF)
