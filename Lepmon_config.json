@@ -2,9 +2,9 @@
     "general": {
         "serielnumber": "SN010023",
         "project_name": "Lepmon#",
-        "usb_drive": "/media/Ento/8D6E-230F",
-        "current_folder": "/media/Ento/8D6E-230F/Lepmon#SN010023_BR_BR_2026-05-14_T_2255",
-        "current_log": "/media/Ento/8D6E-230F/Lepmon#SN010023_BR_BR_2026-05-14_T_2255/Lepmon#SN010023_BR_BR_2026-05-14_T_2255.log",
+        "usb_drive": "/media/usb/sda1",
+        "current_folder": "/media/usb/sda1/Lepmon#SN010023_BR_BR_2026-05-14_T_2255",
+        "current_log": "/media/usb/sda1/Lepmon#SN010023_BR_BR_2026-05-14_T_2255/Lepmon#SN010023_BR_BR_2026-05-14_T_2255.log",
         "language": "en",
         "expected_images": 318,
         "Control_Night": true,
@@ -14,7 +14,7 @@
         "country": "Albania",
         "province": "BR",
         "Kreis": "BR",
-        "do_not_delete_path": "/media/Ento/8D6E-230F/Lepmon#SN010023_AA_BBB_2026-05-14_T_2255"
+        "do_not_delete_path": "/media/usb/sda1/Lepmon#SN010023_AA_BBB_2026-05-14_T_2255"
     },
     "capture_mode": {
         "minutes_to_sunset": 15,

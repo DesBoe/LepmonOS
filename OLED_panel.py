@@ -22,7 +22,6 @@ hardware = get_hardware_version()
 if hardware == "Pro_Gen_1":
     oled.rotate = 2
     
-oled_font = ImageFont.truetype('FreeSans.ttf', 14)
 
 def display_text(line1, line2, line3, sleeptime =0):
     try:

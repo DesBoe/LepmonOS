@@ -3,7 +3,7 @@
 icon*
 Logo*
 .git
-README.md
+#README.md
 
 # Python spezifische Ausschlüsse
 __pycache__/
