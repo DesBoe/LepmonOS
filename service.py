@@ -84,7 +84,14 @@ def get_usb_path(log_mode):
     zielverzeichnis = None
     status = 0
     username = os.getenv('USER')
-    media_path = f"/media/{username}"
+
+    # Search in both the legacy per-user path and the automount base directory.
+    # The Lepmon automounter mounts drives under /media/usb/<LABEL>.
+    search_paths = [
+        "/media/usb",              # new automount location (usb-mount@.service)
+        f"/media/{username}",      # legacy udisks / desktop automounter path
+    ]
+
     search_counter = 0
     while zielverzeichnis is None:
         search_counter += 1  
@@ -95,17 +102,17 @@ def get_usb_path(log_mode):
             time.sleep(.5)
             turn_off_led("gelb")
         if search_counter > 10:
-            print("USB Stick nach 10 versuchen nicht gefunden. Zielverzeichneis ist None")
+            print("USB Stick nach 10 versuchen nicht gefunden. Zielverzeichnis ist None")
             zielverzeichnis = "Kein USB-Stick gefunden"
             return zielverzeichnis, status
-        if os.path.exists(media_path):
-            for item in os.listdir(media_path):
-                pot_dir = os.path.join(media_path, item)
-                if os.path.ismount(pot_dir):
-                    zielverzeichnis = pot_dir
-                    status = 1
-                    
-                    return zielverzeichnis, status
+        for media_path in search_paths:
+            if os.path.exists(media_path):
+                for item in os.listdir(media_path):
+                    pot_dir = os.path.join(media_path, item)
+                    if os.path.ismount(pot_dir):
+                        zielverzeichnis = pot_dir
+                        status = 1
+                        return zielverzeichnis, status
         print("Suche nach USB-Stick...")
         time.sleep(.5)
     return zielverzeichnis, status      

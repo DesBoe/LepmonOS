@@ -35,6 +35,12 @@ def log_schreiben(text, log_mode):
 
         for attempt in range(30):
             try:
+                # Create the parent directory if it does not exist yet.
+                # This can happen when log_schreiben is called before erstelle_ordner
+                # (e.g., from add_to_bootconfig) or after a USB drive was replaced.
+                log_dir = os.path.dirname(log_dateipfad)
+                if log_dir:
+                    os.makedirs(log_dir, exist_ok=True)
                 with open(log_dateipfad, 'a') as f:
                     f.write(f"{lokale_Zeit}; {text}\n")
                     checklist(log_dateipfad, log_mode, algorithm="md5")
