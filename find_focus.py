@@ -1,7 +1,6 @@
 from OLED_panel import show_message
 from Camera_AV import get_frame_AV
 from Camera_RPI import get_frame_RPI
-from GPIO_Setup import button_pressed
 import time
 from datetime import datetime, timedelta
 import cv2
@@ -23,8 +22,6 @@ def find_exposure_and_gain_for_focus(log_mode):
     lang = get_language()
     expected_camera = get_device_info("camera")
     image_exposure_is_good = False
-    camera_pin = LED(5)
-    camera_pin.on()
     average_brightness = "   "
     image_over,image_under = False, False
     brightness_reference = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","frame_brightness","brightness_reference")
@@ -124,7 +121,7 @@ def find_exposure_and_gain_for_focus(log_mode):
         for _ in range(25):
             if button_pressed("enter"):
                 print("Belichtung manuel gesetzt vom Benutzer")
-                break
+                return Exposure, Gain, vis_emergency, expected_camera
             time.sleep(0.01)
             turn_off_led("gelb")
     
@@ -250,6 +247,9 @@ def find_focal_position(Exposure, Gain, vis_emergency, expected_camera, log_mode
             
                     
 def set_focus(log_mode):
+    camera_pin = LED(5)
+    camera_pin.on()
+    print("Kamera ist an")
     Exposure, Gain, vis_emergency, expected_camera = find_exposure_and_gain_for_focus(log_mode)
     find_focal_position(Exposure, Gain, vis_emergency, expected_camera, log_mode)
 

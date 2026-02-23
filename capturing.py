@@ -342,7 +342,7 @@ def capturing(log_mode):
                     reset_all_usb_ports(log_mode)
                     usb_reset = True
                 
-                if 15 >lokale_Zeit.minute >= 30 and usb_reset:
+                if 15 <= lokale_Zeit.minute < 30 and usb_reset:
                     usb_reset = False
                 
                 print(f"Warte bis zur nächsten Aufnahme: {time_to_next_image} Sekunden")

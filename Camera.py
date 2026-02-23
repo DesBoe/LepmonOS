@@ -1,3 +1,9 @@
+#########################
+#########################
+# This file is obsolete #
+#########################
+#########################
+
 from vmbpy import *
 from Lights import *
 from json_read_write import *

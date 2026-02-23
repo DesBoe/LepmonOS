@@ -1,3 +1,9 @@
+#########################
+#########################
+# This file is obsolete #
+#########################
+#########################
+
 from GPIO_Setup import *
 from OLED_panel import display_text
 from Lights import dim_up,dim_down

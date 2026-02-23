@@ -411,19 +411,18 @@ if __name__ == "__main__":
     write_fram(0x0190, Korrektur_Write)
 
     Korrektur_INA_gelesen = read_fram(0x0190, len(Korrektur_Write))
-    Korrektur_INA_gelesen_clean = Korrektur_INA_gelesen.replace('\x00', '').replace('\0', '').strip()
-    print(f"Gelesener Korrekturfaktor aus FRAM (String): {Korrektur_INA_gelesen_clean}")
-
+    try:
+        Korrektur_INA_gelesen_clean = Korrektur_INA_gelesen.replace('\x00', '').replace('\0', '').strip()
+        print(f"Gelesener Korrekturfaktor aus FRAM (String): {Korrektur_INA_gelesen_clean}")
+    except Exception as e:
+        print(f"Korrekturfakor nicht ermittelt:{e}")
     try:
         Korrektur_return = float(Korrektur_INA_gelesen_clean)
         print(f"Gelesener Korrekturfaktor aus FRAM (float): {Korrektur_return}")
-    except ValueError as e:
+        print(f"Gelesener Korrekturfaktor aus FRAM: {Korrektur_return}")
+    except Exception as e:
         print(f"Fehler beim Umwandeln des Korrekturfaktors: {e}")
 
-
-
-
-    print(f"Gelesener Korrekturfaktor aus FRAM: {Korrektur_return}")
     print("---------------------------------")
     print("--------------Ende---------------")
     print("---------------------------------")

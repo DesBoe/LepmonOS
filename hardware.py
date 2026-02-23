@@ -85,7 +85,7 @@ def get_hardware_version():
 
 if __name__ == "__main__":
     print(f"Dieser ARNI ist ein {get_hardware_version()} Modell")
-    print(f"verbaute Kamera {get_device_info('kamera')} mit Sensor {get_device_info('sensor')}")
+    print(f"verbaute Kamera {get_device_info('camera')} mit Sensor {get_device_info('sensor')}")
     print(f"Auflösung: {get_device_info('length')} x {get_device_info('height')}")
     
 

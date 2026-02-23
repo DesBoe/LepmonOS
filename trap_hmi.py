@@ -673,7 +673,7 @@ if __name__ == "__main__":
     print("#################")
     print("Hinweis: Die Tasteneingaben 'Oben', 'Unten', 'Links' und 'Rechts' können durch eintippen dieser Worte im Terminal simuliert werden.")
     print("#################")
-    open_trap_hmi(log_mode="manual", start_step=6)
+    open_trap_hmi(log_mode="manual", start_step=0)
     
     # MENÜ Punkte:      start_step:
     #hidden             0

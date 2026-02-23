@@ -1,3 +1,9 @@
+#########################
+#########################
+# This file is obsolete #
+#########################
+#########################
+
 from Camera import snap_image
 import time
 import datetime

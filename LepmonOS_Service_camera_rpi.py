@@ -1,3 +1,9 @@
+#########################
+#########################
+# This file is obsolete #
+#########################
+#########################
+
 import os
 os.environ["QT_QPA_PLATFORM"] = "xcb"
 from picamera2 import Picamera2, Preview
