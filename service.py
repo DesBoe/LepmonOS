@@ -201,7 +201,7 @@ def delete_USB_content(log_mode):
                 log_schreiben(f"Fehler beim Löschen des Ordners {item_path}: {e}", log_mode=log_mode)
         for item in os.listdir(zielverzeichnis):
             item_path = os.path.join(zielverzeichnis, item)
-            if os.path.isfile(item_path) and (item_path.endswith('.Key') or item_path.endswith('.txt')):
+            if os.path.isfile(item_path) and (item_path.endswith('.KEY') or item_path.endswith('.txt')):
                 try:
                     os.remove(item_path)
                     lokale_Zeit = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

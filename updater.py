@@ -239,7 +239,7 @@ def update(log_mode):
         except Exception as e:
             print(f"Fehler beim Update: {e}")
             show_message("update_17", lang=lang)
-            log_schreiben(f"Fehler beim update:{e}")
+            log_schreiben(f"Fehler beim update:{e}", log_mode=log_mode)
             return
     else:
         print("Update nicht erlaubt oder kein gültiger Update-Stick gefunden.")

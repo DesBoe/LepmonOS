@@ -19,7 +19,7 @@ from hardware import *
 
 
 def start_up(log_mode):
-    dev_info()
+    #dev_info()
     
     print("starte Setup")
     add_to_bootconfig("gpio=13=op,dl")
