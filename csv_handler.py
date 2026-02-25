@@ -50,39 +50,36 @@ def erstelle_und_aktualisiere_csv(sensor_data, log_mode):
             
             with open(csv_path, mode='w', newline='') as csvfile:
                 csv_writer = csv.writer(csvfile, delimiter='\t')  # Setze den Tabulator als Trennzeichen
+                csv_writer.writerow(["#Software:",                  f"{Version} vom {date}"])   
                 csv_writer.writerow(["#Machine ID:",                sensor_id])
-                csv_writer.writerow(["#Software:",                  f"{Version} vom {date}"])    
                 csv_writer.writerow(["ARNI-Generation:",            ARNI_Gen])  
                 csv_writer.writerow(["#Kamera:",                    kamera])
                 csv_writer.writerow(["#Sensor:",                    sensor])
                 csv_writer.writerow(["#Auflösung:",                 f"{length} x {height}"])
 
                 csv_writer.writerow(["#Stromversorgung:",           Strom])         
-                csv_writer.writerow([])  
+
                 csv_writer.writerow(["#Experiment Parameter:",])            
                 csv_writer.writerow(["#UTC Time:",                  jetzt_local])
                 csv_writer.writerow(["#Longitude:",                 longitude]) 
                 csv_writer.writerow(["#Latitude:",                  latitude])
-                csv_writer.writerow([])
+
                 csv_writer.writerow(["#Sonnenuntergang:",           sunset.strftime("%Y-%m-%d %H:%M:%S")])
                 csv_writer.writerow(["#Sonnenaufgang:",             sunrise.strftime("%Y-%m-%d %H:%M:%S")])
-                csv_writer.writerow([])
+ 
                 csv_writer.writerow(["#Mondaufgang:",               moonrise.strftime("%Y-%m-%d %H:%M:%S")])
                 csv_writer.writerow(["#Monduntergang:",             moonset.strftime("%Y-%m-%d %H:%M:%S")])
                 csv_writer.writerow(["#Mondphase:",                 round(moon_phase, 2)])
                 csv_writer.writerow(["#Maximale Kulminationshöhe:", round(max_altitude, 2)])
-                csv_writer.writerow([])
+
                 csv_writer.writerow(["#Beginn Monitoring:",         experiment_start_time])
                 csv_writer.writerow(["#Ende Monitoring:",           experiment_end_time])
-                csv_writer.writerow([])
+
                 csv_writer.writerow(["#Dämmerungs Schwellenwert:",  f"{dusk_treshold} Lux"])
                 csv_writer.writerow(["#Aufnahme Intervall:",        f"{interval} min"])
-                csv_writer.writerow([])
                 csv_writer.writerow(["********************"])
-                csv_writer.writerow([])
                 csv_writer.writerow(["#Starting new Programme"])
                 csv_writer.writerow(["#Local Time:", lokale_Zeit])
-                csv_writer.writerow([])
 
                 csv_writer.writerow(sensor_data.keys()) # Schreibe die Überschrift (Keys von sensor_data)
         with open(csv_path, mode='a', newline='') as csvfile:

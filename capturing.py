@@ -401,3 +401,4 @@ if __name__ == "__main__":
     initialisiere_logfile("manual")
     log_schreiben("Logeinträge werden im Terminal angezeigt bei Manueller ausführung von Capturing", "log")
     capturing("manual")
+    

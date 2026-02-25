@@ -1,12 +1,12 @@
 {
     "general": {
-        "serielnumber": "SN010064",
+        "serielnumber": "SN010083",
         "project_name": "Lepmon#",
         "usb_drive": "/media/Ento/INTENSO",
-        "current_folder": "/media/Ento/INTENSO/Lepmon#SN010064_Manueller_TestRun_2025-10-27_T_0253",
-        "current_log": "/media/Ento/INTENSO/Lepmon#SN010064_Manueller_TestRun_2025-10-27_T_0226/Lepmon#SN010064_Manueller_TestRun_2025-10-27_T_0226.log",
+        "current_folder": "/media/Ento/INTENSO/Lepmon#SN010083_Manueller_TestRun_2026-02-25_T_2344",
+        "current_log": "/media/Ento/INTENSO/Lepmon#SN010083_Manueller_TestRun_2026-02-25_T_2344/Lepmon#SN010083_Manueller_TestRun_2026-02-25_T_2344.log",
         "language": "de",
-        "expected_images": 349,
+        "expected_images": 384,
         "Control_Night": true,
         "Control_End": true,
         "package_up_to_date": true
@@ -20,7 +20,7 @@
         "minutes_to_sunset": 15,
         "minutes_to_sunrise": 60,
         "flash": 0.25,
-        "interval": 2,
+        "interval": 1,
         "dusk_treshold": 90,
         "error_code": "0",
         "gamma_correction": true
@@ -66,7 +66,7 @@
         "minimal_exposure": 100,
         "maximal_exposure": 170,
         "step_exposure": 5,
-        "current_exposure": "170",
+        "current_exposure": 165,
         "focus_threshold": 225.0,
         "gamma_value": 1.5,
         "current_gain": 7.0

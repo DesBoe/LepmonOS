@@ -138,6 +138,18 @@ def open_trap_hmi(log_mode, start_step = 0):
     log_schreiben("------------------", log_mode=log_mode)
     log_schreiben(f"Breite: {latitude}", log_mode=log_mode)
     log_schreiben(f"Länge: {longitude}", log_mode=log_mode)
+    try:
+        power_mode = read_fram(0x03B0, 16).replace('\x00', '').strip()
+        time.sleep(.5)
+    except Exception as e:
+        print(f"Fehler beim Lesen des Power-Modus: {e}")
+        try:
+            power_mode = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "powermode", "supply")
+            time.sleep(.5)
+        except Exception as e:
+            print(f"Fehler beim Lesen des Power-Modus aus der Konfigurationsdatei: {e}")
+            power_mode = "Netz"
+    log_schreiben(f"Stromversorgung:{power_mode}", log_mode = log_mode)
     show_message("blank", lang = lang)
     turn_off_led("blau")
     
@@ -628,7 +640,9 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                 elif free_space_gb < 16:
                                     show_message("hmi_31", lang=lang)
                                     log_schreiben("USB Speicher fast voll, bitte leeren", log_mode=log_mode)
+                                    log_schreiben("##################################", log_mode=log_mode)
                                     log_schreiben("#####\nSELBSTINDUZIERTER SHUTDOWN\n#####", log_mode=log_mode)
+                                    log_schreiben("##################################", log_mode=log_mode)
                                     trap_shutdown(log_mode, 5)
                                     return
                                 elif free_space_gb >= 16:
