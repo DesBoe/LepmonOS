@@ -52,7 +52,7 @@ def erstelle_und_aktualisiere_csv(sensor_data, log_mode):
                 csv_writer = csv.writer(csvfile, delimiter='\t')  # Setze den Tabulator als Trennzeichen
                 csv_writer.writerow(["#Software:",                  f"{Version} vom {date}"])   
                 csv_writer.writerow(["#Machine ID:",                sensor_id])
-                csv_writer.writerow(["ARNI-Generation:",            ARNI_Gen])  
+                csv_writer.writerow(["#ARNI-Generation:",           ARNI_Gen])  
                 csv_writer.writerow(["#Kamera:",                    kamera])
                 csv_writer.writerow(["#Sensor:",                    sensor])
                 csv_writer.writerow(["#Auflösung:",                 f"{length} x {height}"])

@@ -35,20 +35,20 @@ def display_sensor_status_with_text(sensor_data, sensor_status, log_mode):
     """
     if hardware in ["Pro_Gen_1", "Pro_Gen_2"]:
         sensors = [
-            ("Light_Sensor", "LUX_(Lux)", "Lux"),
-            ("Inner_Sensor", "Temp_in_(°C)", "°C"),
-            #("Power_Sensor", "bus_voltage_(V)", "V"), # Power_Sensor nicht verbaut in Pro Gen 1 und 2
-            ("Environment_Sensor", "Temp_out_(°C)", "°C")
+            ("Light_Sensor", "LUX", "Lux"),
+            ("Inner_Sensor", "Temp_in", "°C"),
+            #("Power_Sensor", "bus_voltage", "V"), # Power_Sensor nicht verbaut in Pro Gen 1 und 2
+            ("Environment_Sensor", "Temp_out", "°C")
         ]
         log_schreiben("Power_Sensor nicht verbaut in Pro Gen 1 und 2", log_mode=log_mode)
     
     elif hardware in ["Pro_Gen_3", 
                       "CSL_Gen_1", "CSS_Gen_1"]:
         sensors = [
-            ("Light_Sensor", "LUX_(Lux)", "Lux"),
-            ("Inner_Sensor", "Temp_in_(°C)", "°C"),
-            ("Power_Sensor", "bus_voltage_(V)", "V"),
-            ("Environment_Sensor", "Temp_out_(°C)", "°C")
+            ("Light_Sensor", "LUX", "Lux"),
+            ("Inner_Sensor", "Temp_in", "°C"),
+            ("Power_Sensor", "bus_voltage", "V"),
+            ("Environment_Sensor", "Temp_out", "°C")
         ]
     
     for sensor_name, data_key, einheit in sensors:
@@ -687,7 +687,7 @@ if __name__ == "__main__":
     print("#################")
     print("Hinweis: Die Tasteneingaben 'Oben', 'Unten', 'Links' und 'Rechts' können durch eintippen dieser Worte im Terminal simuliert werden.")
     print("#################")
-    open_trap_hmi(log_mode="manual", start_step=0)
+    open_trap_hmi(log_mode="manual", start_step=6)
     
     # MENÜ Punkte:      start_step:
     #hidden             0

@@ -3,10 +3,10 @@
         "serielnumber": "SN010083",
         "project_name": "Lepmon#",
         "usb_drive": "/media/Ento/INTENSO",
-        "current_folder": "/media/Ento/INTENSO/Lepmon#SN010083_Manueller_TestRun_2026-02-25_T_2344",
-        "current_log": "/media/Ento/INTENSO/Lepmon#SN010083_Manueller_TestRun_2026-02-25_T_2344/Lepmon#SN010083_Manueller_TestRun_2026-02-25_T_2344.log",
+        "current_folder": "/media/Ento/INTENSO/Lepmon#SN010083_AA_BBB_2026-02-26_T_2113",
+        "current_log": "/media/Ento/INTENSO/Lepmon#SN010083_AA_BBB_2026-02-26_T_2113/Lepmon#SN010083_AA_BBB_2026-02-26_T_2113.log",
         "language": "de",
-        "expected_images": 384,
+        "expected_images": 301,
         "Control_Night": true,
         "Control_End": true,
         "package_up_to_date": true
@@ -20,7 +20,7 @@
         "minutes_to_sunset": 15,
         "minutes_to_sunrise": 60,
         "flash": 0.25,
-        "interval": 1,
+        "interval": 2,
         "dusk_treshold": 90,
         "error_code": "0",
         "gamma_correction": true
@@ -61,15 +61,15 @@
         "minimal_gain_10": 50,
         "maximal_gain_10": 150,
         "step_gain_10": 5,
-        "current_gain_10": "105",
+        "current_gain_10": "150",
         "initial_exposure": 150,
         "minimal_exposure": 100,
         "maximal_exposure": 170,
         "step_exposure": 5,
-        "current_exposure": 165,
+        "current_exposure": 170,
         "focus_threshold": 225.0,
         "gamma_value": 1.5,
-        "current_gain": 7.0
+        "current_gain": 15.0
     },
     "frame_brightness": {
         "black_sanity_level": 0.025,

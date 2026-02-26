@@ -97,9 +97,9 @@ def read_sensor_data(code,lokale_Zeit, log_mode):
 
     LUX, Sensorstatus_Licht = get_light(log_mode)
     if Sensorstatus_Licht == 0:
-        update_sensor_data(sensor_data, "LUX_(Lux)", "---")
+        update_sensor_data(sensor_data, "LUX", "---")
     elif Sensorstatus_Licht == 1:
-        update_sensor_data(sensor_data, "LUX_(Lux)", f"{LUX:.2f}")
+        update_sensor_data(sensor_data, "LUX", f"{LUX:.2f}")
     update_sensor_data(sensor_status, "Light_Sensor", Sensorstatus_Licht)
 
 
@@ -113,11 +113,11 @@ def read_sensor_data(code,lokale_Zeit, log_mode):
 
         Temp_in = round(Temp_in.temperature, 2) 
         Sensorstatus_Inne = 1
-        update_sensor_data(sensor_data, "Temp_in_(°C)", f"{Temp_in:.2f}")
+        update_sensor_data(sensor_data, "Temp_in", f"{Temp_in:.2f}")
     except Exception as e:
         error_message(6,e,log_mode)
         Temp_in = "---"
-        update_sensor_data(sensor_data, "Temp_in_(°C)", Temp_in)
+        update_sensor_data(sensor_data, "Temp_in", Temp_in)
         Sensorstatus_Inne = 0
         
     update_sensor_data(sensor_data, "Inner_Sensor", Sensorstatus_Inne)
@@ -126,16 +126,16 @@ def read_sensor_data(code,lokale_Zeit, log_mode):
         
     bus_voltage, shunt_voltage, current, power, Sensorstatus_Strom = get_power()
     if Sensorstatus_Strom == 0 or Sensorstatus_Strom == 1 and get_hardware_version() in ["Pro_Gen_1", "Pro_Gen_2"]:
-        update_sensor_data(sensor_data, "bus_voltage_(V)", "---")
-        update_sensor_data(sensor_data, "shunt_voltage_(V)", "---")
-        update_sensor_data(sensor_data, "current_(mA)", "---")
-        update_sensor_data(sensor_data, "power_(W)", "---")
+        update_sensor_data(sensor_data, "bus_voltage", "---")
+        update_sensor_data(sensor_data, "shunt_voltage", "---")
+        update_sensor_data(sensor_data, "current", "---")
+        update_sensor_data(sensor_data, "power", "---")
     elif Sensorstatus_Strom == 1 and not get_hardware_version() in ["Pro_Gen_1", "Pro_Gen_2"]:
         
-        update_sensor_data(sensor_data, "bus_voltage_(V)", f"{bus_voltage:.2f}")
-        update_sensor_data(sensor_data, "shunt_voltage_(V)", f"{shunt_voltage:.2f}")
-        update_sensor_data(sensor_data, "current_(mA)", f"{current:.2f}")
-        update_sensor_data(sensor_data, "power_(W)", f"{power:.2f}")
+        update_sensor_data(sensor_data, "bus_voltage", f"{bus_voltage:.2f}")
+        update_sensor_data(sensor_data, "shunt_voltage", f"{shunt_voltage:.2f}")
+        update_sensor_data(sensor_data, "current", f"{current:.2f}")
+        update_sensor_data(sensor_data, "power", f"{power:.2f}")
     update_sensor_data(sensor_data, "Power_Sensor", Sensorstatus_Strom)
     update_sensor_data(sensor_status, "Power_Sensor", Sensorstatus_Strom)
 
@@ -146,9 +146,9 @@ def read_sensor_data(code,lokale_Zeit, log_mode):
         Luftdruck = round(bme280.pressure, 2)
         Luftfeuchte = round(bme280.humidity, 2)
         Status_außen = 1
-        update_sensor_data(sensor_data, "Temp_out_(°C)", f"{Temperatur:.2f}")
-        update_sensor_data(sensor_data, "air_pressure_(hPa)", f"{Luftdruck:.2f}")
-        update_sensor_data(sensor_data, "air_humidity_(%)", f"{Luftfeuchte:.2f}")
+        update_sensor_data(sensor_data, "Temp_out", f"{Temperatur:.2f}")
+        update_sensor_data(sensor_data, "air_pressure", f"{Luftdruck:.2f}")
+        update_sensor_data(sensor_data, "air_humidity", f"{Luftfeuchte:.2f}")
         update_sensor_data(sensor_data, "Environment_Sensor", Status_außen)
     except Exception as e:
         print(f"Warnung: Außensensor konnte nicht initialisiert werden, versuche Alternative: {e}")
@@ -160,9 +160,9 @@ def read_sensor_data(code,lokale_Zeit, log_mode):
             Luftdruck = round(Außensensor.pressure, 2)
             Luftfeuchte = round(Außensensor.humidity, 2)
             Status_außen = 1
-            update_sensor_data(sensor_data, "Temp_out_(°C)", f"{Temperatur:.2f}")
-            update_sensor_data(sensor_data, "air_pressure_(hPa)", f"{Luftdruck:.2f}")
-            update_sensor_data(sensor_data, "air_humidity_(%)", f"{Luftfeuchte:.2f}")
+            update_sensor_data(sensor_data, "Temp_out", f"{Temperatur:.2f}")
+            update_sensor_data(sensor_data, "air_pressure", f"{Luftdruck:.2f}")
+            update_sensor_data(sensor_data, "air_humidity", f"{Luftfeuchte:.2f}")
             update_sensor_data(sensor_data, "Environment_Sensor", Status_außen)
     
         except Exception as e:
@@ -172,21 +172,14 @@ def read_sensor_data(code,lokale_Zeit, log_mode):
             Luftfeuchte = "---"
             Status_außen = 0
         
-            update_sensor_data(sensor_data, "Temp_out_(°C)", Temperatur)
-            update_sensor_data(sensor_data, "air_pressure_(hPa)", Luftdruck)
-            update_sensor_data(sensor_data, "air_humidity_(%)", Luftfeuchte)
+            update_sensor_data(sensor_data, "Temp_out", Temperatur)
+            update_sensor_data(sensor_data, "air_pressure", Luftdruck)
+            update_sensor_data(sensor_data, "air_humidity", Luftfeuchte)
             update_sensor_data(sensor_data, "Environment_Sensor", Status_außen)
             pass
     update_sensor_data(sensor_status, "Environment_Sensor", Status_außen)
 
     return sensor_data, sensor_status
-
-
-
-
-
-
-
 
 
 
@@ -253,8 +246,5 @@ if __name__ == "__main__":
         print("-------------------")
         print("Sensor_Daten:")
         print(sensor_data)
-    
 
-        
         time.sleep(2)
-    

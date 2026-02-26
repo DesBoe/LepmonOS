@@ -233,9 +233,9 @@ def write_current_exp(exposure, gain, camera, log_mode):
             gain = int(round(gain))
         write_fram_bytes(0x0698, exposure.to_bytes(1, byteorder='big'))
         write_fram_bytes(0x069C, gain.to_bytes(1, byteorder='big'))
-        print(f"Aktuelle Exposure ({exposure}) und Gain ({gain}) in FRAM geschrieben")
+        print(f"Aktuelle Exposure ({exposure}) und 10*Gain ({gain}) in FRAM geschrieben")
     except Exception as e:
-        print(f"Fehler beim Schreiben von Exposure und Gain in FRAM: {e}")
+        print(f"Fehler beim Schreiben von Exposure und 10*Gain in FRAM: {e}")
         error_message(9,e, log_mode)  
     
     try:
@@ -248,12 +248,10 @@ def write_current_exp(exposure, gain, camera, log_mode):
         elif camera == "RPI_HQ":
             write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "RPI_HQ", "current_exposure_10", exposure)
             write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "RPI_HQ", "current_gain_10", gain)
-        print(f"Aktuelle Exposure ({exposure}) und Gain ({gain}) in config geschrieben")
+        print(f"Aktuelle Exposure ({exposure}) und 10*Gain ({gain}) in config geschrieben")
     except Exception as e:
         print(f"Fehler beim Schreiben von Exposure und Gain in die Konfigurationsdatei: {e}")
         
-
-
     
 def set_focus_rpi_cam():
     picam2 = Picamera2()

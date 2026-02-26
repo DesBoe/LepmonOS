@@ -66,15 +66,15 @@ def set_paths(sn):
 
 def update_sensor_data(code,lokale_Zeit, log_mode):
     sensor_data, sensor_status = read_sensor_data(code,lokale_Zeit, log_mode)
-    lux = sensor_data.get("LUX_(Lux)")
-    temp_in = sensor_data.get("Temp_in_(°C)")
-    temp_out = sensor_data.get("Temp_out_(°C)")
-    air_pressure = sensor_data.get("air_pressure_(hPa)")
-    air_humidity = sensor_data.get("air_humidity_(%)")
-    power = sensor_data.get("power_(W)")
-    bus_voltage = sensor_data.get("bus_voltage_(V)")
-    shunt_voltage = sensor_data.get("shunt_voltage_(V)")
-    current = sensor_data.get("current_(mA)")
+    lux = sensor_data.get("LUX")
+    temp_in = sensor_data.get("Temp_in")
+    temp_out = sensor_data.get("Temp_out")
+    air_pressure = sensor_data.get("air_pressure")
+    air_humidity = sensor_data.get("air_humidity")
+    power = sensor_data.get("power")
+    bus_voltage = sensor_data.get("bus_voltage")
+    shunt_voltage = sensor_data.get("shunt_voltage")
+    current = sensor_data.get("current")
 
     # Statuswerte
     light_status = sensor_status.get("Light_Sensor")

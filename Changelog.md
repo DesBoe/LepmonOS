@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.1.6] 2025-02-09
+## [2.2.0] 2025-03-02
 ### Geändert
 - Visible nur bei Befehl der Frame erstellung an
 - Strom Sensor nur 1x initialisiert, nicht bei jedem Lesen
@@ -25,7 +25,7 @@
 - logfile mit Nummer des Geräte Laufes
 - Zeitstempel der letzten Raspberry Aktivität im FRam
 - Einheiten in CSV Liste
-- immer zur vollen Stunde in der Aufnahme Schleife wird der USB Stick neu gemounted, um eine Assynchronität im Bus zu vermeiden.
+- immer zur jeden zweiten vollen Stunde in der Aufnahme Schleife wird der USB Stick neu gemounted, um eine Assynchronität im Bus zu vermeiden.
 - Gamma Korrektur der aufgenommenen Frames, um Schatten aufzuhellen (Schrittweise, je 1/3 des Frames gleichzeitig)
 - Daylight Saving: Uhrumstellung im Frühjahr und Herbst
 - im HMI kann für eine Korrektur bei der Eingabe mit der Taste "Rechts" zurückgegangen werden

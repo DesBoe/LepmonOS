@@ -19,7 +19,7 @@ import time
 from GPIO_Setup import *
 import math
 from sensor_data import get_light
-from usb_controller import reset_all_usb_ports
+from usb_controller import remount_usb_drive
 from Daylightsaving import daylight_saving_check
 from service import *
 from hardware import *
@@ -285,7 +285,7 @@ def capturing(log_mode):
                 
 
                 sensors["Status_Kamera"] = Status_Kamera
-                sensors["Exposure_(ms)"] = Exposure
+                sensors["Exposure"] = Exposure
                 sensors["Gain"] = f"{gain:.1f}"
                 sensors["Brightness"] = f"{avg_brightness:.1f}"
 
@@ -302,9 +302,9 @@ def capturing(log_mode):
                 
                 sensors["Status_Visible_LED"] = Status_LED 
                 if not power_on == "---":
-                    sensors["Power_Visible_LED_(W)"] = f"{power_on:.2f}" 
+                    sensors["Power_Visible_LED"] = f"{power_on:.2f}" 
                 elif power_on == "---":
-                    sensors["Power_Visible_LED_(W)"] = "---"                    
+                    sensors["Power_Visible_LED"] = "---"                    
                 if UV_active:
                     sensors["LepiLED"] = "active" 
                 elif not UV_active:
@@ -331,7 +331,7 @@ def capturing(log_mode):
                 log_schreiben(f"Warten bis zur nächsten Aufnahme: {round(time_to_next_image,0)} Sekunden",log_mode)
                 show_message("blank", lang = lang)
                 
-                if 0 <= lokale_Zeit.minute <= 15 and not usb_reset:
+                if 0 <= lokale_Zeit.minute <= 15 and not usb_reset and lokale_Zeit.hour % 2 == 0:
                     sharp,_ = check_focus(current_image, camera, log_mode)
                     if not sharp and camera == "RPI_Module_3":
                         log_schreiben("Unscharfe Bilder erkannt. Starte Fokussierung ...", log_mode)
@@ -339,10 +339,10 @@ def capturing(log_mode):
                         dioptrien_neu = set_focus_rpi_cam()
                         log_schreiben(f"Fokus RPI Module 3 geändert von {dioptrien_alt} auf {dioptrien_neu}", log_mode=log_mode)
                         time.sleep(5)
-                    reset_all_usb_ports(log_mode)
+                    remount_usb_drive(log_mode)
                     usb_reset = True
                 
-                if 15 <= lokale_Zeit.minute < 30 and usb_reset:
+                if 15 <= lokale_Zeit.minute < 30 and not usb_reset and lokale_Zeit.hour % 2 == 0:
                     usb_reset = False
                 
                 print(f"Warte bis zur nächsten Aufnahme: {time_to_next_image} Sekunden")
