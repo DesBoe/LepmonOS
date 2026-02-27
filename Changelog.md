@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.2.0] 2025-03-02
+## [2.2.0] 2026-03-02
 ### Geändert
 - Visible nur bei Befehl der Frame erstellung an
 - Strom Sensor nur 1x initialisiert, nicht bei jedem Lesen
