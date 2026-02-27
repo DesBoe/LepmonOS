@@ -24,7 +24,6 @@
 - Fehler 12 Visible LED verdunkelt und 7 Stromsensor aus Anzeige und Häufigkeitszählung entfernt
 - logfile mit Nummer des Geräte Laufes
 - Zeitstempel der letzten Raspberry Aktivität im FRam
-- Einheiten in CSV Liste
 - immer zur jeden zweiten vollen Stunde in der Aufnahme Schleife wird der USB Stick neu gemounted, um eine Assynchronität im Bus zu vermeiden.
 - Gamma Korrektur der aufgenommenen Frames, um Schatten aufzuhellen (Schrittweise, je 1/3 des Frames gleichzeitig)
 - Daylight Saving: Uhrumstellung im Frühjahr und Herbst
