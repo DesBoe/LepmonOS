@@ -86,6 +86,7 @@ def start_up(log_mode):
     display_text_and_image("Will-","kommen", "", "/home/Ento/LepmonOS/startsequenz/Logo_2_9.png",1)
     # Neuen Ordner auch dann erstellen, wenn der alte Ordner nicht gefunden wird --> USB Stick wurde gewechselt
     ordner = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
+    ordner_from_config = ordner
     print(f"\nletzter verwendeter Ordner: {ordner}\n")
     if os.path.exists(os.path.join(USB_stick, ordner)) == False or ordner == "":
         control_bit = False
@@ -117,8 +118,20 @@ def start_up(log_mode):
         return
          
     initialisiere_logfile(log_mode)
+
+    if control_bit:
+        log_schreiben("Letzter Durchlauf nicht ordnungsgemäß beendet. Oder zwischem altem und neuen run liegt mehr als 1 Tag Unterschied. Fahre mit dem alten Ordner fort:", log_mode=log_mode)
+        log_schreiben(f"Alter Ordner: {ordner_from_config}", log_mode=log_mode)
+        log_schreiben(f"Neuer Ordner: {ordner}", log_mode=log_mode)
+    
+    elif not control_bit:
+        log_schreiben("Letzter Durchlauf ordnungsgemäß beendet. Fahre mit neuem Ordner fort:", log_mode=log_mode)
+        log_schreiben(f"Alter Ordner: {ordner_from_config}", log_mode=log_mode)
+        log_schreiben(f"Neuer Ordner: {ordner}", log_mode=log_mode)
+        
     
     display_text_and_image("Wel-","come", "", "/home/Ento/LepmonOS/startsequenz/Logo_5_9.png",1)
+    log_schreiben("", log_mode=log_mode)
     log_schreiben(f"ARNI SN Nummer:   {sn}", log_mode=log_mode)
     log_schreiben(f"ARNI Generation:  {hardware}", log_mode=log_mode)
     log_schreiben(f"verbaute Kamera:  {get_device_info('camera')}",log_mode=log_mode)

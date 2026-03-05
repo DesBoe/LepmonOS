@@ -25,6 +25,7 @@ lang = get_language()
 
 
 def get_frame(Exposure, cam_mode, log_mode, Gain):
+    error_details = ""
     cams = None
     cam_Initiliase_tries = 0
     power_vis = "---"
@@ -83,6 +84,7 @@ def get_frame(Exposure, cam_mode, log_mode, Gain):
             frame = None
             Kamera_Status = 0
             cams = None
+            error_details = str(e)
             if cam_Initiliase_tries > 5:
                 show_message("err_1a", lang=lang, tries=cam_Initiliase_tries)
                 print(f"Fehler beim Abrufen des Frames: {e}")
@@ -93,8 +95,10 @@ def get_frame(Exposure, cam_mode, log_mode, Gain):
             log_schreiben(f"Kamera nach {cam_Initiliase_tries} Versuchen nicht initalisiert", log_mode=log_mode)
             show_message("cam_3", lang=lang)
             time.sleep(5)
-            e = f"Kamera nach {cam_Initiliase_tries} Versuchen nicht initalisiert"
-            error_message(1, e, log_mode)
+            if not error_details:
+                error_details = f"Kamera nach {cam_Initiliase_tries} Versuchen nicht initalisiert"
+            error_message(1, error_details, log_mode)
+            log_schreiben(f"Fehlerdetails: {error_details}", log_mode=log_mode)
             print(f"Fehler beim Abrufen des Frames: {e}")
             print("Prüfe Kamera Verbindung und Stromversorgung")
             break

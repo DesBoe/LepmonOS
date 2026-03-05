@@ -31,6 +31,7 @@ def dict_to_xml(tag, d):
 
 
 def get_frame_RPI(expected_camera, cam_mode,log_mode, Exposure, Gain, compression_quality, focus= 5.3):
+    error_details = ""
     red_gain, blue_gain = None, None
     cam_Initiliase_tries = 0
     power_vis = "---"
@@ -162,6 +163,7 @@ def get_frame_RPI(expected_camera, cam_mode,log_mode, Exposure, Gain, compressio
                 if cam_Initiliase_tries > 5:
                     show_message("err_1a",lang=lang,tries = cam_Initiliase_tries)
                     print(f"Fehler beim Abrufen des Frames: {e}")  
+                    error_details = str(e)
             
 
             
@@ -177,9 +179,11 @@ def get_frame_RPI(expected_camera, cam_mode,log_mode, Exposure, Gain, compressio
         Kamera_RPI_Status = 0
         show_message("cam_3",lang=lang)    
         time.sleep(5)
-        e = f"Kamera nach {cam_Initiliase_tries} Versuchen nicht initalisiert"   
-        error_message(1,e,log_mode)     
-        print(f"Fehler beim Abrufen des Frames: {e}")
+        if not error_details:
+            error_details = f"Kamera nach {cam_Initiliase_tries} Versuchen nicht initalisiert"   
+        log_schreiben(f"Fehlerdetails: {error_details}", log_mode=log_mode)
+        error_message(1,error_details,log_mode)     
+        print(f"Fehler beim Abrufen des Frames: {error_details}")
         print("Prüfe Kamera Verbindung")
 
     if expected_camera not in ["RPI_HQ","RPI_Module_3"]:
