@@ -15,6 +15,7 @@ from GPIO_Setup import turn_off_led
 from end import trap_shutdown
 from bootconfig import add_to_bootconfig
 from hardware import *
+import os
 
 
 
@@ -85,9 +86,17 @@ def start_up(log_mode):
     
     display_text_and_image("Will-","kommen", "", "/home/Ento/LepmonOS/startsequenz/Logo_2_9.png",1)
     # Neuen Ordner auch dann erstellen, wenn der alte Ordner nicht gefunden wird --> USB Stick wurde gewechselt
-    ordner = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
-    ordner_from_config = ordner
-    print(f"\nletzter verwendeter Ordner: {ordner}\n")
+    ordner_from_config = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
+    ordner = os.path.basename(ordner_from_config)
+    print(f"DEBUG: Ordner aus Config: {ordner_from_config}")
+    print(f"DEBUG: Ordnername: {ordner}")
+    ordner_path = os.path.join(USB_stick, ordner)
+    print(f"DEBUG: Vollständiger Pfad zum Ordner: {ordner_path}")
+    
+    print(f"\nletzter verwendeter Ordner: {ordner_from_config}\n")
+    print(f"Ermittelter Ordner: {ordner}")
+
+    
     if os.path.exists(os.path.join(USB_stick, ordner)) == False or ordner == "":
         control_bit = False
         print("Alter Ordner auf USB Stick nicht gefunden. Annahme, dass ein neuer USB Stick eingelegt wurde. Erstelle neuen Ordner")
@@ -103,7 +112,7 @@ def start_up(log_mode):
         print (f"neuer Ordner: {ordner}")
     elif control_bit:
         print("letzer Fang nicht ordnungsgemäß beendet, benutze alten Ordner")
-        ordner = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
+        #ordner = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
         log_schreiben("#######################################################################################", log_mode=log_mode)
         log_schreiben("### Letzter Durchlauf nicht ordnungsgemäß beendet. Fahre mit dem alten Ordner fort ###", log_mode=log_mode)
         log_schreiben("#######################################################################################", log_mode=log_mode)
