@@ -205,7 +205,7 @@ fi
 # Install VmbPy wheel
 echo "Installing VmbPy Python bindings..."
 pip install --break-system-packages \
-  "https://github.com/alliedvision/VmbPy/releases/download/1.2.1_beta1/vmbpy-1.2.1-py3-none-manylinux_2_27_aarch64.whl"
+  "https://github.com/alliedvision/VmbPy/releases/download/1.2.1/vmbpy-1.2.1-py3-none-manylinux_2_27_aarch64.whl"
 
 # Verify VmbPy installation
 if python3 -c "import vmbpy" 2>/dev/null; then
