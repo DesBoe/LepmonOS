@@ -20,7 +20,7 @@
         "minutes_after_sunset": 10,
         "minutes_to_sunrise": 60,
         "flash": 0.25,
-        "interval": 1,
+        "interval": 2,
         "dusk_treshold": 90,
         "error_code": "0",
         "gamma_correction": true
