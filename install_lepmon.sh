@@ -20,7 +20,8 @@ apt-get install -y --no-install-recommends \
   i2c-tools python3-smbus python3-gpiozero python3-rpi.gpio \
   libatlas-base-dev libopenblas-dev \
   python3-opencv python3-numpy python3-pil python3-picamera2 \
-  libusb-1.0-0 libcap2-bin
+  libusb-1.0-0 libcap2-bin \
+  ntfs-3g exfatprogs
 
 # Networking / Access-Point
 apt-get install -y --no-install-recommends \
@@ -440,6 +441,144 @@ systemctl enable hostapd
 systemctl enable dnsmasq
 
 # ===========================================================================
+# USB storage auto-mount
+# ===========================================================================
+# Raspberry Pi OS Lite has no desktop automounter – we wire one up via
+# udev + a systemd service template so any USB mass-storage partition is
+# mounted automatically under /media/usb/<LABEL> when plugged in and
+# cleanly unmounted when removed.
+
+# Base directory for all USB mounts
+mkdir -p /media/usb
+chmod 755 /media/usb
+
+# -- Helper script that does the actual mount / unmount work --
+cat > /usr/local/bin/usb-mount.sh <<'USBSCRIPT'
+#!/usr/bin/env bash
+# Automatically mount or unmount a USB storage partition.
+# Usage: usb-mount.sh mount   <kernel-devname>   (e.g. sda1)
+#        usb-mount.sh unmount <kernel-devname>
+
+set -e
+exec 1> >(logger -s -t usb-mount) 2>&1
+
+MOUNT_BASE="/media/usb"
+
+mount_device() {
+  local DEV="$1"
+  local DEV_PATH="/dev/$DEV"
+
+  # Wait until the device node is fully ready
+  local TRIES=0
+  while [ ! -b "$DEV_PATH" ] && [ $TRIES -lt 10 ]; do
+    sleep 1; TRIES=$((TRIES+1))
+  done
+  [ -b "$DEV_PATH" ] || { echo "ERROR: $DEV_PATH not found after 10 s"; exit 1; }
+
+  # Detect filesystem type
+  local FSTYPE
+  FSTYPE=$(blkid -o value -s TYPE "$DEV_PATH" 2>/dev/null || true)
+  [ -z "$FSTYPE" ] && { echo "WARN: no filesystem detected on $DEV_PATH – skipping"; exit 0; }
+
+  # Use partition label as directory name; fall back to device name
+  local LABEL
+  LABEL=$(blkid -o value -s LABEL "$DEV_PATH" 2>/dev/null || true)
+  [ -z "$LABEL" ] && LABEL="$DEV"
+  # Sanitise: keep alphanumeric, dots, hyphens, underscores
+  LABEL=$(echo "$LABEL" | tr ' ' '_' | tr -cd '[:alnum:]._-')
+
+  local MOUNT_POINT="$MOUNT_BASE/$LABEL"
+  # Avoid collision when two partitions share a label
+  if mountpoint -q "$MOUNT_POINT" 2>/dev/null; then
+    MOUNT_POINT="${MOUNT_BASE}/${LABEL}_${DEV}"
+  fi
+
+  mkdir -p "$MOUNT_POINT"
+
+  # Ento user UID/GID (first real user = 1000)
+  local UID_OPT="uid=1000,gid=1000,umask=0022,noatime"
+
+  case "$FSTYPE" in
+    vfat|msdos)
+      mount -t vfat    -o "$UID_OPT"            "$DEV_PATH" "$MOUNT_POINT" ;;
+    exfat)
+      mount -t exfat   -o "$UID_OPT"            "$DEV_PATH" "$MOUNT_POINT" ;;
+    ntfs)
+      mount -t ntfs-3g -o "$UID_OPT"            "$DEV_PATH" "$MOUNT_POINT" ;;
+    ext2|ext3|ext4|btrfs|xfs)
+      mount -t "$FSTYPE" -o noatime,defaults    "$DEV_PATH" "$MOUNT_POINT" ;;
+    *)
+      mount              -o noatime             "$DEV_PATH" "$MOUNT_POINT" ;;
+  esac
+
+  # Store the mount point path so the unmount step can find it
+  echo "$MOUNT_POINT" > "/run/usb-mount-${DEV}.path"
+  echo "Mounted $DEV_PATH ($FSTYPE) at $MOUNT_POINT"
+}
+
+unmount_device() {
+  local DEV="$1"
+  local PATH_FILE="/run/usb-mount-${DEV}.path"
+
+  local MOUNT_POINT
+  if [ -f "$PATH_FILE" ]; then
+    MOUNT_POINT=$(cat "$PATH_FILE")
+    rm -f "$PATH_FILE"
+  else
+    # Fall back to scanning the mount table
+    MOUNT_POINT=$(findmnt -rno TARGET "/dev/$DEV" 2>/dev/null || true)
+  fi
+
+  if [ -n "$MOUNT_POINT" ] && mountpoint -q "$MOUNT_POINT" 2>/dev/null; then
+    umount "$MOUNT_POINT"
+    rmdir  "$MOUNT_POINT" 2>/dev/null || true
+    echo "Unmounted $DEV from $MOUNT_POINT"
+  else
+    echo "INFO: $DEV was not mounted – nothing to do"
+  fi
+}
+
+case "$1" in
+  mount)   mount_device   "$2" ;;
+  unmount) unmount_device "$2" ;;
+  *) echo "Usage: $0 {mount|unmount} <devname>"; exit 1 ;;
+esac
+USBSCRIPT
+chmod +x /usr/local/bin/usb-mount.sh
+
+# -- systemd service template triggered by udev --
+# One instance per kernel device name (e.g. usb-mount@sda1.service)
+cat > /etc/systemd/system/usb-mount@.service <<'USBUNIT'
+[Unit]
+Description=Mount USB storage partition %i
+BindsTo=dev-%i.device
+After=dev-%i.device systemd-udev-settle.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/usb-mount.sh mount   %i
+ExecStop=/usr/local/bin/usb-mount.sh  unmount %i
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target
+USBUNIT
+
+# -- udev rule: start/stop the service on device add/remove --
+# Matches partitions on USB-connected block devices (sda1, sdb1, …)
+cat > /etc/udev/rules.d/99-lepmon-usb-mount.rules <<'UDEVRULE'
+# Automatically mount USB storage partitions via systemd service template
+KERNEL=="sd[a-z][0-9]*", SUBSYSTEMS=="usb", ACTION=="add",    \
+  RUN+="/bin/systemctl --no-block start  usb-mount@%k.service"
+KERNEL=="sd[a-z][0-9]*", SUBSYSTEMS=="usb", ACTION=="remove",  \
+  RUN+="/bin/systemctl --no-block stop   usb-mount@%k.service"
+UDEVRULE
+
+# Reload udev rules so they take effect in the running image
+udevadm control --reload-rules 2>/dev/null || true
+
+# ===========================================================================
 # Lepmon-info helper (shown on login)
 # ===========================================================================
 cat <<'INFO' > /usr/local/bin/lepmon-info
@@ -472,6 +611,16 @@ if [ -f /etc/lepmon/ssid ]; then
   echo "  AP IP   : 192.168.4.1"
 fi
 
+echo ""
+echo "USB Storage:"
+if ls /media/usb/ 2>/dev/null | grep -q .; then
+  for mp in /media/usb/*/; do
+    DEV=$(findmnt -rno SOURCE "$mp" 2>/dev/null || echo "?")
+    echo "  ✓ ${mp} (${DEV})"
+  done
+else
+  echo "  – no USB drives mounted"
+fi
 echo ""
 echo "Quick access:"
 echo "  Web UI : http://192.168.4.1:8080/  (or http://${ETH_IP%/*}:8080/)"
