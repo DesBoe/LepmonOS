@@ -30,6 +30,53 @@ apt-get install -y --no-install-recommends \
 # SSH server (ensure it is present)
 apt-get install -y --no-install-recommends openssh-server
 
+# ---------------------------------------------------------------------------
+# Lightweight Desktop Environment (LXDE) - installable, not active by default
+# Activate via:  sudo systemctl set-default graphical.target && sudo reboot
+# Deactivate:    sudo systemctl set-default multi-user.target && sudo reboot
+# Or one-shot:   sudo systemctl start lightdm
+# ---------------------------------------------------------------------------
+apt-get install -y --no-install-recommends \
+  lxde-core lxterminal lightdm xserver-xorg xinit || true
+
+# Keep the system in CLI mode by default to save resources
+systemctl set-default multi-user.target
+systemctl disable lightdm 2>/dev/null || true
+
+# Create a convenience script to toggle desktop on/off
+cat > /usr/local/bin/lepmon-desktop <<'DESKTOP'
+#!/bin/bash
+case "${1:-}" in
+  on|start)
+    echo "Activating desktop environment..."
+    sudo systemctl set-default graphical.target
+    sudo systemctl start lightdm
+    echo "Desktop is now active. Connect via VNC or HDMI."
+    ;;
+  off|stop)
+    echo "Deactivating desktop environment..."
+    sudo systemctl stop lightdm
+    sudo systemctl set-default multi-user.target
+    echo "Desktop stopped. System is back in CLI mode."
+    ;;
+  status)
+    if systemctl is-active lightdm >/dev/null 2>&1; then
+      echo "Desktop: ACTIVE"
+    else
+      echo "Desktop: INACTIVE (CLI mode)"
+    fi
+    echo "Default target: $(systemctl get-default)"
+    ;;
+  *)
+    echo "Usage: lepmon-desktop {on|off|status}"
+    echo "  on    - Start LXDE desktop and set as boot default"
+    echo "  off   - Stop desktop and revert to CLI boot"
+    echo "  status - Show current desktop state"
+    ;;
+esac
+DESKTOP
+chmod +x /usr/local/bin/lepmon-desktop
+
 # Free space immediately
 apt-get clean
 rm -rf /var/lib/apt/lists/*
@@ -68,9 +115,27 @@ systemctl mask    userconfig.service 2>/dev/null || true
 systemctl disable piwiz.service      2>/dev/null || true
 systemctl mask    piwiz.service      2>/dev/null || true
 
-# -- SSH: enable multiple ways to be safe --
+# -- SSH: enable robustly (WiFi + Ethernet) --
 systemctl enable ssh.service 2>/dev/null || true
+systemctl unmask ssh.service 2>/dev/null || true
 touch /boot/firmware/ssh
+
+# Ensure sshd starts even without the /boot/firmware/ssh sentinel
+mkdir -p /etc/systemd/system/ssh.service.d
+cat > /etc/systemd/system/ssh.service.d/override.conf <<'SSHOVERRIDE'
+[Unit]
+ConditionPathExists=
+
+[Install]
+WantedBy=multi-user.target
+SSHOVERRIDE
+
+# Configure SSH: allow password auth, permit root login for emergencies
+sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# Also enable ssh via raspi-config non-interactive if available
+raspi-config nonint do_ssh 0 2>/dev/null || true
 
 # Bookworm userconf.txt so the image boots with Ento user
 echo 'Ento:$6$rounds=656000$lepmonrandomsalt$gV8Q7nKxJrP2wM5L4fH9Y6t3R0uS1aZ8c4E7b2N5xW6vD3kF8jG1hI0mJ9oK2pL4qM6nO7rP8sQ9tU0wV1xY2zA' > /boot/firmware/userconf.txt
@@ -81,13 +146,21 @@ echo 'Ento:$6$rounds=656000$lepmonrandomsalt$gV8Q7nKxJrP2wM5L4fH9Y6t3R0uS1aZ8c4E
 CFG=/boot/firmware/config.txt
 
 grep -q '^dtparam=i2c_arm=on'       "$CFG" || echo "dtparam=i2c_arm=on"       >> "$CFG"
+grep -q '^dtparam=i2c1=on'          "$CFG" || echo "dtparam=i2c1=on"          >> "$CFG"
 grep -q '^dtparam=spi=on'           "$CFG" || echo "dtparam=spi=on"           >> "$CFG"
 grep -q '^enable_uart=1'            "$CFG" || echo "enable_uart=1"            >> "$CFG"
 grep -q '^dtoverlay=pwm-2chan'      "$CFG" || echo "dtoverlay=pwm-2chan"      >> "$CFG"
 grep -q '^dtoverlay=i2c-rtc,ds3231' "$CFG" || echo "dtoverlay=i2c-rtc,ds3231" >> "$CFG"
 
-grep -q '^i2c-dev' /etc/modules || echo "i2c-dev" >> /etc/modules
-grep -q '^spi-dev' /etc/modules || echo "spi-dev" >> /etc/modules
+# Ensure I2C and SPI kernel modules load at boot
+grep -q '^i2c-dev'  /etc/modules || echo "i2c-dev"  >> /etc/modules
+grep -q '^i2c-bcm2835' /etc/modules || echo "i2c-bcm2835" >> /etc/modules
+grep -q '^spi-dev'  /etc/modules || echo "spi-dev"  >> /etc/modules
+
+# Enable I2C via raspi-config non-interactive if available
+raspi-config nonint do_i2c 0 2>/dev/null || true
+raspi-config nonint do_spi 0 2>/dev/null || true
+raspi-config nonint do_serial_hw 0 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # Lepmon application files (already copied by workflow)
@@ -493,6 +566,101 @@ if [ -x /usr/local/bin/lepmon-info ]; then
 fi
 BASHRC
 chown Ento:Ento /home/Ento/.bashrc
+
+# ---------------------------------------------------------------------------
+# Fix boot hanging before login prompt
+# The system may stall if getty on tty1 conflicts with autologin or if
+# the serial console is not properly configured. Ensure getty services work.
+# ---------------------------------------------------------------------------
+
+# Make sure getty@tty1 is enabled and not masked
+systemctl unmask getty@tty1.service 2>/dev/null || true
+systemctl enable getty@tty1.service 2>/dev/null || true
+
+# Enable serial console getty (useful for debugging via UART)
+systemctl unmask serial-getty@ttyS0.service 2>/dev/null || true
+systemctl enable serial-getty@ttyS0.service 2>/dev/null || true
+systemctl unmask serial-getty@ttyAMA0.service 2>/dev/null || true
+systemctl enable serial-getty@ttyAMA0.service 2>/dev/null || true
+
+# Ensure the login target is reached - remove any services that might block boot
+systemctl mask systemd-firstboot.service 2>/dev/null || true
+
+# Set a reasonable default target
+systemctl set-default multi-user.target
+
+# Add kernel command line parameters for console and fast boot
+CMDLINE="/boot/firmware/cmdline.txt"
+if [ -f "$CMDLINE" ]; then
+  # Ensure console=tty1 is present for HDMI output
+  grep -q 'console=tty1' "$CMDLINE" || \
+    sed -i 's/$/ console=tty1/' "$CMDLINE"
+  # Ensure serial console is present
+  grep -q 'console=serial0,115200' "$CMDLINE" || \
+    sed -i 's/$/ console=serial0,115200/' "$CMDLINE"
+fi
+
+# ---------------------------------------------------------------------------
+# Disk space reduction measures
+# ---------------------------------------------------------------------------
+
+# Remove man pages, docs, and locale files
+rm -rf /usr/share/man/* 2>/dev/null || true
+rm -rf /usr/share/doc/* 2>/dev/null || true
+rm -rf /usr/share/info/* 2>/dev/null || true
+rm -rf /usr/share/locale/* 2>/dev/null || true
+
+# Remove apt cache and lists
+apt-get clean
+rm -rf /var/lib/apt/lists/*
+rm -rf /var/cache/apt/archives/*.deb
+
+# Remove pip cache
+pip cache purge 2>/dev/null || true
+rm -rf /root/.cache/pip
+rm -rf /home/Ento/.cache/pip
+
+# Remove Python bytecode caches
+find / -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+find / -name "*.pyc" -delete 2>/dev/null || true
+
+# Remove git history if any was cloned
+rm -rf /tmp/* 2>/dev/null || true
+rm -rf /var/tmp/* 2>/dev/null || true
+
+# Remove build-essential after compilation is done (saves ~100MB)
+apt-get remove --purge -y build-essential gcc g++ cpp make 2>/dev/null || true
+apt-get autoremove -y 2>/dev/null || true
+apt-get clean
+
+# Remove kernel headers if present
+dpkg --list | grep linux-headers | awk '{print $2}' | xargs apt-get purge -y 2>/dev/null || true
+
+# Minimize journald log storage
+mkdir -p /etc/systemd/journald.conf.d
+cat > /etc/systemd/journald.conf.d/size-limit.conf <<'JRNL'
+[Journal]
+SystemMaxUse=16M
+RuntimeMaxUse=16M
+JRNL
+
+# Remove unnecessary firmware blobs (keep only Pi-related ones)
+# Be careful here - only remove clearly unused ones
+rm -rf /usr/lib/firmware/liquidio 2>/dev/null || true
+rm -rf /usr/lib/firmware/netronome 2>/dev/null || true
+rm -rf /usr/lib/firmware/mellanox 2>/dev/null || true
+rm -rf /usr/lib/firmware/qcom 2>/dev/null || true
+rm -rf /usr/lib/firmware/amdgpu 2>/dev/null || true
+rm -rf /usr/lib/firmware/radeon 2>/dev/null || true
+rm -rf /usr/lib/firmware/nvidia 2>/dev/null || true
+rm -rf /usr/lib/firmware/i915 2>/dev/null || true
+rm -rf /usr/lib/firmware/mediatek 2>/dev/null || true
+
+# Final cleanup
+sync
+
+echo "Disk usage after cleanup:"
+df -h / || true
 
 # ---------------------------------------------------------------------------
 systemctl daemon-reload

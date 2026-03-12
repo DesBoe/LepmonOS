@@ -312,6 +312,138 @@
             color: var(--text-dim);
             font-size: 0.875rem;
         }
+        
+        /* ---- Captured Images Gallery ---- */
+        .gallery-section {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem 2rem;
+        }
+        
+        .gallery-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .gallery-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--accent);
+            padding-bottom: 0.75rem;
+        }
+        
+        .gallery-header h3 {
+            font-size: 1rem;
+            color: var(--highlight);
+            margin: 0;
+        }
+        
+        .gallery-header .usb-status {
+            font-size: 0.8rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+        }
+        
+        .usb-connected {
+            background: rgba(74, 222, 128, 0.2);
+            color: var(--success);
+        }
+        
+        .usb-disconnected {
+            background: rgba(233, 69, 96, 0.2);
+            color: var(--highlight);
+        }
+        
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        .gallery-item {
+            background: var(--accent);
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .gallery-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(233, 69, 96, 0.3);
+        }
+        
+        .gallery-item img {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            display: block;
+            background: #000;
+        }
+        
+        .gallery-item-info {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.75rem;
+        }
+        
+        .gallery-item-info .filename {
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 500;
+        }
+        
+        .gallery-item-info .meta {
+            color: var(--text-dim);
+            margin-top: 0.25rem;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .gallery-empty {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-dim);
+        }
+        
+        /* Lightbox overlay for full image viewing */
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .lightbox.active {
+            display: flex;
+        }
+        
+        .lightbox img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+        
+        .lightbox-close {
+            position: absolute;
+            top: 1rem;
+            right: 1.5rem;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            z-index: 1001;
+        }
     </style>
 </head>
 <body>
@@ -430,6 +562,28 @@
             </div>
         </aside>
     </main>
+    
+    <!-- Captured Images Gallery -->
+    <section class="gallery-section">
+        <div class="gallery-card">
+            <div class="gallery-header">
+                <h3>🖼️ Latest Captured Images</h3>
+                <div>
+                    <span id="usbStatus" class="usb-status usb-disconnected">USB: checking...</span>
+                    <button class="btn btn-secondary" style="margin-left: 0.5rem;" onclick="loadGallery()">↻ Refresh</button>
+                </div>
+            </div>
+            <div id="galleryGrid" class="gallery-grid">
+                <div class="gallery-empty">Loading images...</div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Lightbox for full-size image viewing -->
+    <div id="lightbox" class="lightbox" onclick="closeLightbox()">
+        <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
+        <img id="lightboxImage" src="" alt="Full size image">
+    </div>
     
     <footer>
         Lepmon Insect Monitoring System | Allied Vision Camera Interface
@@ -578,11 +732,14 @@
         updateFocus();
         updateCameraInfo();
         loadCameraSettings();
+        loadGallery();
         
         // Periodic updates
         setInterval(updateStatus, 2000);
         setInterval(updateFocus, 1000);
         setInterval(updateCameraInfo, 30000);
+        // Refresh gallery every 60 seconds
+        setInterval(loadGallery, 60000);
         
         // Handle stream errors
         streamImage.onerror = function() {
@@ -592,6 +749,79 @@
                 }, 2000);
             }
         };
+        
+        // ---- Gallery Functions ----
+        function loadGallery() {
+            fetch('/api/images/latest?count=10')
+                .then(response => response.json())
+                .then(data => {
+                    const grid = document.getElementById('galleryGrid');
+                    const usbStatus = document.getElementById('usbStatus');
+                    
+                    // Update USB status badge
+                    if (data.usb_mounted) {
+                        usbStatus.textContent = 'USB: ' + (data.usb_path || 'connected');
+                        usbStatus.className = 'usb-status usb-connected';
+                    } else {
+                        usbStatus.textContent = 'USB: not mounted';
+                        usbStatus.className = 'usb-status usb-disconnected';
+                    }
+                    
+                    if (!data.images || data.images.length === 0) {
+                        grid.innerHTML = '<div class="gallery-empty">' +
+                            (data.usb_mounted 
+                                ? 'No images found on USB drive yet.' 
+                                : 'USB drive not connected.') +
+                            '</div>';
+                        return;
+                    }
+                    
+                    grid.innerHTML = '';
+                    data.images.forEach(function(img) {
+                        const item = document.createElement('div');
+                        item.className = 'gallery-item';
+                        item.onclick = function() { openLightbox(img.url); };
+                        
+                        const modified = new Date(img.modified);
+                        const timeStr = modified.toLocaleString();
+                        
+                        item.innerHTML = 
+                            '<img src="' + img.thumbnail_url + '" alt="' + img.filename + '" loading="lazy">' +
+                            '<div class="gallery-item-info">' +
+                            '  <div class="filename" title="' + img.filename + '">' + img.filename + '</div>' +
+                            '  <div class="meta">' +
+                            '    <span>' + timeStr + '</span>' +
+                            '    <span>' + img.size_kb + ' KB</span>' +
+                            '  </div>' +
+                            '</div>';
+                        
+                        grid.appendChild(item);
+                    });
+                })
+                .catch(err => {
+                    console.error('Gallery load failed:', err);
+                    document.getElementById('galleryGrid').innerHTML = 
+                        '<div class="gallery-empty">Failed to load images.</div>';
+                });
+        }
+        
+        function openLightbox(imageUrl) {
+            const lightbox = document.getElementById('lightbox');
+            const lightboxImg = document.getElementById('lightboxImage');
+            lightboxImg.src = imageUrl;
+            lightbox.classList.add('active');
+        }
+        
+        function closeLightbox() {
+            const lightbox = document.getElementById('lightbox');
+            lightbox.classList.remove('active');
+            document.getElementById('lightboxImage').src = '';
+        }
+        
+        // Close lightbox on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeLightbox();
+        });
     </script>
 </body>
 </html>

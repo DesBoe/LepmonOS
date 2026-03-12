@@ -76,7 +76,16 @@ jobs:
         sudo mkdir -p /tmp/rpi-root/home/Ento/LepmonOS/geo_ref_shapes
         
         # Copy Python files, configs, requirements, docs
-        sudo cp -r *.py *.sh *.json *.xml *.md *.txt /tmp/rpi-root/home/Ento/LepmonOS/ 2>/dev/null || true
+        # EXCLUDE development and service tools (LepmonOS_Dev_* and LepmonOS_Service_*)
+        for f in *.py *.sh *.json *.xml *.md *.txt; do
+          case "$f" in
+            LepmonOS_Dev_*|LepmonOS_Service_*) echo "Skipping dev/service file: $f" ;;
+            *) sudo cp -r "$f" /tmp/rpi-root/home/Ento/LepmonOS/ 2>/dev/null || true ;;
+          esac
+        done
+        
+        # Also remove service.py_BAK.py (backup file)
+        sudo rm -f /tmp/rpi-root/home/Ento/LepmonOS/service.py_BAK.py 2>/dev/null || true
         
         # Copy templates directory if it exists
         if [ -d templates ]; then sudo cp -r templates /tmp/rpi-root/home/Ento/LepmonOS/; fi
@@ -101,20 +110,67 @@ jobs:
         sudo umount /tmp/rpi-root/proc || true
         sudo umount /tmp/rpi-root/boot/firmware || true
         sudo umount /tmp/rpi-root || true
+        
+        # Shrink the filesystem to minimize image size
+        sudo e2fsck -f -y /dev/loop0p2 || true
+        sudo resize2fs -M /dev/loop0p2
+        
+        # Get the exact size of the shrunken partition
+        BLOCK_COUNT=$(sudo dumpe2fs -h /dev/loop0p2 2>/dev/null | grep 'Block count:' | awk '{print $3}')
+        BLOCK_SIZE=$(sudo dumpe2fs -h /dev/loop0p2 2>/dev/null | grep 'Block size:' | awk '{print $3}')
+        
+        if [ -n "$BLOCK_COUNT" ] && [ -n "$BLOCK_SIZE" ]; then
+          # Add 10MB margin
+          PART_SIZE=$(( (BLOCK_COUNT * BLOCK_SIZE) + 10*1024*1024 ))
+          sudo resize2fs /dev/loop0p2 $(( PART_SIZE / BLOCK_SIZE ))s || true
+        fi
+        
         sudo losetup -d /dev/loop0
+        
+        # Truncate the image file to remove trailing empty space
+        # Find end of last partition and truncate
+        END_SECTOR=$(sudo parted -s rpi-os-lite.img unit s print 2>/dev/null | grep '^ 2' | awk '{print $3}' | tr -d 's')
+        if [ -n "$END_SECTOR" ]; then
+          TRUNC_SIZE=$(( (END_SECTOR + 1) * 512 ))
+          truncate --size=$TRUNC_SIZE rpi-os-lite.img || true
+        fi
+        
+        echo "Image size after shrink:"
+        ls -lh rpi-os-lite.img
 
     - name: Compress
       run: |
         DATE=$(date +%Y%m%d)
+        # Use maximum compression to stay under 2GB GitHub release limit
         zip -9 lepmon-sdcard-${DATE}.img.zip rpi-os-lite.img
+        
+        SIZE=$(stat --format=%s lepmon-sdcard-${DATE}.img.zip)
+        SIZE_MB=$((SIZE / 1024 / 1024))
+        echo "Compressed image size: ${SIZE_MB} MB"
+        
+        if [ $SIZE_MB -gt 2000 ]; then
+          echo "::warning::Image is ${SIZE_MB}MB which exceeds 2GB GitHub release limit!"
+          echo "Consider further disk reduction measures."
+        else
+          echo "Image size OK: ${SIZE_MB}MB (under 2GB limit)"
+        fi
+        
         ls -lh lepmon-sdcard-${DATE}.img.zip
 
-    - name: Release
+    - name: Release (tag push - backward compat)
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
       with:
         files: lepmon-sdcard-*.img.zip
-        body: Lepmon SD Card Image - Insect Timelapse Monitoring System
+        body: |
+          ## Lepmon SD Card Image
+          
+          Insect Timelapse Monitoring System for Raspberry Pi.
+          Flash this .img.zip to an SD card (8GB+ recommended).
+          
+          **Default Credentials:** User: `Ento` / Password: `lepmon`
+          **SSH:** Enabled by default on WiFi AP and Ethernet
+          **Desktop:** Run `lepmon-desktop on` to activate LXDE
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -148,31 +204,29 @@ jobs:
         name: Lepmon ${{ steps.tag.outputs.tag }}
         body: |
           ## Lepmon SD Card Image
-          
+
           Insect Timelapse Monitoring System for Raspberry Pi.
-          
+
+          ### Quick Start
+          1. Flash this `.img.zip` to an SD card (8GB+ recommended)
+          2. Boot the Raspberry Pi
+          3. Connect to WiFi AP (password: `lepmon12`)
+          4. Access web UI at http://192.168.4.1:8080/
+          5. SSH: `ssh Ento@192.168.4.1` (password: `lepmon`)
+
           ### Features
           - Allied Vision camera support with MJPEG streaming
           - WiFi Access Point for direct connection
-          - Web UI for focus assistance and live preview
+          - Web UI with live preview, focus analysis, and captured image gallery
+          - **SSH enabled by default** (WiFi + Ethernet)
+          - **I2C, SPI, UART enabled by default**
+          - **LXDE desktop** available: `lepmon-desktop on`
           - Automatic timelapse capture with exposure optimization
-          - OLED display support
-          - LoRa communication
-          - Hardware PWM for LED control
-          - I2C/SPI sensor support
-          
+          - Dev/Service files excluded from image for smaller size
+
           ### Default Credentials
-          - User: Ento
-          - Password: lepmon
-          - WiFi AP SSID: Lepmon-XXXX-XXXX (unique per device)
-          - WiFi AP Password: lepmon12
-          
-          ### Quick Start
-          1. Flash this image to an SD card (8GB+ recommended)
-          2. Boot the Raspberry Pi
-          3. Connect to WiFi AP "Lepmon-XXXX-XXXX" (password: lepmon12)
-          4. Access the web interface at http://192.168.4.1:8080/
-          5. Or via Ethernet at http://<eth0-ip>:8080/
+          - User: `Ento` / Password: `lepmon`
+          - WiFi AP Password: `lepmon12`
         prerelease: ${{ github.event.inputs.prerelease || false }}
         allowUpdates: true
         replacesArtifacts: false

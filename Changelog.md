@@ -1,6 +1,30 @@
 # Changelog
 
 
+## [2.3.0] 2026-03-12
+### Geändert
+- SD-Image: LepmonOS_Dev_* und LepmonOS_Service_* Dateien werden nicht mehr im Image ausgeliefert
+- SD-Image wird nach dem Build verkleinert (shrink), um unter 2 GB GitHub-Release-Limit zu bleiben
+- Journald Log-Speicher auf 16 MB begrenzt
+- Build-Essential und unnötige Firmware nach Installation entfernt (Platzersparnis)
+- Release-Notes in GitHub Actions aktualisiert
+
+### Hinzugefügt
+- Leichtgewichtiger LXDE-Desktop vorinstalliert, aktivierbar via `lepmon-desktop on` (CLI bleibt Standard)
+- SSH robust aktiviert: ConditionPathExists entfernt, PasswordAuthentication und PermitRootLogin aktiviert
+- I2C über raspi-config und zusätzliches Kernel-Modul `i2c-bcm2835` sichergestellt
+- Boot-Login-Problem behoben: getty@tty1 und serial-getty werden explizit aktiviert/unmasked; cmdline.txt ergänzt
+- Bildergalerie im Web-Frontend: Die letzten 10 aufgenommenen Bilder vom USB-Stick werden angezeigt
+- API-Endpunkte `/api/images/latest`, `/api/images/file`, `/api/images/thumbnail` für Bildergalerie
+- Lightbox-Ansicht für Vollbild-Betrachtung der aufgenommenen Bilder
+- Automatische Galerie-Aktualisierung alle 60 Sekunden
+- Convenience-Script `lepmon-desktop` zur Desktop-Verwaltung
+- Disk-Cleanup: man-pages, docs, locale, __pycache__, pip-cache, unnötige Firmware entfernt
+
+### Behoben
+- SSH war nicht standardmäßig aktiviert über WiFi und Ethernet Verbindungen
+- Boot blieb bei systemd-update-utmp-runlevel hängen, bevor Login-Prompt erschien
+- I2C Aktivierung über zusätzliches Kernel-Modul und raspi-config abgesichert
 
 
 ## [2.2.1] 2026-03-09

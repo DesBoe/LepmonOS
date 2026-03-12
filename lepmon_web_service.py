@@ -25,8 +25,9 @@ import sys
 import json
 from pathlib import Path
 from contextlib import asynccontextmanager
-from typing import Optional, Generator
+from typing import Optional, Generator, List
 import logging
+import glob
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -491,6 +492,142 @@ async def request_capture_stop():
     from capturing_state import request_stop_capture
     request_stop_capture()
     return {"message": "Stop request sent"}
+
+
+# ---------------------------------------------------------------------------
+# Captured Images Gallery - serve latest images from USB drive
+# ---------------------------------------------------------------------------
+
+def find_usb_mount() -> Optional[str]:
+    """
+    Find the mounted USB drive path.
+    Images are stored on USB sticks mounted under /media/Ento/.
+    """
+    media_path = "/media/Ento"
+    if not os.path.exists(media_path):
+        return None
+    for item in os.listdir(media_path):
+        full = os.path.join(media_path, item)
+        if os.path.ismount(full):
+            return full
+    return None
+
+
+def find_latest_images(count: int = 10) -> List[dict]:
+    """
+    Recursively find the latest `count` image files on the USB drive.
+    Returns list of dicts with path, filename, modified time, and size.
+    """
+    usb_path = find_usb_mount()
+    if not usb_path:
+        return []
+
+    image_extensions = ('.jpg', '.jpeg', '.png', '.tif', '.tiff', '.bmp')
+    images = []
+
+    for root, _dirs, files in os.walk(usb_path):
+        for f in files:
+            if f.lower().endswith(image_extensions):
+                full_path = os.path.join(root, f)
+                try:
+                    stat = os.stat(full_path)
+                    images.append({
+                        "path": full_path,
+                        "filename": f,
+                        "modified": stat.st_mtime,
+                        "size": stat.st_size
+                    })
+                except OSError:
+                    continue
+
+    # Sort by modification time, newest first
+    images.sort(key=lambda x: x["modified"], reverse=True)
+    return images[:count]
+
+
+@app.get("/api/images/latest")
+async def get_latest_images(count: int = 10):
+    """
+    Return metadata for the latest captured images on the USB drive.
+    Query param: count (default 10, max 50)
+    """
+    count = min(max(1, count), 50)
+    images = find_latest_images(count)
+
+    result = []
+    for img in images:
+        # Create a safe ID from the path for the serving endpoint
+        rel_path = img["path"]
+        from datetime import datetime
+        mod_time = datetime.fromtimestamp(img["modified"])
+        result.append({
+            "filename": img["filename"],
+            "url": f"/api/images/file?path={img['path']}",
+            "thumbnail_url": f"/api/images/thumbnail?path={img['path']}",
+            "modified": mod_time.isoformat(),
+            "size_kb": round(img["size"] / 1024, 1)
+        })
+
+    usb_path = find_usb_mount()
+    return {
+        "images": result,
+        "usb_mounted": usb_path is not None,
+        "usb_path": usb_path,
+        "total_found": len(result)
+    }
+
+
+@app.get("/api/images/file")
+async def serve_image(path: str):
+    """Serve an image file from the USB drive."""
+    # Security: only serve files under /media/Ento/
+    if not path.startswith("/media/Ento/"):
+        return JSONResponse({"error": "Access denied"}, status_code=403)
+    if not os.path.isfile(path):
+        return JSONResponse({"error": "File not found"}, status_code=404)
+
+    ext = os.path.splitext(path)[1].lower()
+    mime_map = {
+        '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+        '.png': 'image/png', '.tif': 'image/tiff',
+        '.tiff': 'image/tiff', '.bmp': 'image/bmp'
+    }
+    mime = mime_map.get(ext, 'application/octet-stream')
+
+    with open(path, 'rb') as f:
+        data = f.read()
+
+    return Response(content=data, media_type=mime)
+
+
+@app.get("/api/images/thumbnail")
+async def serve_thumbnail(path: str, max_size: int = 320):
+    """
+    Serve a downscaled thumbnail of an image from the USB drive.
+    This avoids sending full-resolution images to the browser.
+    """
+    # Security: only serve files under /media/Ento/
+    if not path.startswith("/media/Ento/"):
+        return JSONResponse({"error": "Access denied"}, status_code=403)
+    if not os.path.isfile(path):
+        return JSONResponse({"error": "File not found"}, status_code=404)
+
+    try:
+        frame = cv2.imread(path)
+        if frame is None:
+            return JSONResponse({"error": "Cannot read image"}, status_code=500)
+
+        # Downscale to thumbnail
+        h, w = frame.shape[:2]
+        scale = min(max_size / w, max_size / h, 1.0)
+        if scale < 1.0:
+            new_w, new_h = int(w * scale), int(h * scale)
+            frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
+
+        _, jpeg = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
+        return Response(content=jpeg.tobytes(), media_type="image/jpeg")
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 def run_server(host: str = "0.0.0.0", port: int = 8080):
