@@ -39,18 +39,6 @@ def input_time(log_mode):
         turn_on_led("blau")
         
         if Wahlmodus == 1:
-            '''
-            if aktuelle_position < 4:
-                positionszeiger_date = "_" * aktuelle_position
-            elif 4 <= aktuelle_position < 6:
-                positionszeiger_date = "_"*4 + "-" +"_" * (aktuelle_position-4)
-            elif aktuelle_position >= 6:
-                positionszeiger_date = "_"*4 + "-" + "_" *2 + "-" + "_" * (aktuelle_position-6)
-            positionszeiger_date += "x"
-            pos_date = positionszeiger_date.find("x")
-            positionszeiger_date_dunkel = positionszeiger_date[:pos_date]
-            positionszeiger_date_hell = positionszeiger_date[pos_date]  # Das ist das 'x'
-            '''
             x_position = x_positions[aktuelle_position]
             show_message_with_arrows("rtc_1",
                                      lang= lang, 
@@ -61,18 +49,6 @@ def input_time(log_mode):
             if first_run:
                 time.sleep(1)
                 first_run = False
-            '''
-            if 8 <= aktuelle_position <10:
-                positionszeiger_time = "_" * (aktuelle_position-8)
-            elif 10 <= aktuelle_position < 12:
-                positionszeiger_time = "__:" + "_" * (aktuelle_position-10)
-            elif aktuelle_position >=12 :
-                positionszeiger_time = "__:__" + ":" + "_" * (aktuelle_position-12)
-            positionszeiger_time += "x"
-            pos_time = positionszeiger_time.find("x")
-            positionszeiger_time_dunkel = positionszeiger_time[:pos_time]
-            positionszeiger_time_hell = positionszeiger_time[pos_time]  # Das ist das 'x'
-            '''
             x_position = x_positions[aktuelle_position]
             show_message_with_arrows("rtc_2",
                                         lang= lang, 
@@ -281,7 +257,7 @@ if __name__ == "__main__":
         # time string # 
         ################
                             #"JJJJMMTTSSMMHH"
-        date_time_list =     "20260309200500"  
+        date_time_list =     "20260309181100"  
 
         if len(date_time_list) != 14 or not date_time_list.isdigit():
             print("Fehler: Die Eingabe muss genau 14 Ziffern enthalten und nur Ziffern!")

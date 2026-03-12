@@ -6,6 +6,17 @@ FRAM_ADDRESS = 0x50  # I2C-Adresse des FM24CL64B
 bus = smbus2.SMBus(I2C_BUS)
 
 
+
+def check_fram_present():
+    try:
+        sn = read_fram(0x0110, 8).strip()
+        print(f"RAM Modul des ARNI {sn} gefunden")
+        return True #True
+    except Exception as e:
+        print("RAM dieses ARNI nicht verfügbar")
+        return False
+
+
 def write_fram(address: int, text: str):
     """
     Schreibt einen String byteweise an eine Adresse (max 64 kB FRAM).
@@ -113,6 +124,8 @@ def read_fram_bytes(address: int, length: int) -> bytes:
         return None
 
 if __name__ == "__main__":
+    print ("teste RAM")
+    check_fram_present()
     print("FRAM-Dump:")
 
     dump_fram(0x0000, 0x09EF)

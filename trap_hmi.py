@@ -71,7 +71,7 @@ def all_sensors_ok(sensor_status):
         
         
 
-hmi_timeout = 5
+hmi_timeout = 7.5
 
 def open_trap_hmi(log_mode, start_step = 0):
     lang = get_language()

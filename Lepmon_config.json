@@ -1,10 +1,11 @@
 {
     "general": {
+        "ARNI_Gen": "Pro_Gen_3",
         "serielnumber": "SN010083",
         "project_name": "Lepmon#",
-        "usb_drive": "/media/Ento/Ohne Titel1",
-        "current_folder": "/media/Ento/Ohne Titel1/Lepmon#SN010083_Manueller_TestRun_2026-03-09_T_2346",
-        "current_log": "/media/Ento/Ohne Titel1/Lepmon#SN010083_Manueller_TestRun_2026-03-09_T_2346/Lepmon#SN010083_Manueller_TestRun_2026-03-09_T_2346.log",
+        "usb_drive": "/media/Ento/INTENSO",
+        "current_folder": "/media/Ento/INTENSO/Lepmon#SN010083_Manueller_TestRun_2026-03-12_T_1233",
+        "current_log": "/media/Ento/INTENSO/Lepmon#SN010083_Manueller_TestRun_2026-03-12_T_1233/Lepmon#SN010083_Manueller_TestRun_2026-03-12_T_1233.log",
         "language": "de",
         "expected_images": 357,
         "Control_Night": true,
@@ -83,8 +84,8 @@
         "Block": "E"
     },
     "software": {
-        "version": "2.2.0",
-        "date": "2026-03-02"
+        "version": "2.2.1",
+        "date": "2026-03-12"
     },
     "powermode": {
         "supply": "Netz",

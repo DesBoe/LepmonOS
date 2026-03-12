@@ -27,6 +27,7 @@ MESSAGE_REGISTER = {
         "en": ("Version: {hardware}", "SN: {sn}", "Firmware: {version}"),
         "es": ("Versión: {hardware}", "SN: {sn}", "Firmware: {version}")
     },
+
     ### hmi ### 
     "hmi_01": {
         "sleep": 0,

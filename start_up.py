@@ -16,6 +16,7 @@ from end import trap_shutdown
 from bootconfig import add_to_bootconfig
 from hardware import *
 import os
+from serial_number_manual import *
 
 
 
@@ -27,7 +28,7 @@ def start_up(log_mode):
     try:
         write_fram(0x0520, new_version.ljust(7)) 
         write_fram(0x0510, new_date.ljust(10))
-        print("Version im FRAM aktualisiert.")
+        print(f"Firmware Version im FRAM aktualisiert:{new_version}; {new_date}")
     except Exception as e:
         pass
     
@@ -38,8 +39,13 @@ def start_up(log_mode):
     RPI_time(log_mode)
 
 
-    display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_K2W.png",sleeptime = 3)
-    display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_U2C.png",sleeptime = 3)
+    display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_K2W.png",sleeptime = 4)
+    display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_U2C.png",sleeptime = 0) # Logo wird für die Dauer angezeigt, in der es möglich ist, die SN manuell zu setzen.
+    sn_trigger, forced_by_user = trigger_manual_sn()
+    if sn_trigger:
+        sn_manual, gen_manual = set_sn_manually()
+
+
     
     display_text_and_image("Leitfaden","Guide","Guia","/home/Ento/LepmonOS/startsequenz/link_manual.png",4)
     on_start()
@@ -167,6 +173,10 @@ def start_up(log_mode):
     log_schreiben(f"{'Firmware':<20} | {Version} vom {date}", log_mode=log_mode)
     log_schreiben("==============================================", log_mode=log_mode)
     log_schreiben("", log_mode=log_mode)
+
+    if sn_trigger:
+        log_schreiben("Manuelle SN Eingabe durch User erzwungen.", log_mode=log_mode)
+        log_schreiben(f"Manuell gesetzte SN: {sn_manual}, Gen: {gen_manual}", log_mode=log_mode)
 
     
     display_text_and_image("Wel-","come", "", "/home/Ento/LepmonOS/startsequenz/Logo_6_9.png",1)   

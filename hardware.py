@@ -52,7 +52,6 @@ def get_device_info(key):
 
 
 
-
 def get_hardware_version():
     """
     Gibt die Geräte-Generation zurück.
@@ -69,11 +68,7 @@ def get_hardware_version():
 
     if not ARNI_Gen:
         try:
-            ARNI_Gen = get_value_from_section(
-                "/home/Ento/serial_number.json", "general", "Fallenversion"
-                # please note: the file is NOT located in the LepmonOS folder but indeed in the Ento folder. A copy of the jsonfile is in the LepmonOS folder, but only for testing purposes
-                # see service.py: compare_hardware_version(): information are also written in that specific json file.
-            ).strip()
+            ARNI_Gen = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "ARNI_Gen").strip()
         except Exception as e:
             print(f"Fehler beim Lesen der ARNI_Gen aus der JSON: {e}")
             ARNI_Gen = default
@@ -86,6 +81,6 @@ def get_hardware_version():
 if __name__ == "__main__":
     print(f"Dieser ARNI ist ein {get_hardware_version()} Modell")
     print(f"verbaute Kamera {get_device_info('camera')} mit Sensor {get_device_info('sensor')}")
-    print(f"Auflösung: {get_device_info('length')} x {get_device_info('height')}")
+    print(f"Auflösung: {get_device_info('length')} x {get_device_info('height')}") 
     
 

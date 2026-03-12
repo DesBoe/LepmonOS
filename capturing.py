@@ -24,7 +24,7 @@ from Daylightsaving import daylight_saving_check
 from service import *
 from hardware import *
 
-'''
+
 from capturing_state import (
     set_capturing_active, 
     update_capture_progress, 
@@ -32,7 +32,6 @@ from capturing_state import (
     is_stop_requested,
     clear_stop_request
 )
-'''
 
 def capturing(log_mode):
     überleiten_zu_shutdown = False
@@ -61,11 +60,10 @@ def capturing(log_mode):
 
 
     print("starte Capturing")  
-    '''
+
     # Signal that capturing is starting
     set_capturing_active(True)
     clear_stop_request()
-    '''
 
 
     heater,Warteschleife = wait(log_mode)
@@ -226,12 +224,12 @@ def capturing(log_mode):
             time.sleep(5)
             while not photo_sanity_check:# and not good_exposure:
 
-                '''
+
                 if is_stop_requested():
                     log_schreiben("Stop requested from web interface", log_mode)
                     überleiten_zu_shutdown = True
                     break
-                '''
+
                 if camera == "AV__Alvium_1800_U-2050":
                     code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, gain = snap_image_AV("jpg", "log", Kamera_Fehlerserie, log_mode, Exposure=Exposure, Gain=gain)
                     write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "current_exposure", Exposure)
@@ -244,13 +242,11 @@ def capturing(log_mode):
                 elif camera not in ["AV__Alvium_1800_U-2050","RPI_Module_3","RPI_HQ"]:
                     log_schreiben(f"unbekannte Kamera gefunden:{camera}.", log_mode)
 
-                '''
                 update_capture_progress(
                     current_exposure=Exposure,
                     current_gain=gain,
                     last_image_path=current_image)
-                '''
-
+            
                 time.sleep(1)
 
                 if Status_Kamera == 1:
@@ -270,10 +266,9 @@ def capturing(log_mode):
                 try:
                         aktuelles_Bild = ram_counter(0x0650)
                         print(f"Bild-Counter im Ram Modul erhöht: {aktuelles_Bild}")
-                        '''
+
                         # Update web UI with image count
                         increment_image_count()
-                        '''
                 except Exception as e:
                         print(f"Fehler beim Schreiben des Bild-Counters im Ram Modul: {e}")
 
@@ -388,10 +383,9 @@ def capturing(log_mode):
             log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###",log_mode)
             log_schreiben("##################################",log_mode)
         
-            '''
             # Signal that capturing has ended
             set_capturing_active(False)            
-            '''
+
             print("hauptschleife beendet")
             return
     
