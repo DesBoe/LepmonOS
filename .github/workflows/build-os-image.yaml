@@ -172,7 +172,7 @@ jobs:
           **SSH:** Enabled by default on WiFi AP and Ethernet
           **Desktop:** Run `lepmon-desktop on` to activate LXDE
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.PERSONALTOKEN }}
 
     - name: Artifact
       uses: actions/upload-artifact@v4
@@ -232,4 +232,4 @@ jobs:
         replacesArtifacts: false
         artifacts: "lepmon-sdcard-*.img.zip"
         artifactContentType: application/zip
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.PERSONALTOKEN }}

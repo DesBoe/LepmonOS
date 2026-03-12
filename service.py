@@ -89,7 +89,14 @@ def get_usb_path(log_mode):
     zielverzeichnis = None
     status = 0
     username = os.getenv('USER')
-    media_path = f"/media/{username}"
+
+    # Search in both the legacy per-user path and the automount base directory.
+    # The Lepmon automounter mounts drives under /media/usb/<LABEL>.
+    search_paths = [
+        "/media/usb",              # new automount location (usb-mount@.service)
+        f"/media/{username}",      # legacy udisks / desktop automounter path
+    ]
+
     search_counter = 0
     while zielverzeichnis is None:
         search_counter += 1  
@@ -103,14 +110,14 @@ def get_usb_path(log_mode):
             print("USB Stick nach 25 versuchen nicht gefunden. Zielverzeichnis ist None")
             zielverzeichnis = "Kein USB-Stick gefunden"
             return zielverzeichnis, status
-        if os.path.exists(media_path):
-            for item in os.listdir(media_path):
-                pot_dir = os.path.join(media_path, item)
-                if os.path.ismount(pot_dir):
-                    zielverzeichnis = pot_dir
-                    status = 1
-                    
-                    return zielverzeichnis, status
+        for media_path in search_paths:
+            if os.path.exists(media_path):
+                for item in os.listdir(media_path):
+                    pot_dir = os.path.join(media_path, item)
+                    if os.path.ismount(pot_dir):
+                        zielverzeichnis = pot_dir
+                        status = 1
+                        return zielverzeichnis, status
         print("Suche nach USB-Stick...")
         time.sleep(.5)
     return zielverzeichnis, status      
@@ -297,8 +304,8 @@ def compare_hardware_version():
     except Exception as e:
         print(f"Fehler beim Lesen der ARNI_Gen aus dem FRAM: {e}")
     try:
-        ARNI_Gen_json = get_value_from_section("/home/Ento/serial_number.json", "general", "Fallenversion")
-        print("Lese ARNI_Gen aus der JSON Datei nach FRAM Fehler")
+        ARNI_Gen_json = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "ARNI_Gen")
+        print("Lese ARNI_Gen aus der Konfig Datei nach FRAM Fehler")
     except Exception as e:
         print(f"Fehler beim Lesen der ARNI_Gen aus der JSON: {e}")
     
@@ -307,11 +314,11 @@ def compare_hardware_version():
             print("ARNI Generationslabel stimmen im Fram und JSON Datei überein")
         
         if ARNI_Gen_ram != ARNI_Gen_json:
-            write_value_to_section("/home/Ento/serial_number.json", "general", "Fallenversion",ARNI_Gen_ram)    
+            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "ARNI_Gen",ARNI_Gen_ram)    
             print(f"ARNI Generation im Jsonfile aktualisiert:")
-            print(f"    ARNI Gen aus RAM  gelesen:    {ARNI_Gen_ram}")    
-            print(f"    ARNI Gen aus JSON gelesen:    {ARNI_Gen_json}")  
-            print(f"    ARNI Gen in JSON geschrieben: {ARNI_Gen_ram}")       
+            print(f"    ARNI Gen aus RAM  gelesen:      {ARNI_Gen_ram}")    
+            print(f"    ARNI Gen aus Konfig gelesen:    {ARNI_Gen_json}")  
+            print(f"    ARNI Gen in Konfig geschrieben: {ARNI_Gen_ram}")       
                 
     
             
@@ -321,7 +328,7 @@ def compare_sn(log_mode):
     hardware = get_hardware_version()
     
     try:
-        sn_json = get_value_from_section("/home/Ento/serial_number.json", "general", "serielnumber")
+        sn_json = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")
         sn = sn_json
     except Exception as e:
         print(f"Fehler beim Lesen der Seriennnummer aus der separaten json Datei: {e}")    
@@ -340,11 +347,11 @@ def compare_sn(log_mode):
             print("Seriennummern in Ram und json Datei stimmen überein")
             
         if sn_ram != sn_json:
-            write_value_to_section("/home/Ento/serial_number.json", "general", "serielnumber",sn_ram)    
+            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber",sn_ram)    
             print(f"Seriennummer im Jsonfile aktualisiert:")
-            print(f"    SN aus RAM  gelesen:    {sn_ram}")    
-            print(f"    SN aus JSON gelesen:    {sn_json}")  
-            print(f"    SN in JSON geschrieben: {sn_ram}")    
+            print(f"    SN aus RAM  gelesen:      {sn_ram}")    
+            print(f"    SN aus Konfig gelesen:    {sn_json}")  
+            print(f"    SN in Konfig geschrieben: {sn_ram}")    
             sn = sn_ram    
     return sn 
 
@@ -373,8 +380,19 @@ def dev_info():
     print("##############################\n##############################\n#### interne Test Version ####\n##############################\n##############################")
     time.sleep(1)
     
-    
-       
+
+def set_sn():
+    sn_check = False
+    while not sn_check:
+        sn = input("Enter Serial number in Format: 010XXX: ")
+        if re.fullmatch(r"\d{6}", sn):
+            sn_check = True
+            sn = f"SN{sn}"
+            print("Serial number accepted!:", sn)
+        else:
+            print("Serial number wrong! use only six digits.")
+    return sn
+
 
 if __name__ == "__main__":
     print("Hilfsfunktionen für den Service")

@@ -3,7 +3,7 @@
 icon*
 Logo*
 .git
-README.md
+#README.md
 
 # Python spezifische Ausschlüsse
 __pycache__/
@@ -39,3 +39,7 @@ Logo.*
 
 # Icons
 Icon*
+
+# Dateien aus dem LepmonOS Ordner
+serial_number.json
+.lgd-nfy0

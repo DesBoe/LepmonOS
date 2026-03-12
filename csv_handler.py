@@ -6,7 +6,7 @@ from times import *
 from logging_utils import *
 from fram_operations import read_fram
 from sensor_data import *
-from hardware import get_device_info
+from hardware import *
 
 def erstelle_und_aktualisiere_csv(sensor_data, log_mode):
     path = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
@@ -24,10 +24,7 @@ def erstelle_und_aktualisiere_csv(sensor_data, log_mode):
         if not os.path.exists(csv_path) and log_mode == "log":
             print("Erstelle neue CSV Datei und lese Daten für Header")
             Version = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "version")
-            try:
-                ARNI_Gen = read_fram(0x0130,9)
-            except Exception as e:
-                ARNI_Gen = get_value_from_section("/home/Ento/serial_number.json", "general", "Fallenversion")
+            ARNI_Gen = get_hardware_version()
             date = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "date") 
             Strom = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "powermode", "supply")
             

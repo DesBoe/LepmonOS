@@ -20,7 +20,8 @@ def write_timestamp(adress):
     '''
     RPI Activity Timestamp: 0x07E0
     Daylight Saving: 0x0470
-    Format: "YYYY-MM-DD HH:MM:SS"'''
+    Format: "YYYY-MM-DD HH:MM:SS"
+    '''
     try:
         now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         write_fram_bytes(adress, now_str.encode("utf-8"))

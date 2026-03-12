@@ -264,9 +264,63 @@ ls -la /dev/ttyS0 /dev/ttyAMA0
 
 ---
 
+## USB Storage Auto-Mount
+
+Lepmon OS automatically mounts USB mass-storage devices as soon as they are plugged in.
+No desktop environment or manual configuration is required.
+
+| Detail | Value |
+|---|---|
+| Mount base | `/media/usb/` |
+| Mount path | `/media/usb/<PARTITION_LABEL>` (device name used when unlabelled) |
+| Supported filesystems | FAT32, exFAT, NTFS, ext2/3/4, btrfs, xfs |
+| Ownership | `Ento` (uid 1000) for FAT/exFAT/NTFS; native for ext* |
+
+### Check currently mounted USB drives
+
+```bash
+ls /media/usb/
+# or with full details
+findmnt | grep /media/usb
+```
+
+### Safely unmount before removing the drive
+
+```bash
+# By mount point
+sudo umount /media/usb/<LABEL>
+
+# Or by stopping the systemd service instance
+sudo systemctl stop usb-mount@sda1.service   # adjust device name (sda1, sdb1, …)
+```
+
+### Logs
+
+Mount and unmount events are written to the system journal with the tag `usb-mount`:
+
+```bash
+sudo journalctl -t usb-mount -f
+```
+
+### How it works
+
+The feature is implemented as three components installed during SD-card build:
+
+1. **udev rule** `/etc/udev/rules.d/99-lepmon-usb-mount.rules`  
+   Watches for USB block-device add/remove events and starts/stops the service.
+
+2. **systemd service template** `usb-mount@.service`  
+   One instance per partition (e.g. `usb-mount@sda1.service`).  
+   `RemainAfterExit=yes` keeps the instance alive so a plain `stop` triggers the `ExecStop` unmount.
+
+3. **Helper script** `/usr/local/bin/usb-mount.sh`  
+   Detects the filesystem type via `blkid`, creates the mount point, mounts with appropriate options, and cleans up on removal.
+
+---
+
 ## System Info
 
-Run `lepmon-info` at any time to see a summary of services, network, and access info.
+Run `lepmon-info` at any time to see a summary of services, network, USB drives, and access info.
 
 ```bash
 lepmon-info
@@ -276,13 +330,17 @@ lepmon-info
 
 ## File Locations
 
-| Path                           | Description                      |
-|--------------------------------|----------------------------------|
-| `/home/Ento/LepmonOS/`        | Application source code          |
-| `/var/log/lepmon/main.log`     | Main application log             |
-| `/var/log/lepmon/web.log`      | Web service log                  |
-| `/opt/VimbaX/`                 | VimbaX SDK for Allied Vision     |
-| `/etc/lepmon/ssid`             | Cached WiFi AP SSID              |
-| `/etc/hostapd/hostapd.conf`   | Access Point configuration       |
-| `/etc/dnsmasq.d/lepmon-ap.conf`| DHCP configuration              |
-| `/boot/firmware/config.txt`   | Raspberry Pi hardware config     |
+| Path                                              | Description                      |
+|---------------------------------------------------|----------------------------------|
+| `/home/Ento/LepmonOS/`                            | Application source code          |
+| `/var/log/lepmon/main.log`                        | Main application log             |
+| `/var/log/lepmon/web.log`                         | Web service log                  |
+| `/opt/VimbaX/`                                    | VimbaX SDK for Allied Vision     |
+| `/etc/lepmon/ssid`                                | Cached WiFi AP SSID              |
+| `/etc/hostapd/hostapd.conf`                       | Access Point configuration       |
+| `/etc/dnsmasq.d/lepmon-ap.conf`                   | DHCP configuration               |
+| `/boot/firmware/config.txt`                       | Raspberry Pi hardware config     |
+| `/media/usb/`                                     | USB drive mount base directory   |
+| `/etc/udev/rules.d/99-lepmon-usb-mount.rules`     | udev rule for USB automount      |
+| `/etc/systemd/system/usb-mount@.service`          | systemd service template         |
+| `/usr/local/bin/usb-mount.sh`                     | USB mount/unmount helper script  |
