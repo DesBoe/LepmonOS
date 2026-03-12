@@ -48,6 +48,77 @@ Albania
 		DL
 		SR
 
+Austria
+	Burgenland
+		B
+		GD
+		HN
+		JU
+		OW
+		WE
+	Kärnten
+		K
+		DO
+		FR
+		KL
+		SP
+		SV
+	Niederösterreich
+		N
+		GM
+		HO
+		KR
+		LA
+		ME
+		MD
+		MI
+		NE
+		PO
+		SK
+		SW
+		TU
+		WN
+	Oberösterreich
+		OO
+		EF
+		FR
+		GR
+		KI
+		LL
+		PE
+		RO
+		SD
+		UR
+	Salzburg
+		S
+		JO
+		LI
+		SL
+	Steiermark
+		ST
+		DL
+		FB
+		GU
+		HF
+		JO
+		LB
+		MU
+		RA
+		VO
+	Tirol
+		T
+		KU
+		LA
+		RE
+	Vorarlberg
+		V
+		DO
+		FR
+		HO
+		MO
+	Wien
+		W
+
 Belgium
 	Antwerpen
 		VAN

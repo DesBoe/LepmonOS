@@ -15,9 +15,10 @@ def start_web_service():
     except Exception as e:
         print(f"Warning: Could not start web service: {e}")
 
+        
 
 if __name__ == "__main__":
-    # Reset capture state on startup
+    
     reset_state()
     
     # Start web service first (runs in background)

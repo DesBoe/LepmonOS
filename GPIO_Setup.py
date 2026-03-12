@@ -24,16 +24,18 @@ if hardware == "Pro_Gen_1":
     'rot': 17,      
     #'Kamera':5,
     'Heizung': 13
-}
+    }   
 
-BUTTON_PINS = {
-    'oben': 24,     
-    'unten': 23,    
-    'rechts': 7,  
-    'enter': 8    
-}
+    BUTTON_PINS = {
+        'oben': 24,     
+        'unten': 23,    
+        'rechts': 7,  
+        'enter': 8    
+    }
 
-if hardware == "Pro_Gen_2" or hardware == "Pro_Gen_3":
+else:
+#else hardware in ["Pro_Gen_2", "Pro_Gen_3", 
+#                "CSL_Gen_1", "CSS_Gen_1"]:
     LED_PINS = {
         'gelb': 22,    
         'blau': 6,     

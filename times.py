@@ -106,11 +106,11 @@ def get_moon(log_mode):
 def get_experiment_times():
     
     minutes_to_sunrise = timedelta(minutes=int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "minutes_to_sunrise")))
-    minutes_to_sunset = timedelta(minutes=int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "minutes_to_sunset")))  
+    minutes_after_sunset = timedelta(minutes=int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "minutes_after_sunset")))  
     
     sunset, sunrise, _ = get_sun()
     
-    experiment_start_time = sunset - minutes_to_sunset
+    experiment_start_time = sunset + minutes_after_sunset
     experiment_end_time = sunrise - minutes_to_sunrise
 
     experiment_start_time = experiment_start_time.replace(tzinfo=None)
@@ -121,14 +121,14 @@ def get_experiment_times():
     experiment_end_time = experiment_end_time.strftime("%H:%M:%S")
 
     
-    return experiment_start_time, experiment_end_time, minutes_to_sunset, minutes_to_sunrise
+    return experiment_start_time, experiment_end_time, minutes_after_sunset, minutes_to_sunrise
 
 
 def get_times_power():
-    minutes_to_sunset = timedelta(minutes=int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "minutes_to_sunset")))
+    minutes_after_sunset = timedelta(minutes=int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "minutes_after_sunset")))
     sunset, sunrise, _ = get_sun()
     
-    power_on = sunset - minutes_to_sunset - timedelta(minutes=15)
+    power_on = sunset - timedelta(minutes=5)
     power_off = sunrise - timedelta(minutes=55)
 
     power_on = power_on.replace(tzinfo=None)
@@ -186,11 +186,11 @@ if __name__ == "__main__":
     print(f"Mondphase:     {moon_phase:.1f}%")
     print(f"Maximale Kulminationshöhe: {max_altitude:.2f}°")
     print("---------------------------------")
-    experiment_start_time, experiment_end_time, minutes_to_sunset, minutes_to_sunrise = get_experiment_times()
+    experiment_start_time, experiment_end_time, minutes_after_sunset, minutes_to_sunrise = get_experiment_times()
     print(f"Experiment Startzeit: {experiment_start_time}")
     print(f"Experiment Endzeit:   {experiment_end_time}")
-    print(f"Puffer vor Sonnenuntergang: {minutes_to_sunset}")
-    print(f"Puffer vor Sonnenaufgang:   {minutes_to_sunrise}")
+    print(f"Puffer nach Sonnenuntergang: {minutes_after_sunset}")
+    print(f"Puffer vor Sonnenaufgang:    {minutes_to_sunrise}")
     print("---------------------------------")
     power_on, power_off = get_times_power()
     print(f"Power On Zeit:  {power_on}")

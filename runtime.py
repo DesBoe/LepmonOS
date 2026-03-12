@@ -20,7 +20,8 @@ def write_timestamp(adress):
     '''
     RPI Activity Timestamp: 0x07E0
     Daylight Saving: 0x0470
-    Format: "YYYY-MM-DD HH:MM:SS"'''
+    Format: "YYYY-MM-DD HH:MM:SS"
+    '''
     try:
         now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         write_fram_bytes(adress, now_str.encode("utf-8"))
@@ -99,7 +100,7 @@ def gap_day():
         now = datetime.datetime.now()
         
         # Berechne den Unterschied in Tagen
-        difference = (now - activity_time).total_seconds()
+        difference = round((now - activity_time).total_seconds(), 0)
         print(f"Letzter Aktivitätszeitstempel: {activity_time}, jetzt:{now}, Unterschied in Sekunden: {difference}")
         
         # Überprüfe, ob der Unterschied mehr als 1 Tag beträgt

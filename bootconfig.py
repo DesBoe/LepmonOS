@@ -20,7 +20,8 @@ def add_to_bootconfig(new_entry, log_mode="log"):
     except Exception as e:
         print(f"Fehler beim Bearbeiten der config.txt: {e}")
         log_schreiben(f"Fehler beim Bearbeiten der config.txt: {e}", log_mode=log_mode)
-            
+
+                        
 if __name__ == "__main__":
     print("Dieses Skript ist ein Modul und sollte nicht direkt ausgeführt werden.")
     add_to_bootconfig("gpio=13=op,dl","manual")
