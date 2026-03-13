@@ -151,7 +151,7 @@ grep -q '^dtparam=i2c1=on'          "$CFG" || echo "dtparam=i2c1=on"          >>
 grep -q '^dtparam=spi=on'           "$CFG" || echo "dtparam=spi=on"           >> "$CFG"
 grep -q '^enable_uart=1'            "$CFG" || echo "enable_uart=1"            >> "$CFG"
 grep -q '^dtoverlay=pwm-2chan'      "$CFG" || echo "dtoverlay=pwm-2chan"      >> "$CFG"
-grep -q '^dtoverlay=i2c-rtc,ds3231' "$CFG" || echo "dtoverlay=i2c-rtc,ds3231" >> "$CFG"
+#grep -q '^dtoverlay=i2c-rtc,ds3231' "$CFG" || echo "dtoverlay=i2c-rtc,ds3231" >> "$CFG"
 
 # Ensure I2C and SPI kernel modules load at boot
 grep -q '^i2c-dev'  /etc/modules || echo "i2c-dev"  >> /etc/modules
