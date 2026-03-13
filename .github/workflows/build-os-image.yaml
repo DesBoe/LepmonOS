@@ -66,6 +66,8 @@ jobs:
         sudo bash -c "grep -q '^enable_uart=1' $CONFIG_FILE || echo 'enable_uart=1' >> $CONFIG_FILE"
         sudo bash -c "grep -q '^dtparam=i2c_arm=on' $CONFIG_FILE || echo 'dtparam=i2c_arm=on' >> $CONFIG_FILE"
         sudo bash -c "grep -q '^dtparam=spi=on' $CONFIG_FILE || echo 'dtparam=spi=on' >> $CONFIG_FILE"
+        # DB switch GPIO pin 13 during boot up to disable spotlight already during boot process
+        sudo bash -c "grep -q '^gpio=13=op' $CONFIG_FILE || echo 'gpio=13=op' >> $CONFIG_FILE"
         
         # Enable SSH by default
         sudo touch /tmp/rpi-root/boot/firmware/ssh
@@ -77,18 +79,22 @@ jobs:
         
         # Copy Python files, configs, requirements, docs
         # EXCLUDE development and service tools (LepmonOS_Dev_* and LepmonOS_Service_*)
-        for f in *.py *.sh *.json *.xml *.md *.txt; do
-          case "$f" in
-            LepmonOS_Dev_*|LepmonOS_Service_*) echo "Skipping dev/service file: $f" ;;
-            *) sudo cp -r "$f" /tmp/rpi-root/home/Ento/LepmonOS/ 2>/dev/null || true ;;
-          esac
-        done
+        # DB uncomment 5 following lines for final build. during image test we include these files, delete sixth
+        #for f in *.py *.sh *.json *.xml *.md *.txt; do
+        #  case "$f" in
+        #    LepmonOS_Dev_*|LepmonOS_Service_*) echo "Skipping dev/service file: $f" ;;
+        #    *) sudo cp -r "$f" /tmp/rpi-root/home/Ento/LepmonOS/ 2>/dev/null || true ;;
+        #  esac
+        #done
+        sudo cp -r *.py *.sh *.json *.xml *.md *.txt *.ttf /tmp/rpi-root/home/Ento/LepmonOS/ 2>/dev/null || true
         
         # Also remove service.py_BAK.py (backup file)
         sudo rm -f /tmp/rpi-root/home/Ento/LepmonOS/service.py_BAK.py 2>/dev/null || true
         
         # Copy templates directory if it exists
         if [ -d templates ]; then sudo cp -r templates /tmp/rpi-root/home/Ento/LepmonOS/; fi
+        
+        if [ -d startsequenz ]; then sudo cp -r startsequenz /tmp/rpi-root/home/Ento/LepmonOS/; fi
         
         # Copy packages and geo_ref_shapes
         sudo cp -r packages/* /tmp/rpi-root/home/Ento/LepmonOS/packages/ 2>/dev/null || true
