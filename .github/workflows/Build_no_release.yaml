@@ -1,0 +1,103 @@
+name: Build Lepmon SD Card Image
+
+on:
+  workflow_dispatch
+
+jobs:
+  build-sd-image:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME_BASE: lepmon-sdcard
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Free disk
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+        sudo docker image prune --all --force
+        df -h
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y qemu-user-static binfmt-support parted kpartx zip wget curl xz-utils
+
+    - name: Download Raspberry Pi OS Lite
+      run: |
+        wget -O rpi-os-lite.img.xz https://downloads.raspberrypi.org/raspios_lite_arm64/images/raspios_lite_arm64-2024-03-15/2024-03-15-raspios-bookworm-arm64-lite.img.xz
+        xz -d rpi-os-lite.img.xz
+
+    - name: Expand image
+      run: |
+        dd if=/dev/zero bs=1M count=5120 >> rpi-os-lite.img
+        sudo losetup -P /dev/loop0 rpi-os-lite.img
+        sudo parted /dev/loop0 resizepart 2 100%
+        sudo e2fsck -f -y /dev/loop0p2 || true
+        sudo resize2fs /dev/loop0p2
+
+    - name: Mount image
+      run: |
+        mkdir -p /tmp/rpi-root
+        sudo mount /dev/loop0p2 /tmp/rpi-root
+        sudo mkdir -p /tmp/rpi-root/boot/firmware
+        sudo mount /dev/loop0p1 /tmp/rpi-root/boot/firmware
+
+        sudo cp /usr/bin/qemu-aarch64-static /tmp/rpi-root/usr/bin/
+
+        sudo mount -t proc proc /tmp/rpi-root/proc
+        sudo mount -t sysfs sysfs /tmp/rpi-root/sys
+        sudo mount --bind /dev /tmp/rpi-root/dev
+        sudo mount --bind /dev/pts /tmp/rpi-root/dev/pts
+
+        CONFIG_FILE=/tmp/rpi-root/boot/firmware/config.txt
+        sudo bash -c "grep -q '^enable_uart=1' $CONFIG_FILE || echo 'enable_uart=1' >> $CONFIG_FILE"
+        sudo bash -c "grep -q '^dtparam=i2c_arm=on' $CONFIG_FILE || echo 'dtparam=i2c_arm=on' >> $CONFIG_FILE"
+        sudo bash -c "grep -q '^dtparam=spi=on' $CONFIG_FILE || echo 'dtparam=spi=on' >> $CONFIG_FILE"
+        sudo bash -c "grep -q '^gpio=13=op' $CONFIG_FILE || echo 'gpio=13=op' >> $CONFIG_FILE"
+
+        sudo touch /tmp/rpi-root/boot/firmware/ssh
+
+        sudo mkdir -p /tmp/rpi-root/home/Ento/LepmonOS
+        sudo mkdir -p /tmp/rpi-root/home/Ento/LepmonOS/packages
+        sudo mkdir -p /tmp/rpi-root/home/Ento/LepmonOS/geo_ref_shapes
+
+        sudo cp -r *.py *.sh *.json *.xml *.md *.txt *.ttf /tmp/rpi-root/home/Ento/LepmonOS/ 2>/dev/null || true
+
+        if [ -d templates ]; then sudo cp -r templates /tmp/rpi-root/home/Ento/LepmonOS/; fi
+        if [ -d startsequenz ]; then sudo cp -r startsequenz /tmp/rpi-root/home/Ento/LepmonOS/; fi
+
+        sudo cp -r packages/* /tmp/rpi-root/home/Ento/LepmonOS/packages/ 2>/dev/null || true
+        sudo cp -r geo_ref_shapes/* /tmp/rpi-root/home/Ento/LepmonOS/geo_ref_shapes/ 2>/dev/null || true
+
+    - name: Install in chroot
+      run: |
+        sudo cp install_lepmon.sh /tmp/rpi-root/install_lepmon.sh
+        sudo chmod +x /tmp/rpi-root/install_lepmon.sh
+        sudo chroot /tmp/rpi-root /install_lepmon.sh
+
+    - name: Unmount image
+      run: |
+        sudo sync
+        sudo umount /tmp/rpi-root/dev/pts || true
+        sudo umount /tmp/rpi-root/dev || true
+        sudo umount /tmp/rpi-root/sys || true
+        sudo umount /tmp/rpi-root/proc || true
+        sudo umount /tmp/rpi-root/boot/firmware || true
+        sudo umount /tmp/rpi-root || true
+        sudo losetup -d /dev/loop0
+
+    - name: Compress image
+      run: |
+        DATE=$(date +%Y%m%d)
+        xz -T0 -9 rpi-os-lite.img
+        mv rpi-os-lite.img.xz lepmon-sdcard-${DATE}.img.xz
+        ls -lh lepmon-sdcard-${DATE}.img.xz
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: lepmon-sdcard-image
+        path: lepmon-sdcard-*.img.xz
+        retention-days: 30
