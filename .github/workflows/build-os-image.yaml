@@ -76,10 +76,13 @@ jobs:
         sudo mkdir -p /tmp/rpi-root/home/Ento/LepmonOS/geo_ref_shapes
         
         # Copy Python files, configs, requirements, docs
-        sudo cp -r *.py *.sh *.json *.xml *.md *.txt /tmp/rpi-root/home/Ento/LepmonOS/ 2>/dev/null || true
+        # DB add *ttf file
+        sudo cp -r *.py *.sh *.json *.xml *.md *.txt *.tff /tmp/rpi-root/home/Ento/LepmonOS/ 2>/dev/null || true
         
         # Copy templates directory if it exists
         if [ -d templates ]; then sudo cp -r templates /tmp/rpi-root/home/Ento/LepmonOS/; fi
+        # DB copy content of startsequenz folder
+        if [ -d startsequenz ]; then sudo cp -r startsequenz /tmp/rpi-root/home/Ento/LepmonOS/; fi
         
         # Copy packages and geo_ref_shapes
         sudo cp -r packages/* /tmp/rpi-root/home/Ento/LepmonOS/packages/ 2>/dev/null || true
