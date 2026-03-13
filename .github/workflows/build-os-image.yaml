@@ -79,7 +79,7 @@ jobs:
         
         # Copy Python files, configs, requirements, docs
         # DB add *ttf file
-        sudo cp -r *.py *.sh *.json *.xml *.md *.txt *.tff /tmp/rpi-root/home/Ento/LepmonOS/ 2>/dev/null || true
+        sudo cp -r *.py *.sh *.json *.xml *.md *.txt *.ttf /tmp/rpi-root/home/Ento/LepmonOS/ 2>/dev/null || true
         
         # Copy templates directory if it exists
         if [ -d templates ]; then sudo cp -r templates /tmp/rpi-root/home/Ento/LepmonOS/; fi
