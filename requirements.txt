@@ -42,7 +42,7 @@ pyserial
 # --- Time & Location ---
 pytz
 ephem
-timezonefinder==6.5.7
+timezonefinder==5.2.0
 
 # --- Data & Config ---
 numpy
