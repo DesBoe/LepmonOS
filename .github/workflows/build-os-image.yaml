@@ -66,6 +66,8 @@ jobs:
         sudo bash -c "grep -q '^enable_uart=1' $CONFIG_FILE || echo 'enable_uart=1' >> $CONFIG_FILE"
         sudo bash -c "grep -q '^dtparam=i2c_arm=on' $CONFIG_FILE || echo 'dtparam=i2c_arm=on' >> $CONFIG_FILE"
         sudo bash -c "grep -q '^dtparam=spi=on' $CONFIG_FILE || echo 'dtparam=spi=on' >> $CONFIG_FILE"
+        # DB switch GPIO pin 13 during boot up to disable spotlight already during boot process
+        sudo bash -c "grep -q '^gpio=13=op' $CONFIG_FILE || echo 'gpio=13=op' >> $CONFIG_FILE"
         
         # Enable SSH by default
         sudo touch /tmp/rpi-root/boot/firmware/ssh
