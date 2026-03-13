@@ -13,7 +13,8 @@ aiofiles
 # https://github.com/alliedvision/VmbPy/releases
 Pillow
 imutils
-opencv-python-headless
+# opencv-python-headless
+# DB
 
 # --- Sensors & Hardware ---
 RPi.GPIO
@@ -26,7 +27,8 @@ adafruit-circuitpython-pct2075
 adafruit-circuitpython-ds3231
 adafruit-circuitpython-bmp280
 
-bme280
+#bme280
+# DB
 
 # --- Display ---
 luma.core
@@ -45,11 +47,21 @@ ephem
 timezonefinder==5.2.0
 
 # --- Data & Config ---
-numpy
+#numpy
+#DB
 pyyaml
-pycountry
+#pycountry
 
 # --- GitHub-based packages (installed separately) ---
 # https://github.com/alliedvision/VimbaPython/archive/refs/heads/master.zip
 # https://github.com/e71828/pi_ina226/archive/refs/heads/main.zip
 # https://github.com/openUC2/imswitchclient/archive/refs/heads/main.zip
+
+# --- Aditional packages to avoid conflicts ---
+# if this runs as expected, we can get rid of the .whl files in /packages
+# but we should keep the folder in case for further packages required later
+adafruit-circuitpython-bme280==2.6.30
+h3==3.7.6
+numpy==1.26.4
+opencv-python==4.8.1.78
+pycountry==24.6.1
