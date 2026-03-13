@@ -318,7 +318,7 @@ Wants=lepmon-web.service
 
 [Service]
 Type=simple
-User=Ento
+User=root
 WorkingDirectory=/home/Ento/LepmonOS
 Environment=VIMBA_HOME=/opt/VimbaX
 Environment=GENICAM_GENTL64_PATH=/opt/VimbaX/cti
