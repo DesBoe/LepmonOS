@@ -74,7 +74,8 @@ jobs:
         
         # Copy LepmonOS files (exclude large directories to save space)
         sudo mkdir -p /tmp/rpi-root/home/Ento/LepmonOS
-        sudo mkdir -p /tmp/rpi-root/home/Ento/LepmonOS/packages
+        # DB packages via requirements
+        #sudo mkdir -p /tmp/rpi-root/home/Ento/LepmonOS/packages
         sudo mkdir -p /tmp/rpi-root/home/Ento/LepmonOS/geo_ref_shapes
         
         # Copy Python files, configs, requirements, docs
@@ -97,7 +98,8 @@ jobs:
         if [ -d startsequenz ]; then sudo cp -r startsequenz /tmp/rpi-root/home/Ento/LepmonOS/; fi
         
         # Copy packages and geo_ref_shapes
-        sudo cp -r packages/* /tmp/rpi-root/home/Ento/LepmonOS/packages/ 2>/dev/null || true
+        # DB packages via requirements
+        #sudo cp -r packages/* /tmp/rpi-root/home/Ento/LepmonOS/packages/ 2>/dev/null || true
         sudo cp -r geo_ref_shapes/* /tmp/rpi-root/home/Ento/LepmonOS/geo_ref_shapes/ 2>/dev/null || true
 
     - name: Install in chroot
