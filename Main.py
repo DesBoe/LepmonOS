@@ -25,7 +25,7 @@ if __name__ == "__main__":
     start_web_service()
     
     start_up("log")
-    install_packages("log")
+    #install_packages("log")
     open_trap_hmi("log")
     capturing("log")
     trap_shutdown("log",60)
