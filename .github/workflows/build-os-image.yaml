@@ -108,6 +108,8 @@ jobs:
         sudo cp install_lepmon.sh /tmp/rpi-root/install_lepmon.sh
         sudo chmod +x /tmp/rpi-root/install_lepmon.sh
         sudo chroot /tmp/rpi-root /install_lepmon.sh
+        # DB Service im chroot aktivieren
+        sudo chroot /tmp/rpi-root systemctl enable lepmon-main
 
     - name: Unmount
       run: |
