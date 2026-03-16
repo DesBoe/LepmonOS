@@ -100,14 +100,14 @@ def get_usb_path(log_mode):
     search_counter = 0
     while zielverzeichnis is None:
         search_counter += 1  
-        if search_counter == 3:
+        if search_counter == 10:
             error_message(3, "USB-Stick nicht gefunden", log_mode)
-        if 4 < search_counter < 24:
+        if 10 < search_counter < 30:
             turn_on_led("gelb")
             time.sleep(.5)
             turn_off_led("gelb")
-        if search_counter > 24:
-            print("USB Stick nach 25 versuchen nicht gefunden. Zielverzeichnis ist None")
+        if search_counter > 31:
+            print("USB Stick nach 30 versuchen nicht gefunden. Zielverzeichnis ist None")
             zielverzeichnis = "Kein USB-Stick gefunden"
             return zielverzeichnis, status
         for media_path in search_paths:
@@ -119,7 +119,7 @@ def get_usb_path(log_mode):
                         status = 1
                         return zielverzeichnis, status
         print("Suche nach USB-Stick...")
-        time.sleep(.5)
+        time.sleep(2)
     return zielverzeichnis, status      
             
 def erstelle_ordner(log_mode, Cameramodel = "None"):
