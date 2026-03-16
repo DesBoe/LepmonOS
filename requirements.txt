@@ -27,7 +27,7 @@ adafruit-circuitpython-pct2075
 adafruit-circuitpython-ds3231
 adafruit-circuitpython-bmp280
 
-bme280
+#bme280
 # DB
 
 # --- Display ---
