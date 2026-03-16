@@ -80,13 +80,13 @@ jobs:
         # Copy Python files, configs, requirements, docs
         # EXCLUDE development and service tools (LepmonOS_Dev_* and LepmonOS_Service_*)
         # DB uncomment 5 following lines for final build. during image test we include these files, delete sixth
-        #for f in *.py *.sh *.json *.xml *.md *.txt; do
-        #  case "$f" in
-        #    LepmonOS_Dev_*|LepmonOS_Service_*) echo "Skipping dev/service file: $f" ;;
-        #    *) sudo cp -r "$f" /tmp/rpi-root/home/Ento/LepmonOS/ 2>/dev/null || true ;;
-        #  esac
-        #done
-        sudo cp -r *.py *.sh *.json *.xml *.md *.txt *.ttf /tmp/rpi-root/home/Ento/LepmonOS/ 2>/dev/null || true
+        for f in *.py *.sh *.json *.xml *.md *.txt; do
+          case "$f" in
+            LepmonOS_Dev_*|LepmonOS_Service_*) echo "Skipping dev/service file: $f" ;;
+            *) sudo cp -r "$f" /tmp/rpi-root/home/Ento/LepmonOS/ 2>/dev/null || true ;;
+          esac
+        done
+        #sudo cp -r *.py *.sh *.json *.xml *.md *.txt *.ttf /tmp/rpi-root/home/Ento/LepmonOS/ 2>/dev/null || true
         
         # Also remove service.py_BAK.py (backup file)
         sudo rm -f /tmp/rpi-root/home/Ento/LepmonOS/service.py_BAK.py 2>/dev/null || true
