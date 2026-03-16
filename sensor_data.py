@@ -1,5 +1,5 @@
 import adafruit_bh1750      #Lichtsensor
-import bme280               #Außensensor
+#import bme280               #Außensensor
 try:
     import adafruit_bme280.basic as adafruit_bme280  #Außensensor, nachdem es ab Januar 2026 nicht mehr wie vorher geklappt hat
 except Exception as e:
