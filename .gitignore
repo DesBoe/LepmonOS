@@ -1,5 +1,5 @@
 ._*
-*.png
+#*.png
 icon*
 Logo*
 .git

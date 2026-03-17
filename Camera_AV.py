@@ -378,7 +378,10 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1):
                     except Exception as e:
                         log_schreiben(f"unbekanntes Pixelformat:{e}", log_mode=log_mode)
                         
-
+                    if cam_mode == "display":
+                        show_message("cam_5", lang=lang)
+                        LepiLED_start("")
+                        display_text_and_image("", "UV", "", "/home/Ento/LepmonOS/startsequenz/Warnung_UV.png", 2)
 
                     if cam_mode != "focus":
                         dim_up()
@@ -394,11 +397,14 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1):
 
                     if cam_mode != "focus":
                         dim_down()
+                    
+                    if cam_mode == "display":
+                        show_message("cam_6", lang=lang)
+                        LepiLED_ende("show")
 
                     Kamera_Status = 1
                     if cam_mode == "display":
                         show_message("cam_2", lang=lang)
-                        print("frame erfolgreich aufgenommen")
 
         except Exception as e:
             frame = None
@@ -486,8 +492,6 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
         time.sleep(4)
 
     if cam_mode == "display":
-        show_message("cam_5", lang=lang)
-        LepiLED_start("show")
         ordnerpfad, _ = get_usb_path(log_mode)
         dateipfad = os.path.join(ordnerpfad, "Testbild.jpg")
         print(f"Ordnerpfad für Testbild:{dateipfad}")
@@ -500,10 +504,14 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
 
     if not os.path.exists(ordnerpfad) and cam_mode != "display":
         if ordnerpfad == "":
-            ordnerpfad = "Ordnerpfad ist leer!"
+            ordnerpfad = erstelle_ordner(log_mode, Cameramodel = "None")
+            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder", ordnerpfad)
+            print(f"Ordnerpfad war leer, neuer Ordner erstellt: {ordnerpfad}")
+            print("Skript neu starten, um mit dem neuen Ordner zu arbeiten.")
         error_message(3, f"USB-Stick nicht gefunden: {ordnerpfad}", log_mode)
         print(f"Fehler: USB-Stick nicht gefunden: {ordnerpfad}")
-        print("Zum erstellen des Ordners bitte USB-Stick anschließen und start_up.py ausführen ")
+        Status_Kamera = 0
+       
         return code, dateipfad, Status_Kamera, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, Gain
     
     
@@ -526,8 +534,7 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
                 error_message(3, f"Bild konnte nicht gespeichert werden: {dateipfad}", log_mode)
                 log_schreiben(f"Fehlerdetails: {e}", log_mode=log_mode)
                 Status_Kamera = 0
-        show_message("cam_6", lang=lang)
-        LepiLED_ende("show")
+
 
     
     if cam_mode == "Diagnose":
@@ -542,7 +549,7 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
 
         except Exception as e:
                 print(f"Kamerafehler:{e}")
-                log_schreiben(f"Fehler beim Speichern des Bildes: {e}", log_mode=log_mode)
+                log_schreiben(f"Bild gespeichert: {dateipfad}", log_mode=log_mode)  
                 Status_Kamera = 0
                 Kamera_Fehlerserie += 1
         try:

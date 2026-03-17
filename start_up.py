@@ -141,7 +141,7 @@ def start_up(log_mode):
         log_schreiben("==============================================", log_mode=log_mode)
         log_schreiben(f"Run- Informationen", log_mode=log_mode)
         log_schreiben("----------------------------------------------", log_mode=log_mode)
-        log_schreiben(f"{'Letzter Durchlauf':<22} | { ' ordnungsgemäß beendet. Fahre mit neuem Ordner fort:'}", log_mode=log_mode)
+        log_schreiben(f"{'Letzter Durchlauf':<22} | {'ordnungsgemäß beendet. Fahre mit neuem Ordner fort:'}", log_mode=log_mode)
         log_schreiben(f"{'Alter Ordner':<22} | {ordner_from_config}", log_mode=log_mode)
         log_schreiben(f"{'Neuer Ordner':<22} | {ordner}", log_mode=log_mode)
     
@@ -157,7 +157,7 @@ def start_up(log_mode):
         log_schreiben("==============================================", log_mode=log_mode)
         log_schreiben(f"Run- Informationen", log_mode=log_mode)
         log_schreiben("----------------------------------------------", log_mode=log_mode)
-        log_schreiben(f"{'Letzter Durchlauf':<22} | { 'nicht ordnungsgemäß beendet. Fahre mit dem alten Ordner fort:'}", log_mode=log_mode)
+        log_schreiben(f"{'Letzter Durchlauf':<22} | {'nicht ordnungsgemäß beendet. Fahre mit dem alten Ordner fort:'}", log_mode=log_mode)
         log_schreiben(f"{'Alter Ordner':<22} | {ordner_from_config}", log_mode=log_mode)
         log_schreiben(f"{'Neuer Ordner':<22} | {ordner_path}", log_mode=log_mode)
 

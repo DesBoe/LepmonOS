@@ -1,7 +1,7 @@
 # Changelog
 
 
-## [2.3.0] 2026-03-16
+## [2.3.0] 2026-03-17
 ### Geändert
 - Installation via SD Karten image
 - Start der Aufnahme pauschal 10 Minuten nach Sonnenuntergang
@@ -11,6 +11,8 @@
 - Journald Log-Speicher auf 16 MB begrenzt
 - Build-Essential und unnötige Firmware nach Installation entfernt (Platzersparnis)
 - Release-Notes in GitHub Actions aktualisiert
+- move Photo Sanity check in snap image function for shorter time between 2 consequtive frames
+
 
 ### Hinzugefügt
 - detailierte Fehler Logs in der Alied Vision Kamera

@@ -1,6 +1,9 @@
-# Lepmon Service Guide
+![ARNI](startsequenz/ARNI.png)
+# Automated Recorder for Nocturnal Insects
 
-Quick reference for managing the Lepmon system on the Raspberry Pi.
+# Service Guide
+
+Quick reference for managing the ARNI on the Raspberry Pi with LepmonOS >= 2.3.0.
 
 ---
 
@@ -344,3 +347,5 @@ lepmon-info
 | `/etc/udev/rules.d/99-lepmon-usb-mount.rules`     | udev rule for USB automount      |
 | `/etc/systemd/system/usb-mount@.service`          | systemd service template         |
 | `/usr/local/bin/usb-mount.sh`                     | USB mount/unmount helper script  |
+
+![Lepmon](startsequenz/Lepmon_Logo_Small.png)
