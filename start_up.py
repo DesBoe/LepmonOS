@@ -22,7 +22,7 @@ from serial_number_manual import *
 
 def start_up(log_mode):
     #dev_info()
-    # Update 2.2.1 muss Ram Neu Beschreiben für INFO zur Firmware.
+    # Update 2.3.0 muss Ram Neu Beschreiben für INFO zur Firmware.
     new_version = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "version")
     new_date = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "date")
     try:
@@ -33,7 +33,7 @@ def start_up(log_mode):
         pass
     
     print("starte Setup")
-    add_to_bootconfig("gpio=13=op,dl")
+    #add_to_bootconfig("gpio=13=op,dl")
     turn_off_led("blau")
     turn_off_led("heizung")
     RPI_time(log_mode)
@@ -138,9 +138,12 @@ def start_up(log_mode):
             trap_shutdown(log_mode,10)
             return
         initialisiere_logfile(log_mode)
-        log_schreiben("Letzter Durchlauf ordnungsgemäß beendet. Fahre mit neuem Ordner fort:", log_mode=log_mode)
-        log_schreiben(f"Alter Ordner: {ordner_from_config}", log_mode=log_mode)
-        log_schreiben(f"Neuer Ordner: {ordner}", log_mode=log_mode)
+        log_schreiben("==============================================", log_mode=log_mode)
+        log_schreiben(f"Run- Informationen", log_mode=log_mode)
+        log_schreiben("----------------------------------------------", log_mode=log_mode)
+        log_schreiben(f"{'Letzter Durchlauf':<22} | { ' ordnungsgemäß beendet. Fahre mit neuem Ordner fort:'}", log_mode=log_mode)
+        log_schreiben(f"{'Alter Ordner':<22} | {ordner_from_config}", log_mode=log_mode)
+        log_schreiben(f"{'Neuer Ordner':<22} | {ordner}", log_mode=log_mode)
     
     display_text_and_image("Wel-","come", "", "/home/Ento/LepmonOS/startsequenz/Logo_4_9.png",4)   
     if control_bit:
@@ -151,9 +154,12 @@ def start_up(log_mode):
         log_schreiben("#######################################################################################", log_mode=log_mode)
         log_schreiben("### Letzter Durchlauf nicht ordnungsgemäß beendet. Fahre mit dem alten Ordner fort ###", log_mode=log_mode)
         log_schreiben("#######################################################################################", log_mode=log_mode)
-        log_schreiben("Letzter Durchlauf nicht ordnungsgemäß beendet. Fahre mit dem alten Ordner fort:", log_mode=log_mode)
-        log_schreiben(f"Alter Ordner: {ordner_from_config}", log_mode=log_mode)
-        log_schreiben(f"Neuer Ordner: {ordner_path}", log_mode=log_mode)
+        log_schreiben("==============================================", log_mode=log_mode)
+        log_schreiben(f"Run- Informationen", log_mode=log_mode)
+        log_schreiben("----------------------------------------------", log_mode=log_mode)
+        log_schreiben(f"{'Letzter Durchlauf':<22} | { 'nicht ordnungsgemäß beendet. Fahre mit dem alten Ordner fort:'}", log_mode=log_mode)
+        log_schreiben(f"{'Alter Ordner':<22} | {ordner_from_config}", log_mode=log_mode)
+        log_schreiben(f"{'Neuer Ordner':<22} | {ordner_path}", log_mode=log_mode)
 
         
     
@@ -162,17 +168,16 @@ def start_up(log_mode):
     log_schreiben("==============================================", log_mode=log_mode)
     log_schreiben(f"Gerätedaten", log_mode=log_mode)
     log_schreiben("----------------------------------------------", log_mode=log_mode)
-    log_schreiben(f"{'ARNI SN Nummer':<20} | {sn}", log_mode=log_mode)
-    log_schreiben(f"{'ARNI Generation':<20} | {hardware}", log_mode=log_mode)
-    log_schreiben(f"{'verbaute Kamera':<20} | {get_device_info('camera')}", log_mode=log_mode)
-    log_schreiben(f"{'verbauter Sensor':<20} | {get_device_info('sensor')}", log_mode=log_mode)
-    log_schreiben(f"{'Auflösung (LxB)':<20} | {get_device_info('length')} x {get_device_info('height')}", log_mode=log_mode)
+    log_schreiben(f"{'ARNI SN Nummer':<22} | {sn}", log_mode=log_mode)
+    log_schreiben(f"{'ARNI Generation':<22} | {hardware}", log_mode=log_mode)
+    log_schreiben(f"{'verbaute Kamera':<22} | {get_device_info('camera')}", log_mode=log_mode)
+    log_schreiben(f"{'verbauter Sensor':<22} | {get_device_info('sensor')}", log_mode=log_mode)
+    log_schreiben(f"{'Auflösung (LxB)':<22} | {get_device_info('length')} x {get_device_info('height')}", log_mode=log_mode)
     if device_run is not None:
-        log_schreiben(f"{'ARNI run':<20} | {sn}__{device_run}", log_mode=log_mode)
+        log_schreiben(f"{'ARNI run':<22} | {sn}__{device_run}", log_mode=log_mode)
     Version = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "version")
-    log_schreiben(f"{'Firmware':<20} | {Version} vom {date}", log_mode=log_mode)
+    log_schreiben(f"{'Firmware':<22} | {Version} vom {date}", log_mode=log_mode)
     log_schreiben("==============================================", log_mode=log_mode)
-    log_schreiben("", log_mode=log_mode)
 
     if sn_trigger:
         log_schreiben("Manuelle SN Eingabe durch User erzwungen.", log_mode=log_mode)
@@ -193,7 +198,6 @@ def start_up(log_mode):
     experiment_start_time, experiment_end_time, _, _ = get_experiment_times()
     minutes_after_sunset = str(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "minutes_after_sunset"))
 
-    log_schreiben("==============================================", log_mode=log_mode)
     log_schreiben(f"Experiment Zeiten", log_mode=log_mode)
     log_schreiben("----------------------------------------------", log_mode=log_mode)
     log_schreiben(f"{'Beginn Experiment':<22} | {power_on[:10]}", log_mode=log_mode)

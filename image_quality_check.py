@@ -49,9 +49,8 @@ def check_image(dateipfad, log_mode = "log"):
             return True
     except Exception as e:
         print(f"Foto {dateipfad} hat Sanity Check nicht bestanden: {e}")
-        log_schreiben(f"unvollständiges Foto {dateipfad} erkannt. ARNI nimmt neu auf.", log_mode=log_mode)
+        log_schreiben(f"unvollständiges Foto {dateipfad} erkannt. ARNI nimmt neu auf. Fehlerdetails: {e}", log_mode=log_mode)
         error_message(14,e, log_mode)
-        os.remove(dateipfad)
         return False
     
 

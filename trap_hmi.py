@@ -132,12 +132,15 @@ def open_trap_hmi(log_mode, start_step = 0):
                        
     if not Menu_open:
         log_schreiben("------------------", log_mode=log_mode)
+        log_schreiben("------------------", log_mode=log_mode) 
         log_schreiben("ARNI nicht mit lokalem User Interface parametrisiert", log_mode=log_mode)
 
     latitude, longitude, _, _, _, _ = (get_coordinates())
     log_schreiben("------------------", log_mode=log_mode)
     log_schreiben(f"Breite: {latitude}", log_mode=log_mode)
     log_schreiben(f"Länge: {longitude}", log_mode=log_mode)
+    log_schreiben("------------------", log_mode=log_mode) 
+    log_schreiben("------------------", log_mode=log_mode)
     try:
         power_mode = read_fram(0x03B0, 16).replace('\x00', '').strip()
         time.sleep(.5)
@@ -171,6 +174,7 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                 camera = get_device_info('camera') 
                 print("erwartete Kamera: {camera}")
                 show_message("hmi_03", lang=lang)
+                log_schreiben("------------------", log_mode=log_mode)
                 log_schreiben("------------------", log_mode=log_mode)
                 try:
                     hmi_counter = ram_counter(0x0330)
@@ -687,6 +691,8 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                             elif not Neustart:
                                 show_message("hmi_36", lang=lang)
                                 log_schreiben("Beende Systemcheck", log_mode=log_mode)
+                                log_schreiben("------------------", log_mode=log_mode)
+                                log_schreiben("------------------", log_mode=log_mode)
                                 menu_exit = True
                                 break
             

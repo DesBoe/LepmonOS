@@ -222,47 +222,41 @@ def capturing(log_mode):
             print(f"Aufnahmezeitpunkt: {lokale_Zeit_string.strftime('%H:%M:%S')}")
             print(Exposure, gain)
             time.sleep(5)
-            while not photo_sanity_check:# and not good_exposure:
 
 
-                if is_stop_requested():
-                    log_schreiben("Stop requested from web interface", log_mode)
-                    überleiten_zu_shutdown = True
-                    break
 
-                if camera == "AV__Alvium_1800_U-2050":
-                    code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, gain = snap_image_AV("jpg", "log", Kamera_Fehlerserie, log_mode, Exposure=Exposure, Gain=gain)
-                    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "current_exposure", Exposure)
-                    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "current_gain", gain)
-                elif camera == "RPI_Module_3":
-                    code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, gain,_ ,_ = snap_image_rpi("jpg","log", Kamera_Fehlerserie, log_mode, camera, Exposure=int(Exposure), Gain=gain, focus=focus)
-                elif camera == "RPI_HQ":
-                    code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, gain,_ ,_ = snap_image_rpi("jpg","log", Kamera_Fehlerserie, log_mode, camera, Exposure=int(Exposure), Gain=gain)
+            # photo sanity check in Camera_AV integriert, um bei Neuaufnahme keine neue Initialisierung zu durchlaufen.
+            #while not photo_sanity_check:# and not good_exposure:
 
-                elif camera not in ["AV__Alvium_1800_U-2050","RPI_Module_3","RPI_HQ"]:
-                    log_schreiben(f"unbekannte Kamera gefunden:{camera}.", log_mode)
 
-                update_capture_progress(
-                    current_exposure=Exposure,
-                    current_gain=gain,
-                    last_image_path=current_image)
+            if is_stop_requested():
+                log_schreiben("Stop requested from web interface", log_mode)
+                überleiten_zu_shutdown = True
+                break
+            if camera == "AV__Alvium_1800_U-2050":
+                code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, gain = snap_image_AV("jpg", "log", Kamera_Fehlerserie, log_mode, Exposure=Exposure, Gain=gain)
+                write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "current_exposure", Exposure)
+                write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "current_gain", gain)
+            elif camera == "RPI_Module_3":
+                code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, gain,_ ,_ = snap_image_rpi("jpg","log", Kamera_Fehlerserie, log_mode, camera, Exposure=int(Exposure), Gain=gain, focus=focus)
+            elif camera == "RPI_HQ":
+                code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, gain,_ ,_ = snap_image_rpi("jpg","log", Kamera_Fehlerserie, log_mode, camera, Exposure=int(Exposure), Gain=gain)
+
+            elif camera not in ["AV__Alvium_1800_U-2050","RPI_Module_3","RPI_HQ"]:
+                log_schreiben(f"unbekannte Kamera gefunden:{camera}.", log_mode)
             
-                time.sleep(1)
-
-                if Status_Kamera == 1:
-                    try:
-                        photo_sanity_check = check_image(current_image)
-                    except Exception as e:
-                        print(f"Fehler bei der Bildprüfung: {e}")
-                        photo_sanity_check = False
-                        
-                if Kamera_Fehlerserie >= 3:
-                    error_message(2, "", log_mode)
-                    überleiten_zu_shutdown = True
-                    break
-                print(f" Status Kamera: {Status_Kamera}, Fehlerserie: {Kamera_Fehlerserie}, Foto OK: {photo_sanity_check}")
+            update_capture_progress(
+                current_exposure=Exposure,
+                current_gain=gain,
+                last_image_path=current_image)
+            
+                 
+            if Kamera_Fehlerserie >= 3:
+                error_message(2, "", log_mode)
+                überleiten_zu_shutdown = True
+                break
                 
-            if photo_sanity_check:
+            if Status_Kamera == 1:
                 try:
                         aktuelles_Bild = ram_counter(0x0650)
                         print(f"Bild-Counter im Ram Modul erhöht: {aktuelles_Bild}")
@@ -271,6 +265,7 @@ def capturing(log_mode):
                         increment_image_count()
                 except Exception as e:
                         print(f"Fehler beim Schreiben des Bild-Counters im Ram Modul: {e}")
+
 
             if not überleiten_zu_shutdown:
                         
