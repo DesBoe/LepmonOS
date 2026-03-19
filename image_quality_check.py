@@ -56,60 +56,62 @@ def check_image(dateipfad, log_mode = "log"):
 
 def first_exp(Night, log_mode, camera):
     exposure,gain = 160,9
-    if Night == 0: # False --> Nacht hat noch nicht begonnen und Kamera fängt mit default werten an
+    #if Night == 0: # False --> 
+    try:
+        if camera == "AV__Alvium_1800_U-2050":
+            exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_exposure"))
+            gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_gain_10"))/10
+        elif camera == "RPI_Module_3":
+            exposure = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","initial_exposure_10")/10
+            gain = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","initial_gain_10")/10            
+        elif camera == "RPI_HQ":
+            exposure = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","initial_exposure_10")/10
+            gain = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","initial_gain_10")/10
+            print(f"Initialer Exposure: {exposure}, Initialer Gain: {gain}")
+    except Exception as e:
+        print(f"Fehler beim Lesen des initialen Exposure und Gain aus der Konfigurationsdatei: {e}")            
+        error_message(9,e,log_mode)
+    
+    if Night == 1: #Nacht hat begonnen und Kamera überschreibt default Werte mit zueletzt gespeicherten
+        try:
+            gain_bytes = read_fram_bytes(0x069C, 1)
+            if gain_bytes or gain_bytes == b'\x00' or gain_bytes == b'\xFF':
+                gain = int.from_bytes(gain_bytes, byteorder='big')/10
+                print(f"Gelesener Gain: {gain}")
+        except Exception as e:
+            log_schreiben("Warnung beim lesen des zuletzt gespeicherten Gains aus dem FRAM: {e}", log_mode=log_mode)
+
+        try:
+            exposure_bytes = read_fram_bytes(0x0698, 1)
+            if exposure_bytes or exposure_bytes == b'\x00' or gain_bytes == b'\xFF':
+                exposure = int.from_bytes(exposure_bytes, byteorder='big')
+                print(f"Gelesene Exposure: {exposure}")
+        except Exception as e:
+            log_schreiben("Warnung beim lesen der zuletzt gespeicherten Exposure aus dem FRAM: {e}", log_mode=log_mode)
+
+    # Prüfen, ob Werte gültig sind, falls ja, Default-Werte verwenden
+    if gain > 26 or not 85 < exposure < 9999982:
+        log_schreiben(f"Warnung: Gain oder Exposure im FRAM nicht im gültigen Bereich: Gain={gain}, Exposure={exposure}", log_mode=log_mode)
         try:
             if camera == "AV__Alvium_1800_U-2050":
                 exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_exposure"))
                 gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_gain_10"))/10
             elif camera == "RPI_Module_3":
                 exposure = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","initial_exposure_10")/10
-                gain = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","initial_gain_10")/10
+                gain = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","initial_gain_10")/10            
             elif camera == "RPI_HQ":
                 exposure = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","initial_exposure_10")/10
                 gain = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","initial_gain_10")/10
-            print(f"Initialer Exposure: {exposure}, Initialer Gain: {gain}")
+                print(f"Initialer Exposure: {exposure}, Initialer Gain: {gain}")
         except Exception as e:
-            print(f"Fehler beim Lesen des initialen Exposure und Gain aus der Konfigurationsdatei: {e}")
+            print(f"Fehler beim Lesen des initialen Exposure und Gain aus der Konfigurationsdatei: {e}")            
             error_message(9,e,log_mode)
-    
-    elif Night == 1:
-        try:
+        log_schreiben(f"Nutze Default: Gain={gain}, Exposure={exposure} und schreibe diese in den FRAM", log_mode=log_mode)
 
-            gain_bytes = read_fram_bytes(0x069C, 1)
-            gain = int.from_bytes(gain_bytes, byteorder='big')/10
-            print(f"Gelesener Gain: {gain}")
+        write_current_exp(exposure, gain, camera, log_mode)
+        print("In FRAM geschriebener initialer Exposure und Gain:", exposure, gain)
+        time.sleep(10)
 
-            exposure_bytes = read_fram_bytes(0x0698, 1)
-            exposure = int.from_bytes(exposure_bytes, byteorder='big')
-            print(f"Gelesene Exposure: {exposure}")
-
-            # Prüfen, ob Werte 0 sind, falls ja, Default-Werte verwenden
-            #if gain > 26 or not 85 < exposure < 9999982:
-            #    print(f"Warnung: Gain oder Exposure im FRAM nicht im gültigen Bereich: Gain={gain}, Exposure={exposure}. Nutze Werte aus der Konfigurationsdatei.")
-            #    exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","capture_mode","initial_exposure"))
-            #    gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","capture_mode","initial_gain"))
-            #    print(f"Default Exposure: {exposure}, Default Gain: {gain}")
-        except Exception as e:
-            print(f"Fehler beim Lesen des aktuellen Exposure und Gain aus dem FRAM: {e}")
-            error_message(9,e, log_mode)
-            try:
-                if camera == "AV__Alvium_1800_U-2050":
-                    exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_exposure"))
-                    gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_gain_10"))/10
-                elif camera == "RPI_Module_3":
-                    exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","current_exposure_10"))/10
-                    gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","current_gain_10"))/10
-                elif camera == "RPI_HQ":
-                    exposure = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","current_exposure_10")/10
-                    gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","current_gain_10"))/10
-                print(f"Initialer Exposure: {exposure}, Initialer Gain: {gain}")
-
-                print(f"Initialer Exposure: {exposure}, Initialer Gain: {gain}")
-            except Exception as e:
-                print(f"Fehler beim Lesen des initialen Exposure und Gain aus der Konfigurationsdatei: {e}")
-    else:
-        print("Nachtkontrolbit nicht erkannt")
-        
     return exposure, gain
  
     
