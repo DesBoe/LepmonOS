@@ -20,6 +20,7 @@ from runtime import write_timestamp
 from image_quality_check import *
 import numpy as np
 import gc
+from hardware import get_hardware_version
 
 lang = get_language()
 
@@ -446,6 +447,8 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
     power_on = 0
     image_file = ""
     Bild_erfolgreich_gespeichert = False
+    hardware = get_hardware_version()
+    power_on = "---"
 
     avg_brightness, good_exposure = "---", False
     image_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "gamma_correction")
@@ -554,7 +557,11 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
                 Kamera_Fehlerserie += 1
         try:
             _, _, _, power_cam, _ = get_power()
-            power_on = round(power_vis - power_cam, 2)
+            if hardware in ["Pro_Gen_1", "Pro_Gen_2"]:
+                print("Stromverbrauch der Visible LED kann auf diesem ARNI-Modell nicht gemessen werden.")
+                power_on = "---"
+            elif hardware in ["Pro_Gen_3", "Pro_Gen_4", "CSL_Gen_1", "CSS_Gen_1"]:
+                power_on = round(power_vis - power_cam, 2)
             time.sleep(0.1)
         except Exception as e:
             power_on = "---"
@@ -610,21 +617,24 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
         avg_brightness = round(avg_brightness, 0)
 
         time.sleep(0.5)
+
+        if sanity_tries>=4:
+            log_schreiben(f"Foto hat Sanity Check nach {sanity_tries} Versuchen endgültig nicht bestanden.", log_mode=log_mode)
+
+    print(f"Status Kamera: {Status_Kamera}, Fehlerserie: {Kamera_Fehlerserie}, Foto OK: {Bild_erfolgreich_gespeichert}")
+    camera.off()
+    camera.close()
+
+    if hardware in ["Pro_Gen_1", "Pro_Gen_2"]:
+            print("Stromverbrauch der Visible LED kann auf diesem ARNI-Modell nicht gemessen werden.")
+    elif hardware in ["Pro_Gen_3", "Pro_Gen_4", "CSL_Gen_1", "CSS_Gen_1"]:
         try:
             _, _, _, power_cam, _ = get_power()
             power_on = round(power_vis - power_cam, 2)
             time.sleep(0.1)
         except Exception as e:
-            power_on = "---"
             log_schreiben(f"Fehler beim Messen des Stromverbrauchs der Visible LED: {e}", log_mode=log_mode)
 
-        if sanity_tries>=4:
-            log_schreiben(f"Foto hat Sanity Check nach {sanity_tries} Versuchen endgültig nicht bestanden.", log_mode=log_mode)
-        
-
-    print(f"Status Kamera: {Status_Kamera}, Fehlerserie: {Kamera_Fehlerserie}, Foto OK: {Bild_erfolgreich_gespeichert}")
-    camera.off()
-    camera.close()
     return code, dateipfad, Status_Kamera, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, Gain
 
 

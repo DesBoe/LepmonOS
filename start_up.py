@@ -39,14 +39,17 @@ def start_up(log_mode):
     RPI_time(log_mode)
 
 
-    display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_K2W.png",sleeptime = 4)
-    display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_U2C.png",sleeptime = 0) # Logo wird für die Dauer angezeigt, in der es möglich ist, die SN manuell zu setzen.
-    sn_trigger, forced_by_user = trigger_manual_sn()
+    display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_K2W.png",sleeptime = 0) # Logo wird für die Dauer angezeigt, in der es möglich ist, die SN manuell zu setzen.
+    sn_trigger, _, Gen_json = trigger_manual_sn()
     if sn_trigger:
         sn_manual, gen_manual = set_sn_manually()
+        if gen_manual == "Pro_Gen_1" and Gen_json != "Pro_Gen_1":
+            display_text_and_image("Neustart","restart","reiniciar","/home/Ento/LepmonOS/startsequenz/end.png",0)
+            os.system("sudo reboot")
+            time.sleep(2)
+            os.system("sudo reboot")
 
-
-    
+    display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_U2C.png",sleeptime = 4)
     display_text_and_image("Leitfaden","Guide","Guia","/home/Ento/LepmonOS/startsequenz/link_manual.png",4)
     on_start()
     sn = compare_fram_json(log_mode)

@@ -67,7 +67,7 @@ def trigger_manual_sn():
     else:
         print(f"SN: {sn_json} und Gen: {Gen_json} Einträge bereits vorhanden. Keine Manuelle Eingabe nötig.")
     
-    return sn_trigger, forced_by_user
+    return sn_trigger, forced_by_user, Gen_json
 
 
 

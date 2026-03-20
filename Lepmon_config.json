@@ -14,8 +14,8 @@
     },
     "locality": {
         "country": "Germany",
-        "province": "TH",
-        "Kreis": "SLZ"
+        "province": "AA",
+        "Kreis": "BBB"
     },
     "capture_mode": {
         "minutes_after_sunset": 10,
