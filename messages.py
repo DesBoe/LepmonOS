@@ -435,6 +435,12 @@ MESSAGE_REGISTER = {
     
     # focus
     
+    "focus_0": {
+        "sleep": 3,
+        "de": ("Fokussieren abbrechen:", "Enter lange", "gedrückt halten"),
+        "en": ("Cancel focusing:","press Enter","and hold"),
+        "es": ("Cancelar enfoque:","Mantenga presionado","el botón Enter")
+    },
 
     "focus_1": {
         "sleep": .5,

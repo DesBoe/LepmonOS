@@ -276,7 +276,11 @@ def capturing(log_mode):
                 sensors["Status_Kamera"] = Status_Kamera
                 sensors["Exposure"] = Exposure
                 sensors["Gain"] = f"{gain:.1f}"
-                sensors["Brightness"] = f"{avg_brightness:.1f}"
+                try:
+                    sensors["Brightness"] = f"{avg_brightness:.1f}"
+                except Exception as e:
+                    log_schreiben(f"Fehler bei der Abspeichern der durchschnittlichen Helligkeit: {e}", log_mode = log_mode)
+                    sensors["Brightness"] = "---"   
 
                 try:
                     if power_on >= 3:
@@ -317,6 +321,9 @@ def capturing(log_mode):
 
                 if time_to_next_image < 0:
                     time_to_next_image = 0
+                
+                if time_to_next_image > interval * 60:
+                    time_to_next_image = interval * 60
                 log_schreiben(f"Warten bis zur nächsten Aufnahme: {round(time_to_next_image,0)} Sekunden",log_mode)
                 show_message("blank", lang = lang)
                 

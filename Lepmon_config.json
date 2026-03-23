@@ -58,24 +58,24 @@
         "compression_quality": 95
     },
     "AV__Alvium_1800_U-2050": {
-        "initial_gain_10": 70,
-        "minimal_gain_10": 40,
+        "initial_gain_10": 90,
+        "minimal_gain_10": 60,
         "maximal_gain_10": 160,
         "step_gain_10": 5,
         "current_gain_10": "70",
         "initial_exposure": 150,
         "minimal_exposure": 90,
-        "maximal_exposure": 170,
+        "maximal_exposure": 210,
         "step_exposure": 5,
         "current_exposure": 150,
         "focus_threshold": 225.0,
-        "gamma_value": 1.5,
+        "gamma_value": 1.6,
         "current_gain": 7.0
     },
     "frame_brightness": {
-        "black_sanity_level": 0.025,
-        "brightness_tolerance": 8,
-        "brightness_reference": 170
+        "black_sanity_level": 0.15,
+        "brightness_tolerance": 9,
+        "brightness_reference": 195
     },
     "GPS": {
         "latitude": 50.3456789,
@@ -84,8 +84,8 @@
         "Block": "E"
     },
     "software": {
-        "version": "2.3.0",
-        "date": "2026-03-17"
+        "version": "2.3.1",
+        "date": "2026-03-23"
     },
     "powermode": {
         "supply": "Netz",

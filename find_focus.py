@@ -40,7 +40,7 @@ def find_exposure_and_gain_for_focus(log_mode):
         Exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","initial_exposure_10"))/10
         Gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","initial_gain_10"))/10
         compression_quality = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","compression_quality")
-
+    show_message("focus_0", lang = lang)
     print("Fokusieren:\n"
           "ARNI berechnet den schärfsten Fokus, basierend auf der 'Variance of Laplacian'\n" 
           "siehe https://pyimagesearch.com/2015/09/07/blur-detection-with-opencv/\n"
