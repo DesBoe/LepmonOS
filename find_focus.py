@@ -240,7 +240,7 @@ def find_focal_position(Exposure, Gain, vis_emergency, expected_camera, log_mode
                 log_schreiben("Fokussieren beendet", log_mode=log_mode)
                 dim_down()
                 return
-        time.sleep(0.01)
+        time.sleep(0.0375)
         turn_off_led("gelb")
                     
 

@@ -23,6 +23,7 @@ from usb_controller import remount_usb_drive
 from Daylightsaving import daylight_saving_check
 from service import *
 from hardware import *
+from find_white_balance import get_wb
 
 
 from capturing_state import (
@@ -40,6 +41,7 @@ def capturing(log_mode):
     dusk_treshold = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "dusk_treshold")
     interval = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "interval")
     camera = get_device_info('camera')
+    trigger_for_wb = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "trigger_for_wb")
 
     if camera == "RPI_Module_3":
         gamma_value = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","gamma_value")
@@ -100,6 +102,16 @@ def capturing(log_mode):
     experiment_start_time, experiment_end_time, _, _ = get_experiment_times()
     _, sunrise, _ = get_sun()
     sunrise = sunrise.strftime('%H:%M:%S')
+
+    if isinstance(experiment_start_time, str):
+        experiment_start_time_dt = datetime.strptime(experiment_start_time, "%H:%M:%S")
+    else:
+        experiment_start_time_dt = experiment_start_time
+    time_for_wb = experiment_start_time_dt + timedelta(minutes=60)
+
+    print(f"passe Weißabgleich an:{trigger_for_wb}, Uhrzeit für WB Anpassung: {time_for_wb.strftime('%H:%M:%S')}")
+
+    time.sleep(5)
 
     Fang_begonnen = False
     UV_active = False
@@ -228,6 +240,7 @@ def capturing(log_mode):
             # photo sanity check in Camera_AV integriert, um bei Neuaufnahme keine neue Initialisierung zu durchlaufen.
             #while not photo_sanity_check:# and not good_exposure:
 
+            trigger_for_wb = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "trigger_for_wb")
 
             if is_stop_requested():
                 log_schreiben("Stop requested from web interface", log_mode)
@@ -265,6 +278,17 @@ def capturing(log_mode):
                         increment_image_count()
                 except Exception as e:
                         print(f"Fehler beim Schreiben des Bild-Counters im Ram Modul: {e}")
+            
+            if trigger_for_wb and Status_Kamera == 1 and lokale_Zeit >= time_for_wb.strftime('%H:%M:%S'):
+                log_schreiben("Trigger für Weißabgleich aktiviert und Zeit für WB Anpassung erreicht. Starte Weißabgleichsanpassung...", log_mode)
+                try:
+                    red_ratio, blue_ratio = get_wb(current_image, log_mode=log_mode, show=False)
+                    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "trigger_for_wb", False)
+                    log_schreiben("Weißabgleichsanpassung abgeschlossen und Trigger zurückgesetzt.", log_mode)
+                except Exception as e:
+                    log_schreiben(f"Fehler bei der Weißabgleichsanpassung: {e}", log_mode)
+                    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "trigger_for_wb", False)
+                    log_schreiben("Trigger für Weißabgleich zurückgesetzt trotz Fehler.", log_mode)
 
 
             if not überleiten_zu_shutdown:

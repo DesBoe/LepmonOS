@@ -378,7 +378,21 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1):
                         print(f"Pixelformat der Kamera: {cam.get_pixel_format()}")
                     except Exception as e:
                         log_schreiben(f"unbekanntes Pixelformat:{e}", log_mode=log_mode)
-                        
+
+                    if cam_mode != "display":
+                        red_balance = float(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "balance_ratio_red"))
+                        blue_balance = float(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "balance_ratio_blue"))
+                        try:
+                            cam.BalanceRatioSelector.set("Red")
+                            cam.BalanceRatio.set(red_balance)
+                            print(f"Red Balance in Kamera Einstellungen geändert:{cam.BalanceRatio.get()}")
+
+                            cam.BalanceRatioSelector.set("Blue")
+                            cam.BalanceRatio.set(blue_balance)
+                            print(f"Blue Balance in Kamera Einstellungen geändert:{cam.BalanceRatio.get()}")
+                        except Exception as e:
+                            log_schreiben(f"Fehler beim Setzen des Weißabgleichs bei der Bildaufnahme. Nutze default der Einstellungsdatei (XML): {e}", log_mode=log_mode)
+
                     if cam_mode == "display":
                         show_message("cam_5", lang=lang)
                         LepiLED_start("")

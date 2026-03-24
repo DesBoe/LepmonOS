@@ -745,8 +745,15 @@ MESSAGE_REGISTER = {
         "de": ("Lösche USB Daten", "Bitte warten", "{zaehler} / {gesamtzahl}"),
         "en": ("Deleting USB data", "Please wait", "{zaehler} / {gesamtzahl}"),
         "es": ("Borrando datos USB", "Por favor espere", "{zaehler} / {gesamtzahl}")
-    },  
+    }, 
 
+    ### white_balance ###
+    "wb_01": {
+        "sleep": 1,
+        "de": ("Weißabgleich", "wird durchgeführt", "..."),
+        "en": ("White balance", "is being performed", "..."),
+        "es": ("Balance de blancos", "se está realizando", "...")
+    },
     ### end ###
     "end_1": {
         "sleep": 1,

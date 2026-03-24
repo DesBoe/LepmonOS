@@ -105,6 +105,8 @@ def open_trap_hmi(log_mode, start_step = 0):
             or read_fram_bytes(0x078F, 1) == b'\x01' # erzwinge erneutes Menü öffnen nach fehlerhaftem Fokussieren
             or read_fram_bytes(0x052F, 1) == b'\x01' # erzwinge erneutes Menü öffnen nach Update
             or log_mode == "manual"):
+            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "trigger_for_wb", True)
+
                 
             try:
                 

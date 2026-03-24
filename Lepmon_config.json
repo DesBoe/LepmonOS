@@ -24,7 +24,8 @@
         "interval": 2,
         "dusk_treshold": 90,
         "error_code": "0",
-        "gamma_correction": true
+        "gamma_correction": true,
+        "trigger_for_wb": false
     },
     "RPI_Module_3": {
         "initial_gain_10": 7,
@@ -70,12 +71,14 @@
         "current_exposure": 150,
         "focus_threshold": 225.0,
         "gamma_value": 1.6,
-        "current_gain": 7.0
+        "current_gain": 7.0,
+        "balance_ratio_red": 2.169922,
+        "balance_ratio_blue": 2.049805
     },
     "frame_brightness": {
         "black_sanity_level": 0.15,
-        "brightness_tolerance": 9,
-        "brightness_reference": 195
+        "brightness_tolerance": 5,
+        "brightness_reference": 185
     },
     "GPS": {
         "latitude": 50.3456789,
@@ -85,7 +88,7 @@
     },
     "software": {
         "version": "2.3.1",
-        "date": "2026-03-23"
+        "date": "2026-03-24"
     },
     "powermode": {
         "supply": "Netz",

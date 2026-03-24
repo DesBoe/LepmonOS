@@ -19,21 +19,44 @@ import os
 from serial_number_manual import *
 
 
+def version_tuple(version_str):
+    return tuple(map(int, version_str.strip().split(".")))
 
 def start_up(log_mode):
-    #dev_info()
-    # Update 2.3.0 muss Ram Neu Beschreiben für INFO zur Firmware.
+    # Update:Ram Neu Beschreiben für INFO zur Firmware.
+    # Kontrollbit für Trigger versteckte Menüs bei (nur) bei Update zusätzlich zurücksetzen
+
     new_version = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "version")
     new_date = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "date")
-    try:
-        write_fram(0x0520, new_version.ljust(7)) 
-        write_fram(0x0510, new_date.ljust(10))
-        print(f"Firmware Version im FRAM aktualisiert:{new_version}; {new_date}")
+
+    try: 
+        current_version = read_fram(0x0520, 5)
+        current_version = current_version.strip()
     except Exception as e:
-        pass
+        print(f"Fehler beim Lesen der aktuellen Firmware-Version aus dem FRAM: {e}")
+        current_version = None
+
+    if version_tuple(new_version) > version_tuple(current_version):
     
+        try:
+            write_fram(0x0520, new_version.ljust(7)) 
+            write_fram(0x0510, new_date.ljust(10))
+            print(f"Firmware Version im FRAM aktualisiert:{new_version}; {new_date}")
+        except Exception as e:
+            print(f"Fehler beim Schreiben der neuen Firmware-Version in das FRAM: {e}")
+        
+        try:
+            write_fram_bytes(0x078F, b'\x00')
+            print("Kontrollbit für versteckte Menüs zurückgesetzt")
+        except Exception as e:
+            print(f"Fehler beim Zurücksetzen des Kontrollbits im FRAM: {e}")
+    
+
+
+
+
+
     print("starte Setup")
-    #add_to_bootconfig("gpio=13=op,dl")
     turn_off_led("blau")
     turn_off_led("heizung")
     RPI_time(log_mode)
@@ -176,6 +199,9 @@ def start_up(log_mode):
     log_schreiben(f"{'verbaute Kamera':<22} | {get_device_info('camera')}", log_mode=log_mode)
     log_schreiben(f"{'verbauter Sensor':<22} | {get_device_info('sensor')}", log_mode=log_mode)
     log_schreiben(f"{'Auflösung (LxB)':<22} | {get_device_info('length')} x {get_device_info('height')}", log_mode=log_mode)
+    if get_device_info('camera') == "AV__Alvium_1800_U-2050":
+        log_schreiben(f"{'Red Balance':<22} | {get_value_from_section('/home/Ento/LepmonOS/Lepmon_config.json', 'AV__Alvium_1800_U-2050', 'balance_ratio_red'):.6f}", log_mode=log_mode)
+        log_schreiben(f"{'Blue Balance':<22} | {get_value_from_section('/home/Ento/LepmonOS/Lepmon_config.json', 'AV__Alvium_1800_U-2050', 'balance_ratio_blue'):.6f}", log_mode=log_mode)
     if device_run is not None:
         log_schreiben(f"{'ARNI run':<22} | {sn}__{device_run}", log_mode=log_mode)
     Version = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "version")
