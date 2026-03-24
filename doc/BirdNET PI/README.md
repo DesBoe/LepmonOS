@@ -1,8 +1,29 @@
 # BirdNET PI Integration
 
+Author: Franz Häring, <f.x.haering@gmail.com>
+
 BirdNET PI is a software for Raspberry Pi 4 and higher which continually listens to birds. It identifies species using AI. The identifications are saved into a database and displayed on a website. Optionally (and this is really cool) they are sent to BirdWeather, which integrates it in space and time to a worldwide bird species map.
 
 For now BirdNET PI cannot be run directly on the LEPMON Raspberry Pi, but it can send the microphone input stream to an audio streaming server. The necessary steps are described here.
+
+```mermaid
+---
+title: Distributed BirdNET PI
+---
+flowchart TD
+
+Icecast[Icecast Server]
+BirdNET[BirdNET PI]
+
+subgraph LepmonRaspi[LEPMON Raspberry Pi]
+  Microphone(USB PnP Microphone)
+  Raspi[["`**Raspberry Pi** 48 kHz sampling`"]]
+  Microphone == "USB" ==> Raspi
+end
+
+Raspi == "mp3" ==> Icecast
+Icecast == "Audio" ==> BirdNET
+```
 
 ## Precondition: Internet connection
 
@@ -57,7 +78,7 @@ hw:CARD=Device,DEV=0
     Direct hardware device without any conversions
 ```
 
-To be able to use it as source for multiple consumers, I made this entry to "/etc/asound.conf":
+To be able to use it as source for multiple consumers, I made this entry to `/etc/asound.conf`:
 
 ```text
 # ------------------------------------------------------------
