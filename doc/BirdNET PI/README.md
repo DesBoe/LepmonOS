@@ -1,5 +1,113 @@
-# BirdNET Integration
+# BirdNET PI Integration
 
 BirdNET PI is a software for Raspberry Pi 4 and higher which continually listens to birds. It identifies species using AI. The identifications are saved into a database and displayed on a website. Optionally (and this is really cool) they are sent to BirdWeather, which integrates it in space and time to a worldwide bird species map.
 
 For now BirdNET PI cannot be run directly on the LEPMON Raspberry Pi, but it can send the microphone input stream to an audio streaming server. The necessary steps are described here.
+
+## Precondition: Internet connection
+
+To send the audio stream to a server an internet connection is necessary. If there is LAN at the LEPMON place, just connect it and skip the rest of this chapter.
+
+The internal Wifi adapter is not an option because it is set up as an access point. An external antenna is not possible with Raspberry Pi 4. An external USB Wifi adapter would be possible but after multiple failures I decided to use an external Wifi - LAN bridge. My choice was "TP-Link WLAN-Router TL-WR802N Nano" for about 20 Euros.
+
+## Linux configuration
+
+All configuration steps are initially done as the pre-existing user "Ento".
+
+### User account
+
+I wanted to have my own user account "fh" with SUDO rights on the Raspi:
+
+```bash
+sudo adduser fh
+sudo usermod -aG sudo fh
+```
+
+### Midnight Commander
+
+As I'm addicted to two-column-file-managers I installed Midnight Commander:
+
+```bash
+sudo apt update
+sudo apt install mc -y
+```
+
+### Microphone setup
+
+I connected a simple USB Microphone. With
+
+```bash
+arecord -L
+```
+
+the audio input sources are being listed. My micro identified as
+
+```text
+hw:CARD=Device,DEV=0
+    USB PnP Sound Device, USB Audio
+    Direct hardware device without any conversions
+```
+
+To be able to use it as source for multiple consumers, I made this entry to "/etc/asound.conf":
+
+```text
+# ------------------------------------------------------------
+#  USB PnP Microphone
+#  - dsnoop direkt an hw (Pflicht!)
+#  - danach plug für Format-/Rate-Erzwingung
+#  - 48000 Hz, 1 Kanal, S16_LE
+# ------------------------------------------------------------
+
+# --- Rohes Hardware-Device ----------------------------------
+pcm.usbpnp_hw {
+    type hw
+    card Device
+    device 0
+}
+
+# --- dsnoop: Mehrere Leser gleichzeitig ---------------------
+#     MUSS direkt an hw hängen!
+pcm.usbpnp_dsnoop {
+    type dsnoop
+    ipc_key 384001
+    ipc_perm 0666
+    slave {
+        pcm "usbpnp_hw"
+        channels 1
+        rate 384000
+        format S16_LE
+    }
+}
+
+# --- Strict plug: Erzwingt Format/Rate/Kanäle ----------------
+#     Darf NACH dsnoop kommen, nicht davor.
+pcm.usbpnp {
+    type plug
+    slave {
+        pcm "usbpnp_dsnoop"
+        channels 1
+        rate 384000
+        format S16_LE
+    }
+    hint {
+        show on
+        description "USB PnP Microphone shared capture (48kHz, 1ch)"
+    }
+}
+```
+
+### Audio streaming as systemd service
+
+To send the audio stream continuously to an Icecast server I created a file `/usr/local/bin/usbpnp-direct.sh` with this content:
+
+```text
+#!/bin/bash
+
+exec /usr/bin/ffmpeg -f alsa -ar 48000 -ac 1 -i usbpnp \
+  -ar 48000 -ac 1 -c:a libmp3lame -b:a 128k -content_type audio/mpeg \
+  -f mp3 icecast://source:t8Bf1u2X-b_gHg@icecast.itools.de:8000/lepmon-sn010012-direct.mp3
+```
+
+Don't forget to give execution permission to it (`chmod +x /usr/local/bin/usbpnp-direct.sh`).
+
+To test it you can directly execute it directly.
