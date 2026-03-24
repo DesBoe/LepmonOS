@@ -32,6 +32,15 @@ sudo apt update
 sudo apt install mc -y
 ```
 
+### ffmpeg
+
+ffmpeg is a universal multi media application:
+
+```bash
+sudo apt update
+sudo apt install ffmpeg -y
+```
+
 ### Microphone setup
 
 I connected a simple USB Microphone. With
@@ -69,12 +78,12 @@ pcm.usbpnp_hw {
 #     MUSS direkt an hw hängen!
 pcm.usbpnp_dsnoop {
     type dsnoop
-    ipc_key 384001
+    ipc_key 48001
     ipc_perm 0666
     slave {
         pcm "usbpnp_hw"
         channels 1
-        rate 384000
+        rate 48000
         format S16_LE
     }
 }
@@ -86,7 +95,7 @@ pcm.usbpnp {
     slave {
         pcm "usbpnp_dsnoop"
         channels 1
-        rate 384000
+        rate 48000
         format S16_LE
     }
     hint {
@@ -110,4 +119,52 @@ exec /usr/bin/ffmpeg -f alsa -ar 48000 -ac 1 -i usbpnp \
 
 Don't forget to give execution permission to it (`chmod +x /usr/local/bin/usbpnp-direct.sh`).
 
-To test it you can directly execute it directly.
+To test it you can execute it directly. You can hear it on https://icecast.itools.de/lepmon-sn010012-direct.mp3.
+
+To make it execute automatically after power off / on, I made a systemd service:
+
+```bash
+sudo nano /etc/systemd/system/usbpnp-direct.service
+```
+
+```text
+[Unit]
+Description=USB PnP Microphone FFmpeg Icecast Stream
+After=sound.target local-fs.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+# WICHTIG: Environment für ALSA
+Environment=ALSA_CARD=Device
+
+# Neustart bei Fehlern
+Restart=always
+RestartSec=5
+
+[Service]
+ExecStart=/usr/local/bin/usbpnp-direct.sh
+Restart=always
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start service:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable usbpnp-direct
+sudo systemctl start usbpnp-direct
+sudo systemctl status usbpnp-direct
+journalctl -u usbpnp-direct.service
+```
+
+The service should be enabled and active. You can check again on https://icecast.itools.de/lepmon-sn010012-direct.mp3.
