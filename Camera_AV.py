@@ -1,6 +1,3 @@
-# merged_camera_control_vmbpy.py
-# Uses vmbpy for both camera paths, keeps all legacy function names.
-
 from vmbpy import *
 from Lights import *
 from json_read_write import *
@@ -462,7 +459,6 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
     image_file = ""
     Bild_erfolgreich_gespeichert = False
     hardware = get_hardware_version()
-    power_on = "---"
 
     avg_brightness, good_exposure = "---", False
     image_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "gamma_correction")

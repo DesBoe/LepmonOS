@@ -348,7 +348,7 @@ def capturing(log_mode):
                 
                 if time_to_next_image > interval * 60:
                     time_to_next_image = interval * 60
-                log_schreiben(f"Warten bis zur nächsten Aufnahme: {round(time_to_next_image,0)} Sekunden",log_mode)
+                log_schreiben(f"Warten bis zur nächsten Aufnahme: {round(time_to_next_image,0)} Sekunden. Aktulle Kamerafehlerserie: {Kamera_Fehlerserie}", log_mode)
                 show_message("blank", lang = lang)
                 
                 if 0 <= lokale_Zeit.minute <= 15 and not usb_reset and lokale_Zeit.hour % 2 == 0:
@@ -373,6 +373,7 @@ def capturing(log_mode):
         
         if überleiten_zu_shutdown:
             LepiLED_ende("show")
+            log_schreiben("dimme LepiLED herunter",log_mode)
             daylight_saving_check(log_mode)
             print("Beende Aufnahme Schleife\nLeite zum Ausschalten über")
             log_schreiben("##################################",log_mode)

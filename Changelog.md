@@ -1,6 +1,19 @@
 # Changelog
 
 
+## [2.3.1] 2026-03-25
+### Geändert
+- Fehlertolleranz für schwarze Pixel auf 15% angehoben
+- Referenzwert für gut belichtete Bilder: 185 (Toleranz: ±5, vorher 170 ±8)
+
+### Hinzugefügt
+- Weißabgleich in der ersten Nacht nach Nutzereingabe, sobald ein gut belichtetes Bild aufgenommen wurde
+- Maximale Zeit für Wartedauer zwischen 2 Aufnahmen ist Intervall
+
+### Behoben
+- Problem beim messen und schreiben beim Verbrauch der visible LED
+
+
 ## [2.3.0] 2026-03-17
 ### Geändert
 - Installation via SD Karten image
@@ -12,7 +25,6 @@
 - Build-Essential und unnötige Firmware nach Installation entfernt (Platzersparnis)
 - Release-Notes in GitHub Actions aktualisiert
 - move Photo Sanity check in snap image function for shorter time between 2 consequtive frames
-
 
 ### Hinzugefügt
 - detailierte Fehler Logs in der Alied Vision Kamera
@@ -78,6 +90,7 @@
 ### Behoben
 - Kreiskürzel, die Umlaute (Ä,Ö, oder Ü) haben und ingsamt 3 Buchstaben umfassen können nun vollständig ausgelesen werden
 
+
 ## [2.1.0] - 2025-09-05
 ### Geändert
 - Zeitverzögertes Auslesen der Sensoren vor Aufnahme des Bildes
@@ -92,13 +105,13 @@
 - Art der Stromversorgung im CSV Kopf
 - "Stadt" in "Kreis" umbenannt
 - Kreise nach der der Referenz des ADAC: https://www.adac.de/rund-ums-fahrzeug/auto-kaufen-verkaufen/kfz-zulassung/kfz-kennzeichen-deutschland/
-
 - Nutzer können im Menü die Heizung anschalten. Wird diese Option gewählt, ist die Scheibenheizung zu Beginn der Wartschleife und/oder während der ersten 8 Aufnahmen aktiv
 - Kamera Schaltbar mit separatem USB-Y- Kabel
 - eintag in boot/firmware/config.txt, um beim Start die spot LED zu unterdrücken
 
 ### Behoben
 -Named Pipes und Sockets werden beim Update Prozess übersprungen
+
 
 ## [2.0.10] - 2025-07-23
 ### Geändert
@@ -129,7 +142,6 @@
 - Lepmoncode auch in RAM
 - GPS im RAM, überschreibt Koordinaten im json file --> Nutzer müssen bei künftigen Updates diese Daten nicht neu eingeben
 - Lepmon Code im Ram, überschreibt json file -> Nutzer müssen bei künftigen Updates diese Daten nicht neu eingeben
-
 
 ### Behoben
 - ordner initialisierung in start_up.py

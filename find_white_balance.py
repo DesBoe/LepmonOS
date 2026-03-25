@@ -172,7 +172,7 @@ def get_wb(current_image, log_mode= "manual", show = False):
 
     red_balance_new = red_ratio * red_balance_old
     blue_balance_new = blue_ratio * blue_balance_old
-    log_schreiben("Übenehme Weißabgleich:", log_mode=log_mode)
+    log_schreiben("Übernehme Weißabgleich:", log_mode=log_mode)
 
     log_schreiben(f"{'Red Balance  old':<22} | {red_balance_old:.6f}", log_mode=log_mode)
     log_schreiben(f"{'Blue Balance old':<22} | {blue_balance_old:.6f}", log_mode=log_mode)
