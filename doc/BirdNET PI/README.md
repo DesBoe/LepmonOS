@@ -44,22 +44,13 @@ sudo adduser fh
 sudo usermod -aG sudo fh
 ```
 
-### Midnight Commander
+### Midnight Commander and ffmpeg
 
-As I'm addicted to two-column-file-managers I installed Midnight Commander:
-
-```bash
-sudo apt update
-sudo apt install mc -y
-```
-
-### ffmpeg
-
-ffmpeg is a universal multi media application:
+I'm addicted to two-column-file-managers so I installed Midnight Commander. ffmpeg is needed too:
 
 ```bash
 sudo apt update
-sudo apt install ffmpeg -y
+sudo apt install mc ffmpeg -y
 ```
 
 ### Microphone setup
@@ -135,12 +126,12 @@ To send the audio stream continuously to an Icecast server I created a file `/us
 
 exec /usr/bin/ffmpeg -f alsa -ar 48000 -ac 1 -i usbpnp \
   -ar 48000 -ac 1 -c:a libmp3lame -b:a 128k -content_type audio/mpeg \
-  -f mp3 icecast://source:t8Bf1u2X-b_gHg@icecast.itools.de:8000/lepmon-sn010012-direct.mp3
+  -f mp3 icecast://source:t8Bf1u2X-b_gHg@icecast.itools.de:8000/lepmon-sn010XXX-direct.mp3
 ```
 
-Don't forget to give execution permission to it (`chmod +x /usr/local/bin/usbpnp-direct.sh`).
+Replace sn010XXX by the serial number of your LEPMON Device, e.g. sn010012. Don't forget to give execution permission to it (`chmod +x /usr/local/bin/usbpnp-direct.sh`).
 
-To test it you can execute it directly. You can hear it on https://icecast.itools.de/lepmon-sn010012-direct.mp3.
+To test it you can execute it directly. You can hear it on https://icecast.itools.de/lepmon-sn010XXX-direct.mp3.
 
 To make it execute automatically after power off / on, I made a systemd service:
 
@@ -188,4 +179,4 @@ sudo systemctl status usbpnp-direct
 journalctl -u usbpnp-direct.service
 ```
 
-The service should be enabled and active. You can check again on https://icecast.itools.de/lepmon-sn010012-direct.mp3.
+The service should be enabled and active. You can check again on https://icecast.itools.de/lepmon-sn010XXX-direct.mp3.
