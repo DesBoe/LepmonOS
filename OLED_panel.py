@@ -72,7 +72,7 @@ def display_image_3_2(image_path,sleeptime =0):
     Zeigt ein Bild (128x64 px) auf dem OLED an.
     """
     try:
-        logo = Image.open(image_path).convert("1").resize((128, 64))
+        logo = Image.open(image_path).convert("1", dither=Image.NONE).resize((128, 64))
         with canvas(oled) as draw:
             # Hintergrund löschen
             draw.rectangle(oled.bounding_box, outline="black", fill="black")
@@ -165,4 +165,6 @@ def show_message_with_arrows(code: str, lang: str = "de", x_position=None, **val
     
 if __name__ == "__main__":
     print("Zeige Testnachricht auf OLED")
-    display_text("Hallo Nutzer*in", "Dies ist eine Test-", "nachricht auf OLED", sleeptime=5)           
+    display_text("Hallo Nutzer*in", "Dies ist eine Test-", "nachricht auf OLED", sleeptime=3)         
+    display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_U2C.png",sleeptime = 4)
+    display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_K2W.png",sleeptime = 4)  

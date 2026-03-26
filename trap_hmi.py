@@ -136,7 +136,6 @@ def open_trap_hmi(log_mode, start_step = 0):
         log_schreiben("------------------", log_mode=log_mode)
         log_schreiben("------------------", log_mode=log_mode) 
         log_schreiben("ARNI nicht mit lokalem User Interface parametrisiert", log_mode=log_mode)
-        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "trigger_for_wb", False)
 
     latitude, longitude, _, _, _, _ = (get_coordinates())
     log_schreiben("------------------", log_mode=log_mode)

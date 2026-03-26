@@ -9,7 +9,32 @@ from logging_utils import error_message
 from times import *
 
 
+def init_rtc(log_mode):
+    try:
+        i2c = board.I2C()
+        rtc = adafruit_ds3231.DS3231(i2c)
+        return rtc
+    except Exception as e:
+        error_message(8, e, log_mode)
+        return None
+    
 
+def reset_alarms(log_mode):
+    try:
+        rtc = init_rtc(log_mode)
+        if not rtc:
+            print("RTC konnte nicht initialisiert werden. Alarme werden nicht zurückgesetzt.")
+            return
+
+        print("Lese RTC Alarm Status:")
+        print("Alarm 1 Status:", rtc.alarm1_status)
+        print("Alarm 2 Status:", rtc.alarm2_status)
+        print("Setze Alarme zurück...")
+        rtc.alarm1_status = False
+        rtc.alarm2_status = False
+        print("Alarme zurückgesetzt.")
+    except Exception as e:
+        error_message(8, e, log_mode)
 
 
 def set_alarm(power_on, power_off, log_mode):
@@ -19,9 +44,11 @@ def set_alarm(power_on, power_off, log_mode):
     :param alaram: 1 oder 2
     :param timestring: String im Format "YYYY-MM-DD HH:MM:SS"
     """
-    i2c = board.I2C()
     try:
-        rtc = adafruit_ds3231.DS3231(i2c)
+        rtc = init_rtc(log_mode)
+        if not rtc:
+            print("RTC konnte nicht initialisiert werden. Alarm wird nicht gesetzt.")
+            return
         alarm1_time = time.strptime(power_on, "%Y-%m-%d %H:%M:%S")
         rtc.alarm1 = (alarm1_time, "daily")
         rtc.alarm1_status = False

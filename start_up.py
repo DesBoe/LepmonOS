@@ -7,7 +7,7 @@ from logging_utils import *
 import time
 from times import *
 from json_read_write import *
-from RTC_alarm import set_alarm
+from RTC_alarm import *
 from fram_operations import *
 from service import *
 from runtime import *
@@ -36,24 +36,23 @@ def start_up(log_mode):
         print(f"Fehler beim Lesen der aktuellen Firmware-Version aus dem FRAM: {e}")
         current_version = None
 
-    if version_tuple(new_version) > version_tuple(current_version):
-    
-        try:
+    try:
+        if not current_version == None and version_tuple(new_version) > version_tuple(current_version):
+        
             write_fram(0x0520, new_version.ljust(7)) 
             write_fram(0x0510, new_date.ljust(10))
             print(f"Firmware Version im FRAM aktualisiert:{new_version}; {new_date}")
-        except Exception as e:
-            print(f"Fehler beim Schreiben der neuen Firmware-Version in das FRAM: {e}")
-        
-        try:
+    
             write_fram_bytes(0x078F, b'\x00')
             print("Kontrollbit für versteckte Menüs zurückgesetzt")
-        except Exception as e:
-            print(f"Fehler beim Zurücksetzen des Kontrollbits im FRAM: {e}")
+        
+        elif current_version == None:
+
+            print("keine aktuelle Firmware-Version im FRAM gefunden")
     
-
-
-
+    except Exception as e:
+                print(f"Fehler beim Zugriff auf FRAN wärend Kontrollbit bzw. Versionsvergleich im FRAM: {e}")
+    
 
 
     print("starte Setup")
@@ -250,6 +249,10 @@ def start_up(log_mode):
     except Exception as e:
         print(f"Fehler beim Speichern der Zeiten: {e}")
         print("ARNI besitzt kein Power Management. Fahre fort")
+
+    
+    # Setze Alarme zurück
+    reset_alarms(log_mode)
     
     write_timestamp(0x07E0)
         

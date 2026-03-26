@@ -111,8 +111,6 @@ def capturing(log_mode):
 
     print(f"passe Weißabgleich an:{trigger_for_wb}, Uhrzeit für WB Anpassung: {time_for_wb.strftime('%H:%M:%S')}")
 
-    time.sleep(5)
-
     Fang_begonnen = False
     UV_active = False
     Kamera_Fehlerserie = 0
@@ -240,7 +238,6 @@ def capturing(log_mode):
             # photo sanity check in Camera_AV integriert, um bei Neuaufnahme keine neue Initialisierung zu durchlaufen.
             #while not photo_sanity_check:# and not good_exposure:
 
-            trigger_for_wb = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "trigger_for_wb")
 
             if is_stop_requested():
                 log_schreiben("Stop requested from web interface", log_mode)
@@ -285,6 +282,7 @@ def capturing(log_mode):
                     red_ratio, blue_ratio = get_wb(current_image, log_mode=log_mode, show=False)
                     write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "trigger_for_wb", False)
                     log_schreiben("Weißabgleichsanpassung abgeschlossen und Trigger zurückgesetzt.", log_mode)
+                    trigger_for_wb = False
                 except Exception as e:
                     log_schreiben(f"Fehler bei der Weißabgleichsanpassung: {e}", log_mode)
                     write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "trigger_for_wb", False)
@@ -348,7 +346,7 @@ def capturing(log_mode):
                 
                 if time_to_next_image > interval * 60:
                     time_to_next_image = interval * 60
-                log_schreiben(f"Warten bis zur nächsten Aufnahme: {round(time_to_next_image,0)} Sekunden. Aktulle Kamerafehlerserie: {Kamera_Fehlerserie}", log_mode)
+                log_schreiben(f"Warten bis zur nächsten Aufnahme: {round(time_to_next_image,0)} Sekunden. Aktuelle Kamerafehlerserie: {Kamera_Fehlerserie}", log_mode)
                 show_message("blank", lang = lang)
                 
                 if 0 <= lokale_Zeit.minute <= 15 and not usb_reset and lokale_Zeit.hour % 2 == 0:

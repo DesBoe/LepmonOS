@@ -13,6 +13,12 @@ except ImportError:
     print("FRAM module not found. Skipping FRAM related operations.")
     pass
 from language import get_language
+import RPi.GPIO as GPIO
+
+GPIO.setmode(GPIO.BCM)
+
+Power_control_GPIO = 12
+GPIO.setup(Power_control_GPIO, GPIO.OUT, initial=GPIO.HIGH)
 
 def trap_shutdown(log_mode,i):
     try:
@@ -76,6 +82,15 @@ def trap_shutdown(log_mode,i):
             os.system("sudo shutdown -r 61")
         elif log_mode == "manual":
             print("System würde jetzt im PV Modus neu starten (Reboot in 61 Sekunden)")
+
+
+    '''
+    print('GPIO12 auf low')
+    GPIO.output(Power_control_GPIO, GPIO.LOW)
+    time.sleep(0.5)
+    print('Raspi shutdown')
+    os.system("sudo shutdown -h now")
+    '''
 
 if __name__ == "__main__":
     trap_shutdown("manual",2)    
