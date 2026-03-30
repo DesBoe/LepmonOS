@@ -6,6 +6,7 @@ from logging_utils import log_schreiben
 from language import get_language
 from usb_controller import reset_all_usb_ports
 from runtime import write_timestamp
+from Box_Experiment_Times import *
 
 
 
@@ -28,6 +29,14 @@ def wait(log_mode):
     print(f"jetzt :                {lokale_Zeit.strftime('%H:%M:%S')}")
     print(f"experiment_end_time:   {experiment_end_time.strftime('%H:%M:%S')}")
     
+
+    # Experiment für Boundingboxen mit Delay, wenn ARNI im entsprechenden Experiment eingesetzt wird
+    sn = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")
+    if sn in ["SN010010", "SN010011"]:
+        Delay, Box_Experiment_Run, Round = get_experiment_delay(sn, jetzt_local)
+        experiment_start_time += Delay
+
+
     #if not (experiment_end_time > lokale_Zeit >= experiment_start_time):
     if experiment_end_time >= lokale_Zeit or experiment_start_time <= lokale_Zeit:
         log_schreiben("Aktuelle Zeit liegt nach geplantem Nachtbeginn. Starte Schleife", log_mode=log_mode)

@@ -25,6 +25,7 @@ from json_read_write import get_value_from_section, write_value_to_section
 from language import *
 from runtime import write_timestamp
 from coordinates_region_check import find_country_and_region
+from Box_Experiment_Times import *
 
 def display_sensor_status_with_text(sensor_data, sensor_status, log_mode):
     """
@@ -89,7 +90,7 @@ def open_trap_hmi(log_mode, start_step = 0):
         show_message("hmi_01", lang=lang)
         print("Eingabe Menü mit der Taste Enter ganz links unten öffnen")
     
-    elif hardware in ["Pro_Gen_2","Pro_Gen_3", 
+    elif hardware in ["Pro_Gen_2","Pro_Gen_3", "Pro_Gen_4",
                       "CSL_Gen_1", "CSS_Gen_1"]:
         show_message("hmi_02", lang=lang)            
         print("Eingabe Menü mit der Taste Enter ganz rechts unten öffnen")
@@ -679,6 +680,14 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                 #show_message("hmi_34", lang=lang, sunrise = sunrise)
                             except Exception as e:
                                 print(f"Fehler beim Anzeigen der Dämmerungszeiten: {e}")
+
+                            # Experiment für Boundingboxen mit Delay, wenn ARNI im entsprechenden Experiment eingesetzt wird
+                            sn = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")
+                            if sn in ["SN010010", "SN010011"]:
+                                jetzt_local, _, _= Zeit_aktualisieren(log_mode=log_mode)
+                                Delay, Box_Experiment_Run, Round = get_experiment_delay(sn, jetzt_local)
+                                display_text(f"Box Run: {Box_Experiment_Run}\nRunde: {Round}\nVerzögerung: {Delay.strftime('%H:%M:%S')}", lang=lang)
+
 
                             
                             if Neustart:

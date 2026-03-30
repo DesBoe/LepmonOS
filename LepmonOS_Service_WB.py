@@ -84,5 +84,5 @@ def show_mask_from_current_log(log_dateipfad="/home/Ento/LepmonOS/Lepmon_config.
 
 
 if __name__ == "__main__":
-    log_dateipfad = '/Volumes/Dennis_OTG/LEPMON/Neuer Ordner/Neuer Ordner 2/Lepmon#SN010039_NW_BN_2026-03-24_T_1906.log'
+    log_dateipfad = '/Volumes/LEPMON/Lepmon#SN010005_TH_J_2000-01-01_T_0001/Lepmon#SN010005_TH_J_2000-01-01_T_0001.log'
     show_mask_from_current_log(log_dateipfad)

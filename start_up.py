@@ -18,6 +18,7 @@ from hardware import *
 import os
 from serial_number_manual import *
 from datetime import datetime
+from Box_Experiment_Times import *
 
 
 def version_tuple(version_str):
@@ -287,7 +288,20 @@ def start_up(log_mode):
     reset_alarms(log_mode)
     
     write_timestamp(0x07E0)
-        
+
+    # Experiment für Boundingboxen mit Delay, wenn ARNI im entsprechenden Experiment eingesetzt wird
+    if sn in ["SN010010", "SN010011"]:
+        jetzt_local, _, _= Zeit_aktualisieren(log_mode=log_mode)
+        Delay, Box_Experiment_Run, Round = get_experiment_delay(sn, jetzt_local)
+        log_schreiben("==============================================", log_mode=log_mode)
+        log_schreiben(f"ARNI im Experiment für Boundingboxen mit Delay eingesetzt", log_mode=log_mode)
+        log_schreiben("----------------------------------------------", log_mode=log_mode)
+        log_schreiben(f"{'Verzögerung':<22} | {Delay.strftime('%H:%M:%S')}", log_mode=log_mode)
+        log_schreiben(f"{'Box Experiment Run':<22} | {Box_Experiment_Run}", log_mode=log_mode)
+        log_schreiben(f"{'Runde':<22} | {Round}", log_mode=log_mode)
+
+
+
     log_schreiben("beende Setup", log_mode=log_mode)
     log_schreiben("==============================================", log_mode=log_mode)
 
