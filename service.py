@@ -333,7 +333,7 @@ def compare_sn(log_mode):
     except Exception as e:
         print(f"Fehler beim Lesen der Seriennnummer aus der separaten json Datei: {e}")    
         
-    if hardware in ["Pro_Gen_3", 
+    if hardware in ["Pro_Gen_3", "Pro_Gen_4", 
                     "CSL_Gen_1", "CSS_Gen_1"]:
         try: 
             sn_ram = read_fram(0x0110, 8).strip()

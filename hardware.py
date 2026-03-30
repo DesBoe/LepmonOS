@@ -21,6 +21,12 @@ geraete_bibliothek = {
         "length": 5496,
         "height": 3672
     },
+    "Pro_Gen_4": {
+        "camera": "AV__Alvium_1800_U-2050",
+        "sensor": "imx183",
+        "length": 5496,
+        "height": 3672
+    },
     "CSS_Gen_1": {
         "camera": "RPI_Module_3",
         "sensor": "imx708",

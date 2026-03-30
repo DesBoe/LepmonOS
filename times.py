@@ -126,10 +126,13 @@ def get_experiment_times():
 
 def get_times_power():
     minutes_after_sunset = timedelta(minutes=int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "minutes_after_sunset")))
+    timebuffer_powermanager = timedelta(minutes=int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "timebuffer_powermanager")))
     sunset, sunrise, _ = get_sun()
     
-    power_on = sunset - timedelta(minutes=5)
-    power_off = sunrise - timedelta(minutes=55)
+    print(f"minutes_after_sunset: {minutes_after_sunset}")
+    print(f"timebuffer_powermanager: {timebuffer_powermanager}")
+    power_on = sunset - timebuffer_powermanager
+    power_off = sunrise - timedelta(minutes = 60) + timebuffer_powermanager
 
     power_on = power_on.replace(tzinfo=None)
     power_on = power_on.strftime('%Y-%m-%d %H:%M:%S')

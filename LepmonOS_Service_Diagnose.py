@@ -287,10 +287,10 @@ def get_config():
 if __name__ == "__main__":
     selected_tests = {
         0 : "Seriennummer",
-        1: "OLED",
-        2: "LEDs",
-        3: "Sensoren",
-        4: "Uhr",
+        #1: "OLED",
+        #2: "LEDs",
+        #3: "Sensoren",
+        #4: "Uhr",
         5: "RAM",
         6: "RAM_löschen",
         7: "RAM_Konfiguration",

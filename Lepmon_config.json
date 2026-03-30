@@ -1,11 +1,11 @@
 {
     "general": {
         "ARNI_Gen": "Pro_Gen_4",
-        "serielnumber": "",
+        "serielnumber": "SN010083",
         "project_name": "Lepmon#",
         "usb_drive": "/media/Ento/stick",
-        "current_folder": "/media/Ento/stick/Lepmon#SN010083_Manueller_TestRun_2000-01-01_T_0022",
-        "current_log": "/media/Ento/stick/Lepmon#SN010083_Manueller_TestRun_2000-01-01_T_0022/Lepmon#SN010083_Manueller_TestRun_2000-01-01_T_0022.log",
+        "current_folder": "/media/Ento/stick/Lepmon#SN010083_AA_BBB_2026-03-30_T_1338",
+        "current_log": "/media/Ento/stick/Lepmon#SN010083_AA_BBB_2026-03-30_T_1338/Lepmon#SN010083_AA_BBB_2026-03-30_T_1338.log",
         "language": "de",
         "expected_images": 152,
         "Control_Night": true,
@@ -20,6 +20,7 @@
     "capture_mode": {
         "minutes_after_sunset": 10,
         "minutes_to_sunrise": 60,
+        "timebuffer_powermanager": 5,
         "flash": 0.25,
         "interval": 2,
         "dusk_treshold": 90,

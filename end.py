@@ -64,27 +64,26 @@ def trap_shutdown(i,log_mode,execution="full"):
     if 8 > Errorcode >= 0 :
         jetzt_local, _,_ = Zeit_aktualisieren(log_mode)
         jetzt_local = datetime.strptime(jetzt_local, "%Y-%m-%d %H:%M:%S")
-        next_experiment_start_time, next_experiment_end_time, _, _ = get_experiment_times()
-        next_experiment_start_time = datetime.strptime(next_experiment_start_time, "%H:%M:%S").time()
-        next_experiment_end_time = datetime.strptime(next_experiment_end_time, "%H:%M:%S").time()
-        log_schreiben(f"berechne nächstes Anschalten basierend auf aktueller Zeit {jetzt_local} und nächster Experimentzeit {next_experiment_start_time}:", log_mode)
+        next_experiment_start_time, next_experiment_end_time = get_times_power()
+        next_experiment_start_time = datetime.strptime(next_experiment_start_time, "%Y-%m-%d %H:%M:%S")
+        next_experiment_end_time = datetime.strptime(next_experiment_end_time, "%Y-%m-%d %H:%M:%S")
+        log_schreiben(f"nächstes Anschalten: {next_experiment_start_time}", log_mode)
 
-        Nächstes_Anschalten = jetzt_local + timedelta(days=1)
-        Nächstes_Anschalten = Nächstes_Anschalten.replace(hour=next_experiment_start_time.hour, minute=next_experiment_start_time.minute, second=next_experiment_start_time.second) - timedelta(minutes=2)
-        log_schreiben(f"Nächstes Anschalten berechnet, Zeitstempel zum schreiben: {Nächstes_Anschalten}", log_mode)
+        timebuffer_powermanager = timedelta(minutes=int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "timebuffer_powermanager")))
 
         Nächstes_Ausschalten = jetzt_local + timedelta(days=1)
-        Nächstes_Ausschalten = Nächstes_Ausschalten.replace(hour=next_experiment_end_time.hour, minute=next_experiment_end_time.minute, second=next_experiment_end_time.second) + timedelta(minutes=2)
+        
+        Nächstes_Ausschalten = Nächstes_Ausschalten.replace(hour=next_experiment_end_time.hour, minute=next_experiment_end_time.minute, second=next_experiment_end_time.second) - timebuffer_powermanager
         log_schreiben(f"Nächstes Ausschalten berechnet, Zeitstempel zum schreiben: {Nächstes_Ausschalten}", log_mode)
 
         try:
-            set_alarm(Nächstes_Anschalten.strftime("%Y-%m-%d %H:%M:%S"), Nächstes_Ausschalten.strftime("%Y-%m-%d %H:%M:%S"), log_mode)
-            log_schreiben(f"Alarm für nächstes Anschalten gesetzt auf:  {Nächstes_Anschalten.strftime('%Y-%m-%d %H:%M:%S')}", log_mode)
+            set_alarm(next_experiment_start_time.strftime("%Y-%m-%d %H:%M:%S"), Nächstes_Ausschalten.strftime("%Y-%m-%d %H:%M:%S"), log_mode)
+            log_schreiben(f"Alarm für nächstes Anschalten gesetzt auf:  {next_experiment_start_time.strftime('%Y-%m-%d %H:%M:%S')}", log_mode)
             log_schreiben(f"Alarm für nächstes Ausschalten gesetzt auf: {Nächstes_Ausschalten.strftime('%Y-%m-%d %H:%M:%S')}", log_mode)
         except Exception as e:
             log_schreiben(f"Fehler beim Setzen der Alarme: {e}", log_mode)
 
-        send_lora(f"ARNI fährt herunter.\nnächstes Experiment für {Nächstes_Anschalten.strftime('%Y-%m-%d %H:%M:%S')} erwartet.\nLetzte Nachricht im aktuellen Run")
+        send_lora(f"ARNI fährt herunter.\nnächstes Experiment für {next_experiment_start_time} erwartet.\nLetzte Nachricht im aktuellen Run")
         time.sleep(.5)
 
     else :
@@ -93,17 +92,19 @@ def trap_shutdown(i,log_mode,execution="full"):
 
     if execution != "full":
         print("Überschreibe Alarmzeit auf 1 Minute in der Zukunft für manuelles Testen.")
-        Nächstes_Anschalten = datetime.now() + timedelta(minutes=1)
-        Nächstes_Ausschalten = Nächstes_Anschalten + timedelta(minutes=4)
+        next_experiment_start_time = datetime.now() + timedelta(minutes=1)
+        Nächstes_Ausschalten = next_experiment_start_time + timedelta(minutes=4)
         try:
-            set_alarm(Nächstes_Anschalten.strftime("%Y-%m-%d %H:%M:%S"), Nächstes_Ausschalten.strftime("%Y-%m-%d %H:%M:%S"), log_mode)
-            print(f"Alarm für nächstes Anschalten gesetzt auf:  {Nächstes_Anschalten.strftime('%Y-%m-%d %H:%M:%S')}")
+            #set_alarm(Nächstes_Anschalten.strftime("%Y-%m-%d %H:%M:%S"), Nächstes_Ausschalten.strftime("%Y-%m-%d %H:%M:%S"), log_mode)
+            set_alarm(next_experiment_start_time.strftime("%Y-%m-%d %H:%M:%S"), Nächstes_Ausschalten.strftime("%Y-%m-%d %H:%M:%S"), log_mode)
+
+            print(f"Alarm für nächstes Anschalten gesetzt auf:  {next_experiment_start_time}")
             print(f"Alarm für nächstes Ausschalten gesetzt auf: {Nächstes_Ausschalten.strftime('%Y-%m-%d %H:%M:%S')}")
         except Exception as e:
             print(f"Fehler beim Setzen der Alarme: {e}")
 
     try:
-        store_times_power(Nächstes_Anschalten.strftime('%Y-%m-%d %H:%M:%S'), Nächstes_Ausschalten.strftime('%Y-%m-%d %H:%M:%S'), "end")
+        store_times_power(next_experiment_start_time, Nächstes_Ausschalten.strftime('%Y-%m-%d %H:%M:%S'), "end")
         print("zeiten des nächsten Experiments auch im FRAM gemerkt")
     except Exception as e:
         log_schreiben(f"Fehler beim Speichern der Zeiten des nächsten Experiments im FRAM:{e}", log_mode)
@@ -163,5 +164,5 @@ def trap_shutdown(i,log_mode,execution="full"):
         
 
 if __name__ == "__main__":
-    trap_shutdown(i=2, log_mode="manual", execution="anzeige")
+    trap_shutdown(i=2, log_mode="manual", execution="test")
     print("Ende")

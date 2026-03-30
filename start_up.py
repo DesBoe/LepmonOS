@@ -17,6 +17,7 @@ from bootconfig import add_to_bootconfig
 from hardware import *
 import os
 from serial_number_manual import *
+from datetime import datetime
 
 
 def version_tuple(version_str):
@@ -243,12 +244,19 @@ def start_up(log_mode):
     try:
         estimated_start_based_on_last_run = read_fram(0x06A0,19)
         estimated_end_based_on_last_run = read_fram(0x06C0,19)
+    except Exception as e:
+        print(e)
+    print(f"estimated_start_based_on_last_run{estimated_start_based_on_last_run}, estimated_end_based_on_last_run{estimated_end_based_on_last_run}")
+    
+    try:
         estimated_start_based_on_last_run = datetime.strptime(estimated_start_based_on_last_run.strip(), "%Y-%m-%d %H:%M:%S")
         estimated_end_based_on_last_run = datetime.strptime(estimated_end_based_on_last_run.strip(), "%Y-%m-%d %H:%M:%S")
-        print(estimated_start_based_on_last_run, estimated_end_based_on_last_run)
-
+        print(f"estimated_start_based_on_last_run{estimated_start_based_on_last_run}, estimated_end_based_on_last_run{estimated_end_based_on_last_run}")
     except Exception as e:
         log_schreiben(f"Fehler beim lesen der zuletzt in 'end' gespeicherten Zeiten:{e}", log_mode=log_mode)
+        estimated_start_based_on_last_run = "---"
+        estimated_end_based_on_last_run = "---"
+        
 
     log_schreiben(f"Vergleiche Experiment Zeiten", log_mode=log_mode)
     log_schreiben("----------------------------------------------", log_mode=log_mode)
@@ -256,18 +264,15 @@ def start_up(log_mode):
     log_schreiben(f"{'gespeichertes Ende':<22} | {estimated_end_based_on_last_run}", log_mode=log_mode)
 
     try: 
-        experiment_start_time = datetime.strptime(experiment_start_time.strip(), "%H:%M:%S")
-        experiment_start_time = datetime.now().time()
-        diff_start = estimated_start_based_on_last_run - experiment_start_time
-        log_schreiben(f"{'Differenz in Startzeiten':<22} | {diff_start}", log_mode=log_mode)
+        power_on = datetime.strptime(power_on.strip(), "%Y-%m-%d %H:%M:%S")
+        diff_start = power_on - estimated_start_based_on_last_run
+        print(f"estimated_start_based_on_last_run:{estimated_start_based_on_last_run}")
+        print(f"Power on:{power_on}")
+        log_schreiben(f"{'Differenz Startzeiten':<22} | {diff_start}", log_mode=log_mode)
     except Exception as e:
         log_schreiben(f"Fehler im Vergleich der Startzeit aus 'end' und der tatsächlichen Startzeit:{e}", log_mode=log_mode)
-    
-
-
-
-
-
+        log_schreiben(f"{'Differenz Startzeiten':<22} | ---", log_mode=log_mode)
+    log_schreiben("eine positive Differenz oder 0:00 ist erwartet - der im letzten Run errechnete Stratzeitpunkt liegt vor dem tatsächlichen. Kein Datenverlust ist erwartet", log_mode=log_mode)
 
     display_text_and_image("Bien-","venido", "", "/home/Ento/LepmonOS/startsequenz/Logo_9_9.png",1)
     try:
@@ -283,7 +288,9 @@ def start_up(log_mode):
     
     write_timestamp(0x07E0)
         
-    print("beende Setup")   
+    log_schreiben("beende Setup", log_mode=log_mode)
+    log_schreiben("==============================================", log_mode=log_mode)
+
 
 if __name__ == "__main__":
     start_up(log_mode="manual")     

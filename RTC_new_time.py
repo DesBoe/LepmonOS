@@ -257,7 +257,7 @@ if __name__ == "__main__":
         # time string # 
         ################
                             #"JJJJMMTTSSMMHH"
-        date_time_list =     "20260309181100"  
+        date_time_list =     "20260330111500"  
 
         if len(date_time_list) != 14 or not date_time_list.isdigit():
             print("Fehler: Die Eingabe muss genau 14 Ziffern enthalten und nur Ziffern!")
