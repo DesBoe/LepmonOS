@@ -96,7 +96,7 @@
 - Zeitverzögertes Auslesen der Sensoren vor Aufnahme des Bildes
 - Wenn der Lepmon Code geändert wird und im nächsten Anschalten der USB Stick gelöscht wird, wird der ordner mit dem Eintrag der Code Änderung nicht gelöscht.
 - Dimmer Pin auf High während Bildaufnahme, um Flackern zu vermeiden
-- Sonnen aufgang für loakle Zeitzone
+- Sonnen aufgang für lokale Zeitzone
 
 ### Hinzugefügt
 - Innensensor und Stromsensor Kompatibel zu Pro_Gen_1
@@ -136,7 +136,7 @@
 - Fallen ID im Logfile
 - USB Stick löschen
 - Koordinaten im Logfile nach lokalem HMI 
-- runtime fibt delay aus, um 2 Neustarts binnen 1 Minute zu verzögern
+- runtime gibt delay aus, um 2 Neustarts binnen 1 Minute zu verzögern
 - Update Ordner wird nach update auf USB Stick gelöscht
 - leerzeichen bei geprintetedn Lora messages
 - Lepmoncode auch in RAM

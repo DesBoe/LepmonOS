@@ -214,19 +214,34 @@ def start_up(log_mode):
         log_schreiben(f"Manuell gesetzte SN: {sn_manual}, Gen: {gen_manual}", log_mode=log_mode)
 
     
-    display_text_and_image("Wel-","come", "", "/home/Ento/LepmonOS/startsequenz/Logo_6_9.png",1)   
-    power_on, power_off = get_times_power()
-    set_alarm(power_on, power_off, log_mode)
-    send_lora(f"Zeit für Power on mit Attiny:  {power_on}\nZeit für Power off mit Attiny: {power_off}")
-    
+    display_text_and_image("Wel-","come", "", "/home/Ento/LepmonOS/startsequenz/Logo_6_9.png",1)  
+    try: 
+        power_on, power_off = get_times_power()
+        set_alarm(power_on, power_off, log_mode)
+        send_lora(f"Zeit für Power on mit Attiny:  {power_on}\nZeit für Power off mit Attiny: {power_off}")
+    except Exception as e:
+        log_schreiben(f"Fehler beim Berechnen der Zeiten für Power Management: {e}", log_mode=log_mode)
+        now = datetime.now()
+        now_str = now.strftime('%Y-%m-%d %H:%M:%S')
+        power_on = now_str
+        power_off = (now + timedelta(hours=12)).strftime('%Y-%m-%d %H:%M:%S')
+        log_schreiben(f"Setze Zeiten für Power Management, basiernd auf aktueler Zeit, auf: Power on: {power_on}; Power off: {power_off}", log_mode=log_mode)
 
     display_text_and_image("Bien-","venido","", "/home/Ento/LepmonOS/startsequenz/Logo_7_9.png",1)
-    sunset, sunrise, Zeitzone = get_sun()
-    send_lora(f"Zeiten für Power Management\nSonnenuntergang: {sunset.strftime('%H:%M:%S')}\nSonnenaufgang: {sunrise.strftime('%H:%M:%S')}")
+    try:
+        sunset, sunrise, Zeitzone = get_sun()
+        send_lora(f"Zeiten für Power Management\nSonnenuntergang: {sunset.strftime('%H:%M:%S')}\nSonnenaufgang: {sunrise.strftime('%H:%M:%S')}")
+    except Exception as e:
+        log_schreiben(f"Fehler beim Abrufen der Sonnenzeiten: {e}", log_mode=log_mode)
 
     display_text_and_image("Bien-","venido", "", "/home/Ento/LepmonOS/startsequenz/Logo_8_9.png",1)
-    experiment_start_time, experiment_end_time, _, _ = get_experiment_times()
-    minutes_after_sunset = str(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "minutes_after_sunset"))
+    try:
+        experiment_start_time, experiment_end_time, _, _ = get_experiment_times()
+        minutes_after_sunset = str(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "minutes_after_sunset"))
+    except Exception as e:
+        log_schreiben(f"Fehler beim Abrufen der Experimentzeiten: {e}", log_mode=log_mode)
+        experiment_start_time, experiment_end_time, minutes_after_sunset = "---", "---", "---"
+        
 
     log_schreiben(f"Experiment Zeiten", log_mode=log_mode)
     log_schreiben("----------------------------------------------", log_mode=log_mode)
@@ -301,7 +316,7 @@ def start_up(log_mode):
         log_schreiben(f"{'Runde':<22} | {Round}", log_mode=log_mode)
 
 
-
+    log_schreiben("==============================================", log_mode=log_mode)
     log_schreiben("beende Setup", log_mode=log_mode)
     log_schreiben("==============================================", log_mode=log_mode)
 

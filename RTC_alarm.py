@@ -20,14 +20,15 @@ def init_rtc(log_mode):
     
 
 def reset_alarms(log_mode):
+    log_schreiben("==============================================", log_mode=log_mode)
+    log_schreiben("Lese RTC Status:", log_mode=log_mode)
+    log_schreiben("----------------------------------------------", log_mode=log_mode)
     try:
         rtc = init_rtc(log_mode)
         if not rtc:
             log_schreiben("RTC konnte nicht initialisiert werden. Alarme werden nicht zurückgesetzt.", log_mode=log_mode)
             return
 
-        log_schreiben("Lese RTC Status:", log_mode=log_mode)
-        log_schreiben("----------------------------------------------", log_mode=log_mode)
         log_schreiben(f"{'Alarm 1 Status':<22} | {rtc.alarm1_status}", log_mode=log_mode)
         log_schreiben(f"{'Alarm 2 Status':<22} | {rtc.alarm2_status}", log_mode=log_mode)
         log_schreiben("----------------------------------------------", log_mode=log_mode)
@@ -37,6 +38,7 @@ def reset_alarms(log_mode):
         log_schreiben("Alarme zurückgesetzt.", log_mode=log_mode)
     except Exception as e:
         error_message(8, e, log_mode)
+        log_schreiben(f"Fehler beim Zurücksetzen der Alarme: {e}", log_mode=log_mode)
         log_schreiben("----------------------------------------------", log_mode=log_mode)
 
 
@@ -46,7 +48,6 @@ def reset_alarms(log_mode):
     except Exception as e:
         error_message(8, e, log_mode)
         log_schreiben(f"Fehler beim Überprüfen des Stromverlusts der RTC: {e}", log_mode=log_mode)
-        log_schreiben("----------------------------------------------", log_mode=log_mode)
 
 
 def set_alarm(power_on, power_off, log_mode):

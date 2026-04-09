@@ -34,7 +34,7 @@ if hardware == "Pro_Gen_1":
     }
 
 else:
-#else hardware in ["Pro_Gen_2", "Pro_Gen_3", 
+#else hardware in ["Pro_Gen_2", "Pro_Gen_3","Pro_Gen_4",
 #                "CSL_Gen_1", "CSS_Gen_1"]:
     LED_PINS = {
         'gelb': 22,    

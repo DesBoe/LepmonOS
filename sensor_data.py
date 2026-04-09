@@ -107,7 +107,7 @@ def read_sensor_data(code,lokale_Zeit, log_mode):
     try:
         if get_hardware_version() == "Pro_Gen_1":
             Temp_in = adafruit_bmp280.Adafruit_BMP280_I2C(i2c)
-        elif hardware in ["Pro_Gen_2","Pro_Gen_3",
+        elif hardware in ["Pro_Gen_2","Pro_Gen_3","Pro_Gen_4",
                           "CSL_Gen_1","CSS_Gen_1"]:  
             Temp_in = adafruit_pct2075.PCT2075(i2c, address=0x48)
         Temp_in = round(Temp_in.temperature, 2) 

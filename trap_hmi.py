@@ -43,7 +43,7 @@ def display_sensor_status_with_text(sensor_data, sensor_status, log_mode):
         ]
         log_schreiben("Power_Sensor nicht verbaut in Pro Gen 1 und 2", log_mode=log_mode)
     
-    elif hardware in ["Pro_Gen_3", 
+    elif hardware in ["Pro_Gen_3", "Pro_Gen_4",
                       "CSL_Gen_1", "CSS_Gen_1"]:
         sensors = [
             ("Light_Sensor", "LUX", "Lux"),
@@ -139,11 +139,13 @@ def open_trap_hmi(log_mode, start_step = 0):
         log_schreiben("ARNI nicht mit lokalem User Interface parametrisiert", log_mode=log_mode)
 
     latitude, longitude, _, _, _, _ = (get_coordinates())
-    log_schreiben("------------------", log_mode=log_mode)
-    log_schreiben(f"Breite: {latitude}", log_mode=log_mode)
-    log_schreiben(f"Länge: {longitude}", log_mode=log_mode)
-    log_schreiben("------------------", log_mode=log_mode) 
-    log_schreiben("------------------", log_mode=log_mode)
+    log_schreiben("==============================================", log_mode=log_mode)
+    log_schreiben(f"verwendete Einstellungen:", log_mode=log_mode)
+    log_schreiben("----------------------------------------------", log_mode=log_mode)
+    log_schreiben(f"{'Breite':<22} | {latitude}", log_mode=log_mode)
+    log_schreiben(f"{'Länge':<22} | {longitude}", log_mode=log_mode)
+    log_schreiben("----------------------------------------------", log_mode=log_mode)
+
     try:
         power_mode = read_fram(0x03B0, 16).replace('\x00', '').strip()
         time.sleep(.5)
@@ -155,7 +157,7 @@ def open_trap_hmi(log_mode, start_step = 0):
         except Exception as e:
             print(f"Fehler beim Lesen des Power-Modus aus der Konfigurationsdatei: {e}")
             power_mode = "Netz"
-    log_schreiben(f"Stromversorgung:{power_mode}", log_mode = log_mode)
+    log_schreiben(f"{'Stromversorgung':<22} | {power_mode}", log_mode=log_mode)
     show_message("blank", lang = lang)
     turn_off_led("blau")
     
@@ -192,9 +194,9 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                 province_old = Kreis_code_old = province = Kreis_code = None
                 latitude_ohne_Vorzeichen = longitude_ohne_Vorzeichen = None
                 
-                if hardware in ["Pro_Gen_2", "Pro_Gen_3", "Pro_Gen_4"]:
+                if hardware in ["Pro_Gen_2", "Pro_Gen_3"]:
                     steps = ["hidden","power", "delete_usb", "heat", "time", "gps","diagnose_return","diagnose_start"]
-                elif hardware in ["Pro_Gen_1","CSL_Gen_1", "CSS_Gen_1"]:
+                elif hardware in ["Pro_Gen_1","CSL_Gen_1", "CSS_Gen_1","Pro_Gen_4"]:
                     steps = ["hidden","power", "delete_usb", "time", "gps","diagnose_return","diagnose_start"]
                 
                 print(log_mode, start_step)

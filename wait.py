@@ -39,13 +39,16 @@ def wait(log_mode):
 
     #if not (experiment_end_time > lokale_Zeit >= experiment_start_time):
     if experiment_end_time >= lokale_Zeit or experiment_start_time <= lokale_Zeit:
-        log_schreiben("Aktuelle Zeit liegt nach geplantem Nachtbeginn. Starte Schleife", log_mode=log_mode)
+        log_schreiben(f"{'Warte auf Nachtbeginn':<22} | nein, starte Schleife", log_mode=log_mode)
+        log_schreiben("==============================================", log_mode=log_mode)
+
         return heater, waiter
 
     else:
         countdown = (experiment_start_time - lokale_Zeit).total_seconds()
         countdown_time = experiment_start_time - lokale_Zeit
-        log_schreiben(f"warte bis Nachtbeginn: {countdown_time}", log_mode=log_mode)
+        log_schreiben(f"{'Warte bis Nachtbeginn':<22} | ja, {countdown_time}", log_mode=log_mode)
+        log_schreiben("==============================================", log_mode=log_mode)
         
         for _ in range(60):
             hours, remainder = divmod(int(countdown), 3600)  # Stunden berechnen

@@ -63,7 +63,8 @@ def display_text_and_image(line1, line2, line3, image_path,sleeptime =0):
             turn_on_led("rot")
             time.sleep(0.25)
             turn_off_led("rot")
-            time.sleep(0.25)        
+            time.sleep(0.25)
+    print(f"\nDisplay image: {image_path}\n")        
     time.sleep(sleeptime)
 
 
@@ -84,7 +85,8 @@ def display_image_3_2(image_path,sleeptime =0):
             turn_on_led("rot")
             time.sleep(0.25)
             turn_off_led("rot")
-            time.sleep(0.25)        
+            time.sleep(0.25)   
+    print(f"\nDisplay image: {image_path}\n")        
     time.sleep(sleeptime)
 
     

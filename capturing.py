@@ -69,21 +69,31 @@ def capturing(log_mode):
 
 
     heater,Warteschleife = wait(log_mode)
-    log_schreiben("##################################", log_mode)
-    log_schreiben("##################################", log_mode)
-    log_schreiben("Beginne Daten und Bildaufnahme",log_mode)
+    #log_schreiben("##################################", log_mode)
+    #log_schreiben("##################################", log_mode)
+    #log_schreiben("Beginne Daten und Bildaufnahme",log_mode)
+
+    log_schreiben("==============================================", log_mode=log_mode)
+    log_schreiben("Daten und Bildaufnahme:", log_mode=log_mode)
+    log_schreiben("----------------------------------------------", log_mode=log_mode)
     if gamma_correction:
-        log_schreiben(f"Aufgenommene frames werden mit Gamma Wert {gamma_value} aufgehellt", log_mode)
+        log_schreiben(f"{'Gamma Korrektur':<22} | {gamma_value}", log_mode=log_mode)
+    
+    elif not gamma_correction:
+        log_schreiben(f"{'Gamma Korrektur':<22} | 1.0", log_mode=log_mode)
+    log_schreiben("----------------------------------------------", log_mode=log_mode)
+    log_schreiben("USB Speicher:", log_mode=log_mode)
 
     # USB Speicherplatz prüfen
     try: 
         total_space_gb, used_space_gb, free_space_gb, used_percent, free_percent = get_disk_space(log_mode)
-        log_schreiben(f"USB Speicher gesamt: {total_space_gb} GB",log_mode)
-        log_schreiben(f"USB Speicher belegt: {used_space_gb} GB  {used_percent} %",log_mode)
-        log_schreiben(f"USB Speicher frei:   {free_space_gb} GB  {free_percent} %",log_mode)
+        log_schreiben(f"{'gesamt':<22} | {str(total_space_gb)+' GB':<22} | {''}", log_mode=log_mode)
+        log_schreiben(f"{'belegt':<22} | {str(used_space_gb)+' GB':<22} | {used_percent} %", log_mode=log_mode)
+        log_schreiben(f"{'frei':<22} | {str(free_space_gb)+' GB':<22} | {free_percent} %", log_mode=log_mode)
 
     except Exception as e:
         error_message(3,e, log_mode)
+        log_schreiben(f"Fehler beim Überprüfen des USB-Speicherplatzes: {e}", log_mode=log_mode)
 
     try:
         send_lora(f"USB Speicher gesamt: {total_space_gb} GB\nUSB Speicher belegt: {used_space_gb} GB\nUSB Speicher frei:   {free_space_gb} GB")
@@ -141,8 +151,12 @@ def capturing(log_mode):
 
         time_difference_seconds = (end_time - start_time).total_seconds()
         erwartete_Bilder = math.floor(time_difference_seconds / (interval * 60))+1
-        print(f"erwartete Bilder: {erwartete_Bilder}")
-        log_schreiben(f"erwartete Bilder: {erwartete_Bilder}",log_mode)
+        log_schreiben(f"{'erwartete Bilder':<22} | {erwartete_Bilder}", log_mode=log_mode)
+        log_schreiben("==============================================", log_mode=log_mode)
+        log_schreiben("##################################", log_mode=log_mode)
+        log_schreiben("##################################", log_mode=log_mode)
+        
+
         write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "expected_images", erwartete_Bilder)
     except Exception as e:
         print(f"Fehler bei der Berechnung der erwarteten Bilder: {e}")
