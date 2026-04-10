@@ -51,7 +51,11 @@ def display_sensor_status_with_text(sensor_data, sensor_status, log_mode):
             ("Power_Sensor", "bus_voltage", "V"),
             ("Environment_Sensor", "Temp_out", "°C")
         ]
-    
+    log_schreiben("==============================================", log_mode=log_mode)
+    log_schreiben(f"Sensoren", log_mode=log_mode)
+    log_schreiben("----------------------------------------------", log_mode=log_mode)
+    log_schreiben(f"{'Sensor':<22} | {'Status':<10} | {'Wert':<15} |{'Einheit'}", log_mode=log_mode)
+    log_schreiben("----------------------------------------------", log_mode=log_mode)
     for sensor_name, data_key, einheit in sensors:
         if sensor_name == "Power_Sensor" and hardware in ["Pro_Gen_1", "Pro_Gen_2"]:
             status = "nicht"
@@ -62,7 +66,9 @@ def display_sensor_status_with_text(sensor_data, sensor_status, log_mode):
             value = sensor_data.get(data_key, "---")
         
         display_text(sensor_name, f"Status: {status}", f"Wert: {value} {einheit}", 1.5)
-        log_schreiben(f"Sensor: {sensor_name}, Status: {status}, Wert: {value} {einheit}", log_mode=log_mode)
+        #log_schreiben(f"Sensor: {sensor_name}, Status: {status}, Wert: {value} {einheit}", log_mode=log_mode)
+        log_schreiben(f"{sensor_name:<22} | {status:<10} | {value:<15} | {einheit}", log_mode=log_mode)
+    log_schreiben("==============================================", log_mode=log_mode)
         
         
 def all_sensors_ok(sensor_status):
@@ -470,11 +476,13 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                             user_selection_Code = True
                                             if not Neustart:
                                                 log_schreiben("Menü zum Ändern der Provinz und Kreiskürzel beendet. Es wurden keine Änderungen eingegeben. Fahre fort", log_mode=log_mode)
+                                                log_schreiben("------------------", log_mode=log_mode)
                                                 show_message("hmi_22", lang=lang)
                                                 user_selection_hidden = 1
                                                 turn_off_led("blau")
                                             elif Neustart:
                                                 log_schreiben("Menü zum Ändern der Provinz und Kreistkürzel beendet. Es wurden Änderungen eingegeben. Nach dem Systemcheck erfolgt die Übernahme", log_mode=log_mode)
+                                                log_schreiben("------------------", log_mode=log_mode)
                                                 show_message("hmi_23", lang=lang)
                                                 turn_off_led("blau")
                                         elif button_pressed("unten"):
@@ -571,7 +579,7 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                    
 
                                   
-                            print("starte Kameratest...")
+                            log_schreiben("starte Kameratest...", log_mode=log_mode)
                             
                             show_message("hmi_26", lang=lang)
                             Status_Kamera = 0
@@ -579,7 +587,7 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
 
                             #### AV #####
                             if camera == "AV__Alvium_1800_U-2050":
-                                print("Teste Allied Vision Kamera")
+                                log_schreiben("Teste Allied Vision Kamera", log_mode=log_mode)
                                 exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_exposure"))
                                 gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_gain_10"))/10
                                 while Versuche_Kamera < 3 and Status_Kamera != 1:    
@@ -598,7 +606,7 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                             
                             #### HQ #####
                             if camera == "RPI_Module_3": 
-                                print("Teste RPI_Module_3 Kamera")
+                                log_schreiben("Teste RPI_Module_3 Kamera", log_mode=log_mode)
                                 gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "RPI_Module_3", "initial_gain_10"))/10
                                 Exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "RPI_Module_3", "initial_exposure_10"))/10
                                 focus = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "RPI_Module_3", "focus")
@@ -617,7 +625,7 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                     
                             #### Module 3 #####
                             if camera == "RPI_HQ":
-                                print("Teste RPI HQ Kamera")
+                                log_schreiben("Teste RPI HQ Kamera", log_mode=log_mode)
                                 gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "RPI_HQ", "initial_gain_10"))/10
                                 Exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "RPI_HQ", "initial_exposure_10"))/10
                                 while Versuche_Kamera < 3 and Status_Kamera != 1:      
@@ -645,25 +653,39 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                         
                             elif Status_Kamera == 1:        
                                     show_message("hmi_28", lang=lang)  
-                                    log_schreiben("Kamera Test erfolgreich beendet",log_mode)
+                                    log_schreiben("Kamera Test erfolgreich beendet",log_mode=log_mode)
                                 
                             USB = 0
                             while USB == 0:
                                 total_space_gb = None
                                 total_space_gb, used_space_gb, free_space_gb, _, _ = get_disk_space(log_mode)
+                                log_schreiben("==============================================", log_mode=log_mode)
+                                log_schreiben("USB Speicher:", log_mode=log_mode)
+                                log_schreiben("----------------------------------------------", log_mode=log_mode)
+                                try: 
+                                    total_space_gb, used_space_gb, free_space_gb, used_percent, free_percent = get_disk_space(log_mode)
+                                    log_schreiben(f"{'gesamt':<22} | {str(total_space_gb)+' GB':<22} | {''}", log_mode=log_mode)
+                                    log_schreiben(f"{'belegt':<22} | {str(used_space_gb)+' GB':<22} | {used_percent} %", log_mode=log_mode)
+                                    log_schreiben(f"{'frei':<22} | {str(free_space_gb)+' GB':<22} | {free_percent} %", log_mode=log_mode)
+                                    log_schreiben("==============================================", log_mode=log_mode)
+
+                                except Exception as e:
+                                    error_message(3,e, log_mode)
+                                    log_schreiben(f"Fehler beim Überprüfen des USB-Speicherplatzes: {e}", log_mode=log_mode)
                                 show_message("hmi_29", lang=lang, total_space = str(total_space_gb), free_space = str(free_space_gb))
-                                log_schreiben(f"USB Speicher: gesamt: {str(total_space_gb)} GB; frei: {str(free_space_gb)} GB",log_mode=log_mode)
                                 if total_space_gb is None:
                                     show_message("hmi_30", lang=lang)
-                                    log_schreiben("#####\nSELBSTINDUZIERTER SHUTDOWN\n#####", log_mode=log_mode)
+                                    log_schreiben("##################################", log_mode=log_mode)
+                                    log_schreiben("####SELBSTINDUZIERTER SHUTDOWN####", log_mode=log_mode)
+                                    log_schreiben("##################################", log_mode=log_mode)
                                     trap_shutdown(log_mode,5)
                                     return
                                 elif free_space_gb < 16:
                                     show_message("hmi_31", lang=lang)
                                     log_schreiben("USB Speicher fast voll, bitte leeren", log_mode=log_mode)
                                     log_schreiben("##################################", log_mode=log_mode)
-                                    log_schreiben("#####\nSELBSTINDUZIERTER SHUTDOWN\n#####", log_mode=log_mode)
-                                    log_schreiben("##################################", log_mode=log_mode)
+                                    log_schreiben("####SELBSTINDUZIERTER SHUTDOWN####", log_mode=log_mode)
+                                    log_schreiben("##################################", log_mode=log_mode) 
                                     trap_shutdown(log_mode, 5)
                                     return
                                 elif free_space_gb >= 16:
@@ -675,8 +697,12 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                             sunset, sunrise, Zeitzone = get_sun()
                             sunset = sunset.strftime('%H:%M:%S')
                             sunrise = sunrise.strftime('%H:%M:%S')
-                            log_schreiben(f"Sonnenuntergang: {sunset}", log_mode=log_mode)
-                            log_schreiben(f"Sonnenaufgang:   {sunrise}", log_mode=log_mode)
+                            log_schreiben("==============================================", log_mode=log_mode)
+                            log_schreiben(f"Sonnen-Zeiten", log_mode=log_mode)
+                            log_schreiben("----------------------------------------------", log_mode=log_mode)
+                            log_schreiben(f"{'Sonnenuntergang':<22} | {sunset}", log_mode=log_mode)
+                            log_schreiben(f"{'Sonnenaufgang':<22} | {sunrise}", log_mode=log_mode)
+                            log_schreiben("==============================================", log_mode=log_mode)
                             print(f"Anzeige Dämmerung:{sunset}")
                             print(f"Anzeige Dämmerung:{sunrise}")
                             try:

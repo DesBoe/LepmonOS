@@ -470,7 +470,8 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
     camera = LED(5)
     camera.on()
 
-    if cam_mode == "display":
+    if cam_mode == "display": 
+        log_schreiben("Kamera wird eingeschaltet und initialisiert...", log_mode=log_mode)
         show_message("cam_4", lang=lang)
 
     ordnerpfad = get_value_from_section(
@@ -507,7 +508,7 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
     if cam_mode == "display":
         ordnerpfad, _ = get_usb_path(log_mode)
         dateipfad = os.path.join(ordnerpfad, "Testbild.jpg")
-        print(f"Ordnerpfad für Testbild:{dateipfad}")
+        log_schreiben(f"Dateipfad für Testbild: {dateipfad}", log_mode=log_mode)
 
     if cam_mode == "log":
         time.sleep(5)
@@ -531,16 +532,18 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
     # Abrufen des Frames in Abhängigkeit vom Kameramodus
 
     if cam_mode == "display":
+        log_schreiben("Versuche Frame von Kamera abzurufen...", log_mode=log_mode)
         frame, Status_Kamera, power_vis = get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma)
         if frame is None:
             error_message(1, "Fehler beim Abrufen des Frames", log_mode)
         elif frame is not None:
+            log_schreiben("Frame erfolgreich von Kamera abgerufen", log_mode=log_mode)
             try:
                 cv2.imwrite(dateipfad, frame)
-                print(f"Bild erfolgreich gespeichert!\nPfad: {dateipfad}")
+                log_schreiben(f"Testbild erfolgreich gespeichert:{dateipfad}", log_mode=log_mode)
                 show_message("cam_7", lang=lang)
                 os.remove(dateipfad)
-                log_schreiben(f"Test-Bild vom Speicher gelöscht: {dateipfad}", log_mode=log_mode)
+                log_schreiben(f"Testbild vom Speicher gelöscht: {dateipfad}", log_mode=log_mode)
                 log_schreiben("Kamera Zugriff erfolgreich", log_mode=log_mode)
             except Exception as e:
                 print(f"Kamerafehler:{e}")

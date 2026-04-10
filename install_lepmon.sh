@@ -21,7 +21,8 @@ apt-get install -y --no-install-recommends \
   libatlas-base-dev libopenblas-dev \
   python3-opencv python3-numpy python3-pil python3-picamera2 \
   libusb-1.0-0 libcap2-bin \
-  ntfs-3g exfatprogs
+  ntfs-3g exfatprogs \
+  mc   #DB add midnight commander for file management on the desktop image
 
 # Networking / Access-Point
 apt-get install -y --no-install-recommends \
@@ -652,13 +653,13 @@ UDEVRULE
 udevadm control --reload-rules 2>/dev/null || true
 
 # ===========================================================================
-# Lepmon-info helper (shown on login)
+# ARNI-info helper (shown on login)
 # ===========================================================================
 cat <<'INFO' > /usr/local/bin/lepmon-info
 #!/bin/bash
 echo "╔══════════════════════════════════════════╗"
-echo "║       Lepmon System Information          ║"
-echo "║   Insect Timelapse Monitoring System     ║"
+echo "║        ARNI System Information           ║"
+echo "║  Automated Recoder of Nocturnal Insects  ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""
 echo "Services:"
@@ -813,4 +814,4 @@ df -h / || true
 
 # ---------------------------------------------------------------------------
 systemctl daemon-reload
-echo "=== Lepmon installation complete ==="
+echo "=== ARNI installation complete ==="
