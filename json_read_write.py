@@ -51,27 +51,41 @@ def get_coordinates():
         Block = read_fram(0x03F0, 1).replace('\x00', '').strip()
 
     except Exception as e:
-        print(f"Fehler beim Lesen der Koordinaten aus dem FRAM: {e}. Verwende Konfigurationsdatei.")
-        latitude = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "GPS", "latitude")
-        longitude = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "GPS", "longitude")
-        Pol = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "GPS", "Pol")
-        Block = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "GPS", "Block")
-
+        try:
+            print(f"Fehler beim Lesen der Koordinaten aus dem FRAM: {e}. Verwende Konfigurationsdatei.")
+            latitude = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "GPS", "latitude")
+            longitude = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "GPS", "longitude")
+            Pol = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "GPS", "Pol")
+            Block = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "GPS", "Block")
+        except Exception as config_error:
+            print(f"Fehler beim Lesen der Koordinaten aus der Konfigurationsdatei: {config_error}. Verwende Standardwerte.")
+            latitude = 0.0
+            longitude = 0.0
+            Pol = ""
+            Block = ""
     # Pol- und Blockzeichen auswerten
-    if Pol == "N":
-        Pol = ""
-    elif Pol == "S":
-        Pol = "-"
+    try:
+        if Pol == "N":
+            Pol = ""
+        elif Pol == "S":
+            Pol = "-"
 
-    if Block == "E":
+        if Block == "E":
+            Block = ""
+        elif Block == "W":
+            Block = "-"
+    except Exception as e:
+        print(f"Fehler bei der Auswertung von Pol und Block: {e}. Verwende Standardwerte.")
+        Pol = ""
         Block = ""
-    elif Block == "W":
-        Block = "-"
-        
-    latitude_ohne_Vorzeichen = latitude
-    longitude_ohne_Vorzeichen = longitude    
-    latitude = float(Pol + str(latitude))
-    longitude = float(Block + str(longitude))
+
+    try:    
+        latitude_ohne_Vorzeichen = latitude
+        longitude_ohne_Vorzeichen = longitude    
+        latitude = float(Pol + str(latitude))
+        longitude = float(Block + str(longitude))
+    except ValueError as e:
+        print(f"Fehler bei der Umwandlung der Koordinaten: {e}")
 
     return latitude, longitude, Pol, Block, latitude_ohne_Vorzeichen, longitude_ohne_Vorzeichen
 
