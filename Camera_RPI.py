@@ -418,4 +418,4 @@ if __name__ == "__main__":
     if camera == "RPI_Module_3":
         #focus = set_focus_rpi_cam()
         focus = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","focus")
-        code, dateipfad, Kamera_RPI_Status, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, Gain, red_gain, blue_gain = snap_image_rpi("jpg","kamera_test", 0, "manual", camera, Exposure, Gain, focus = focus)
+        code, dateipfad, Kamera_RPI_Status, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, Gain, red_gain, blue_gain = snap_image_rpi("jpg","kamera_test", 0, "manual", camera, 2, 2, focus = focus, sn = "")

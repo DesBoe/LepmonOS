@@ -24,7 +24,26 @@ from LepmonOS_Service_fram_tabelle import get_Fram_table, write_fram_table_to_lo
 from LepmonOS_Service_fram_configurator import write_config_to_fram
 from RTC_new_time import set_hwc
 
-sn = "SN010011"
+print("Check Serielnumber in line 28")
+sn = "SN010105"
+
+print("\nStarte Diagnose. Schritt 1-9 frei einstellbar in Zeile 32 (1-OLED,2-LEDs,3-Sensoren,4-Uhr,5-RAM,6-RAM_löschen,7-RAM_Konfiguration,8-Knöpfe,9-Kamera)\n")
+
+selected_tests = {
+        #0 : "Seriennummer",
+        #1: "OLED",
+        #2: "LEDs",
+        #3: "Sensoren",
+        #4: "Uhr",
+        #5: "RAM",
+        #6: "RAM_löschen",
+        #7: "RAM_Konfiguration",
+        #8: "Knöpfe",
+        9: "Kamera"
+    }
+
+
+
 try:
     write_fram(0x0110, sn)
 except Exception as e:
@@ -114,10 +133,11 @@ def nehme_bild_auf(camera, log_mode, Kamera_Fehlerserie, sn):
             if camera == "AV__Alvium_1800_U-2050":
                 code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie, _, _, _, _ = snap_image_AV("jpg", "Diagnose", Kamera_Fehlerserie, log_mode, Exposure=Exposure, Gain=gain, sn = sn)
             elif camera == "RPI_Module_3":
-                code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie, _, _, _, _, _, _, _, _ = snap_image_rpi("jpg","Diagnose", Kamera_Fehlerserie, log_mode, camera, Exposure=int(Exposure), Gain=gain, focus=focus, sn = sn)
+                code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie, _, _, _, _, _, _ = snap_image_rpi("jpg","Diagnose", Kamera_Fehlerserie, log_mode, camera, Exposure=int(Exposure), Gain=gain, focus=focus, sn = sn)
             elif camera == "RPI_HQ":
                 print("starte Kamera3")
                 code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie, _, _, _, _, _, _ = snap_image_rpi("jpg","Diagnose", Kamera_Fehlerserie, log_mode, camera, Exposure=int(Exposure), Gain=gain, sn = sn)
+                
 
         except Exception as e:
             log_schreiben(f"Fehler beim Aufnehmen des Bildes: {e}", log_mode)
@@ -285,19 +305,6 @@ def get_config():
 
 
 if __name__ == "__main__":
-    selected_tests = {
-        0 : "Seriennummer",
-        #1: "OLED",
-        #2: "LEDs",
-        #3: "Sensoren",
-        #4: "Uhr",
-        5: "RAM",
-        6: "RAM_löschen",
-        7: "RAM_Konfiguration",
-        8: "Knöpfe",
-        9: "Kamera"
-    }
-    
     Kamera_Fehlerserie = 0 
     log_mode = "log"
     ARNI_version, backplane_version, lieferdatum_an_PMJ = get_config()
@@ -325,7 +332,7 @@ if __name__ == "__main__":
         exit()
     '''
 
-    print("\nStarte Diagnose. Schritt 1-9 frei einstellbar in Zeil3 268 (1-OLED,2-LEDs,3-Sensoren,4-Uhr,5-RAM,6-RAM_löschen,7-RAM_Konfiguration,8-Knöpfe,9-Kamera)\n")
+    
 
     '''   
     if 0 in selected_tests:

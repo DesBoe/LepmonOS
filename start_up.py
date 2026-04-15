@@ -20,6 +20,7 @@ from serial_number_manual import *
 from datetime import datetime
 from Box_Experiment_Times import *
 import pandas as pd
+from Lights import dim_down
 
 
 def version_tuple(version_str):
@@ -60,6 +61,9 @@ def start_up(log_mode):
 
     print("starte Setup")
     turn_off_led("blau")
+    hardware=get_hardware_version()
+    if hardware == "CSS_Gen_1":
+        dim_down()
     turn_off_led("heizung")
     RPI_time(log_mode)
 
@@ -84,7 +88,7 @@ def start_up(log_mode):
     time.sleep(3)
     
     lang = get_language()
-    hardware=get_hardware_version()
+    
     show_message("device_1", lang=lang,
                  hardware=hardware,
                  sn=sn[2:],
