@@ -1,7 +1,7 @@
-from service import get_Lepmon_code
-_, _, _, sn = get_Lepmon_code("log")
-if sn in ["SN010010", "SN010011"]: # Update 2.3.2 konnte auch ohne USB Stick installiert werden. vorherige SD Karten haben pandas nicht installiet.
-    import pandas as pd
+#from service import get_Lepmon_code
+#_, _, _, sn = get_Lepmon_code("log")
+#if sn in ["SN010010", "SN010011"]: # Update 2.3.2 konnte auch ohne USB Stick installiert werden. vorherige SD Karten haben pandas nicht installiet.
+import pandas as pd
 
 
 def load_experiment_table(csv_path):

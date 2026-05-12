@@ -9,7 +9,7 @@ import adafruit_ds3231
 
 
 
-def Zeit_aktualisieren(log_mode):
+def Zeit_aktualisieren(log_mode="log"):
     i2c = board.I2C()
     rtc_status = 0
     try:
@@ -39,7 +39,7 @@ def berechne_zeitzone(latitude,longitude):
     return Zeitzone
 
 
-def get_sun(log_mode):
+def get_sun(log_mode="log"):
     latitude,longitude, _, _, _, _ = get_coordinates()
     day = datetime.utcnow()
     tf = TimezoneFinder()
@@ -87,7 +87,7 @@ def get_sun(log_mode):
         return sunset_local, sunrise_local, tz
     
     
-def get_moon(log_mode):
+def get_moon(log_mode="log"):
     jetzt_local = datetime.now()
     try:
         latitude, longitude, _, _, _, _ = get_coordinates()
@@ -158,7 +158,7 @@ def get_moon(log_mode):
 
 
 
-def get_experiment_times(log_mode):
+def get_experiment_times(log_mode="log"):
     minutes_to_sunrise = timedelta(minutes=int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "minutes_to_sunrise")))
     minutes_after_sunset = timedelta(minutes=int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "minutes_after_sunset")))  
     
@@ -178,7 +178,7 @@ def get_experiment_times(log_mode):
     return experiment_start_time, experiment_end_time, minutes_after_sunset, minutes_to_sunrise
 
 
-def get_times_power(log_mode):
+def get_times_power(log_mode="log"):
     minutes_after_sunset = timedelta(minutes=int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "minutes_after_sunset")))
     timebuffer_powermanager = timedelta(minutes=int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "timebuffer_powermanager")))
     sunset, sunrise, _ = get_sun(log_mode)

@@ -87,9 +87,9 @@ def capturing(log_mode):
     # USB Speicherplatz prüfen
     try: 
         total_space_gb, used_space_gb, free_space_gb, used_percent, free_percent = get_disk_space(log_mode)
-        log_schreiben(f"{'gesamt':<22} | {str(total_space_gb)+' GB':<22} | {''}", log_mode=log_mode)
-        log_schreiben(f"{'belegt':<22} | {str(used_space_gb)+' GB':<22} | {used_percent} %", log_mode=log_mode)
-        log_schreiben(f"{'frei':<22} | {str(free_space_gb)+' GB':<22} | {free_percent} %", log_mode=log_mode)
+        log_schreiben(f"{'gesamt':<22} | {str(total_space_gb)+' GB':<10} | {''}", log_mode=log_mode)
+        log_schreiben(f"{'belegt':<22} | {str(used_space_gb)+' GB':<10} | {used_percent} %", log_mode=log_mode)
+        log_schreiben(f"{'frei':<22} | {str(free_space_gb)+' GB':<10} | {free_percent} %", log_mode=log_mode)
 
     except Exception as e:
         error_message(3,e, log_mode)

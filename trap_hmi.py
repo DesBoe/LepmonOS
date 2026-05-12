@@ -52,11 +52,11 @@ def display_sensor_status_with_text(sensor_data, sensor_status, log_mode):
             ("Power_Sensor", "bus_voltage", "V"),
             ("Environment_Sensor", "Temp_out", "°C")
         ]
-    log_schreiben("==============================================", log_mode=log_mode)
+    log_schreiben("=======================================================", log_mode=log_mode)
     log_schreiben(f"Sensoren", log_mode=log_mode)
-    log_schreiben("----------------------------------------------", log_mode=log_mode)
-    log_schreiben(f"{'Sensor':<22} | {'Status':<10} | {'Wert':<15} |{'Einheit'}", log_mode=log_mode)
-    log_schreiben("----------------------------------------------", log_mode=log_mode)
+    log_schreiben("-------------------------------------------------------", log_mode=log_mode)
+    log_schreiben(f"{'Sensor':<22} | {'Status':<10} | {'Wert':<10} |{'Einheit'}", log_mode=log_mode)
+    log_schreiben("-------------------------------------------------------", log_mode=log_mode)
     for sensor_name, data_key, einheit in sensors:
         if sensor_name == "Power_Sensor" and hardware in ["Pro_Gen_1", "Pro_Gen_2"]:
             status = "nicht"
@@ -695,9 +695,9 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                 log_schreiben("----------------------------------------------", log_mode=log_mode)
                                 try: 
                                     total_space_gb, used_space_gb, free_space_gb, used_percent, free_percent = get_disk_space(log_mode)
-                                    log_schreiben(f"{'gesamt':<22} | {str(total_space_gb)+' GB':<22} | {''}", log_mode=log_mode)
-                                    log_schreiben(f"{'belegt':<22} | {str(used_space_gb)+' GB':<22} | {used_percent} %", log_mode=log_mode)
-                                    log_schreiben(f"{'frei':<22} | {str(free_space_gb)+' GB':<22} | {free_percent} %", log_mode=log_mode)
+                                    log_schreiben(f"{'gesamt':<22} | {str(total_space_gb)+' GB':<10} | {''}", log_mode=log_mode)
+                                    log_schreiben(f"{'belegt':<22} | {str(used_space_gb)+' GB':<10} | {used_percent} %", log_mode=log_mode)
+                                    log_schreiben(f"{'frei':<22} | {str(free_space_gb)+' GB':<10} | {free_percent} %", log_mode=log_mode)
                                     log_schreiben("==============================================", log_mode=log_mode)
 
                                 except Exception as e:

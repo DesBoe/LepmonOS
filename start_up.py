@@ -224,7 +224,7 @@ def start_up(log_mode):
     
     display_text_and_image("Wel-","come", "", "/home/Ento/LepmonOS/startsequenz/Logo_6_9.png",1)  
     try: 
-        power_on, power_off = get_times_power()
+        power_on, power_off = get_times_power(log_mode)
         set_alarm(power_on, power_off, log_mode)
         send_lora(f"Zeit für Power on mit Attiny:  {power_on}\nZeit für Power off mit Attiny: {power_off}")
     except Exception as e:
