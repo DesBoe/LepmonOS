@@ -84,8 +84,13 @@ def get_current_version():
         return current_version.strip()
     return None
 
-def version_tuple(version_str):
-    return tuple(map(int, version_str.strip().split(".")))
+def version_tuple(version_str, log_mode):
+    try:
+        return tuple(map(int, version_str.strip().split(".")))
+    except Exception:
+        log_schreiben(f"Ungültiges Versionsformat: {version_str}", log_mode=log_mode)
+        log_schreiben("wende Fallback-Version (1.2.3) an", log_mode=log_mode)
+        return (1,2, 3)
 
 def is_update_allowed(log_mode):
     new_version = get_new_version_from_stick(log_mode)
@@ -95,12 +100,12 @@ def is_update_allowed(log_mode):
         show_message("update_7", lang = lang)
         log_schreiben("neue Version nicht gefunden",2, log_mode=log_mode)
         return False
-    if version_tuple(new_version) == version_tuple(current_version):
+    if version_tuple(new_version, log_mode) == version_tuple(current_version, log_mode):
         print("Version ist gleich, Update nicht nötig.")
         show_message("update_8", lang = lang)
         log_schreiben("Firmwareversion bereits aktuell", log_mode=log_mode)
         return False
-    elif version_tuple(new_version) < version_tuple(current_version):
+    elif version_tuple(new_version, log_mode) < version_tuple(current_version, log_mode):
         print("Downgrade nicht erlaubt!")
         show_message("update_9", lang = lang)
         log_schreiben("Downgrade nicht erlaubt", log_mode=log_mode)
