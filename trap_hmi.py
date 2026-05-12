@@ -26,6 +26,7 @@ from language import *
 from runtime import write_timestamp
 from coordinates_region_check import find_country_and_region
 from Box_Experiment_Times import *
+from gpiozero import LED
 
 def display_sensor_status_with_text(sensor_data, sensor_status, log_mode):
     """
@@ -230,11 +231,31 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                             if button_pressed("rechts") or read_fram_bytes(0x078F, 1) == b'\x01':
                                 print("Rechts gedrückt. Öffne Fokusmenü")
                                 log_schreiben("------------------", log_mode=log_mode)
-                                log_schreiben("lokale Fokussierhilfe geöffnet", log_mode=log_mode)
-                                set_focus(log_mode)
-                                turn_off_led("gelb")
-                                show_message("hmi_03", lang=lang)
-                                hidden_menu_start = time.time()
+                                log_schreiben("Fokussierhilfe geöffnet", log_mode=log_mode)
+                                mode = "on_arni"
+                                show_message("hmi_focus_select_mode", lang=lang)
+                                while True:
+                                    if button_pressed("unten"):
+                                        set_focus(log_mode)
+                                        mode = "on_arni"   
+                                        turn_off_led("gelb")
+                                        break
+                                    if button_pressed("oben"):
+                                        mode = "web_interface"
+                                        print("Fokussierhilfe im Web Interface geöffnet. Bitte öffne die IP Adresse von ARNI im Browser, um die Fokussierhilfe zu sehen.")
+                                        camera = LED(5)
+                                        camera.on()
+                                        log_schreiben("Fokussierhilfe im Web Interface geöffnet", log_mode=log_mode)
+                                        # TODO: Benedict, hier bitte den Liveview starten :)
+                                        # Message: starte Server
+                                        # Message: Via QR code auf das Web Interface verbinden
+                                        # Message: mit Handy oder Laptop die Fokussierhilfe bedienen
+                                        break
+                                    if button_pressed("rechts") or button_pressed("enter"):
+                                        break
+                                    time.sleep(.05)
+                                    show_message("hmi_03", lang=lang)
+                                    hidden_menu_start = time.time()
                                 
                                     
                             if button_pressed("oben"):

@@ -14,8 +14,8 @@
     },
     "locality": {
         "country": "Germany",
-        "province": "NI",
-        "Kreis": "L\u00dc"
+        "province": "Th",
+        "Kreis": "J"
     },
     "capture_mode": {
         "minutes_after_sunset": 10,
@@ -71,7 +71,7 @@
         "step_exposure": 5,
         "current_exposure": "150",
         "focus_threshold": 225.0,
-        "gamma_value": 1.6,
+        "gamma_value": 0.65,
         "current_gain": 16.0,
         "balance_ratio_red": 2.29015688004237,
         "balance_ratio_blue": 1.9946902299452154

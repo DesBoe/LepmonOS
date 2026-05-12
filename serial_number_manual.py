@@ -1,7 +1,7 @@
 from GPIO_Setup import *
 from OLED_panel import *
 from json_read_write import *
-from fram_direct import check_fram_present
+from fram_direct import *
 import time
 
 sn_list= [
@@ -36,9 +36,27 @@ def set_sn_manually():
             write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "ARNI_Gen", gen)
             write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber", sn)
 
+            try:
+                write_fram_bytes(0x0110, b'\x00' * 16)
+                print("SN in FRAM gelöscht")
+                write_fram(0x0110, sn.ljust(16))
+                print("SN in den RAM geschrieben")
+                write_fram_bytes(0x0130, b'\x00' * 16)
+                print("Gen in FRAM gelöscht")
+                write_fram(0x0130, gen.ljust(16))
+                print(" Gen in den RAM geschrieben")
+                fram_success = True
+
+
+
+            except Exception as e:
+                print(f"Fehler beim Schreiben der SN und Gen in den RAM: {e}")
+                fram_success = False
+                
+
             print(f"Manuell gesetzte SN: {sn}, Gen: {gen}")
             turn_off_led("blau")
-            return sn, gen
+            return sn, gen, fram_success
     
 def trigger_manual_sn():
     sn_json = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","general","serielnumber")

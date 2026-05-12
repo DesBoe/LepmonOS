@@ -530,6 +530,12 @@ MESSAGE_REGISTER = {
         "en": ("Focusing ended", "Diopters old: {dioptrien_alt}", "Diopters new: {dioptrien_neu}"),
         "es": ("Enfoque terminado", "Dioptrías antiguas: {dioptrien_alt}", "Dioptrías nuevas: {dioptrien_neu}")
     },
+    "focus_select_mode": {
+        "sleep": 0, 
+        "de": ("Fokussieren:","lokal oder web based?","▲ = web based   ▼ = lokal"),
+        "en": ("Focusing:","local or web based?","▲ = web based   ▼ = local"),
+        "es": ("Enfoque:","¿local o basado en web?","▲ = web based   ▼ = local")
+    },
     ### rtc ###
     "rtc_1": {
         "sleep": 0,

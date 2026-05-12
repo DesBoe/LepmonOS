@@ -19,7 +19,13 @@ Display = i2c(port=1, address=0x3C)
 try:
     oled = sh1106(Display)
 except:
-    pass
+    print("Fehler beim Initialisieren des OLED-Displays.")
+    for _ in range(3):
+        turn_on_led("rot")
+        time.sleep(0.25)
+        turn_off_led("rot")
+        time.sleep(0.25)
+    
 
 hardware = get_hardware_version()
 if hardware == "Pro_Gen_1":

@@ -88,8 +88,8 @@ def on_shutdown():
         
 def gap_day():
     """
-    Überprüft, ob der Aktivitätszeitstempel im FRAM weniger als 1 Tag alt ist.
-    Gibt True zurück, wenn der Zeitstempel aktuell ist, sonst False.
+    Überprüft, ob der Aktivitätszeitstempel im FRAM weniger als 6h alt ist.
+    Gibt True zurück, wenn der Zeitstempel kürzer ist, sonst False.
     """
     try:
         # Lese den Aktivitätszeitstempel aus dem FRAM
@@ -104,8 +104,8 @@ def gap_day():
         difference = round((now - activity_time).total_seconds(), 0)
         print(f"Letzter Aktivitätszeitstempel: {activity_time}, jetzt:{now}, Unterschied in Sekunden: {difference}")
         
-        # Überprüfe, ob der Unterschied mehr als 12 h beträgt
-        return difference <= 43199  # 43200 Sekunden = 12 Stunden
+        # Überprüfe, ob der Unterschied mehr als 6 h beträgt
+        return difference <= 60*60*6  # 6h
     except Exception as e:
         print(f"Fehler beim Überprüfen des Aktivitätszeitstempels: {e}")
         if get_hardware_version() not in ["Pro_Gen_1", "Pro_Gen_2"]:

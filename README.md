@@ -348,4 +348,11 @@ lepmon-info
 | `/etc/systemd/system/usb-mount@.service`          | systemd service template         |
 | `/usr/local/bin/usb-mount.sh`                     | USB mount/unmount helper script  |
 
+
+![Example](pictures/Lepmon%23SN010030_TH_J_2025-07-03_T_0308.jpg)
+
+
+Example Image from ARNI SN#010030 in Jena, Thuringia from 3rd July 2025, 03:08 PM
+
+
 ![Lepmon](startsequenz/Lepmon_Logo_Small.png)

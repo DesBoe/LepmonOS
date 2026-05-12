@@ -67,11 +67,16 @@ def start_up(log_mode):
     turn_off_led("heizung")
     RPI_time(log_mode)
 
-
-    display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_K2W.png",sleeptime = 0) # Logo wird für die Dauer angezeigt, in der es möglich ist, die SN manuell zu setzen.
+    if hardware == "CSS_Gen_1":
+        display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_9u9.png",sleeptime = 0) # Logo wird für die Dauer angezeigt, in der es möglich ist, die SN manuell zu setzen.
+    else:
+        display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_K2W.png",sleeptime = 0) # Logo wird für die Dauer angezeigt, in der es möglich ist, die SN manuell zu setzen.
     sn_trigger, _, Gen_json = trigger_manual_sn()
+    fram_success = False
     if sn_trigger:
-        sn_manual, gen_manual = set_sn_manually()
+        sn_manual, gen_manual, fram_success = set_sn_manually()
+    if fram_success:
+        log_schreiben(f"SN und Gen wurden erfolgreich im FRAM aktualisiert: {sn_manual}, {gen_manual}", log_mode=log_mode)
         if gen_manual == "Pro_Gen_1" and Gen_json != "Pro_Gen_1":
             display_text_and_image("Neustart","restart","reiniciar","/home/Ento/LepmonOS/startsequenz/end.png",0)
             os.system("sudo reboot")
@@ -293,7 +298,7 @@ def start_up(log_mode):
     except Exception as e:
         log_schreiben(f"Fehler im Vergleich der Startzeit aus 'end' und der tatsächlichen Startzeit:{e}", log_mode=log_mode)
         log_schreiben(f"{'Differenz Startzeiten':<22} | ---", log_mode=log_mode)
-    log_schreiben("eine positive Differenz oder 0:00 ist erwartet - der im letzten Run errechnete Stratzeitpunkt liegt vor dem tatsächlichen. Kein Datenverlust ist erwartet", log_mode=log_mode)
+    log_schreiben("eine positive Differenz oder 0:00 ist erwartet - der im letzten Run errechnete Startzeitpunkt liegt vor dem tatsächlichen. Kein Datenverlust ist erwartet", log_mode=log_mode)
 
     display_text_and_image("Bien-","venido", "", "/home/Ento/LepmonOS/startsequenz/Logo_9_9.png",1)
     try:

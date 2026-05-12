@@ -1,4 +1,13 @@
 # Changelog
+## [2.3.2] 2026-05-XX
+### Geändert
+- 
+
+### Hinzugefügt
+- Weitere Logging Befehle als Tabelle
+
+### Behoben
+- Fehlerhafter Gamma Wert von 1.6 auf 0.65 korrigiert, um Aufhellen der Schatten direkt mit Vimba API zu ermöglichen
 
 
 ## [2.3.1] 2026-03-25
