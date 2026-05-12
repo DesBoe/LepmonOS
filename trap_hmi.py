@@ -242,6 +242,7 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
 
                                         show_message("hmi_03", lang=lang)
                                         break
+                                    '''
                                     if button_pressed("oben"):
                                         mode = "web_interface"
                                         print("Fokussierhilfe im Web Interface geöffnet. Bitte öffne die IP Adresse von ARNI im Browser, um die Fokussierhilfe zu sehen.")
@@ -256,6 +257,7 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
 
                                         show_message("hmi_03", lang=lang)
                                         break
+                                    '''
                                     if button_pressed("rechts") or button_pressed("enter"):
                                         log_schreiben("Fokussierhilfe wurde vom Nutzer beendet.", log_mode=log_mode)
                                         log_schreiben("------------------", log_mode=log_mode)

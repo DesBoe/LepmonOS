@@ -1,11 +1,11 @@
 {
     "general": {
-        "ARNI_Gen": "Pro_Gen_2",
+        "ARNI_Gen": "Pro_Gen_3",
         "serielnumber": "SN010004",
         "project_name": "Lepmon#",
         "usb_drive": "/media/Ento/DABA-AEE9",
-        "current_folder": "/media/Ento/DABA-AEE9/Lepmon#SN010004_NI_L\u00dc_2026-05-12_T_1018",
-        "current_log": "/media/Ento/DABA-AEE9/Lepmon#SN010004_NI_L\u00dc_2026-05-12_T_1018/Lepmon#SN010004_NI_L\u00dc_2026-05-12_T_1018.log",
+        "current_folder": "/media/Ento/DABA-AEE9/Lepmon#SN010004_YY_XXX_2026-05-12_T_1018",
+        "current_log": "/media/Ento/DABA-AEE9/Lepmon#SN010004_YY_XXX_2026-05-12_T_1018/Lepmon#SN010004_YY_XXX_2026-05-12_T_1018.log",
         "language": "de",
         "expected_images": 260,
         "Control_Night": true,
@@ -14,8 +14,8 @@
     },
     "locality": {
         "country": "Germany",
-        "province": "NI",
-        "Kreis": "L\u00dc"
+        "province": "YY",
+        "Kreis": "XXX"
     },
     "capture_mode": {
         "minutes_after_sunset": 10,

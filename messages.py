@@ -532,9 +532,13 @@ MESSAGE_REGISTER = {
     },
     "focus_select_mode": {
         "sleep": 0, 
-        "de": ("Fokussieren:","▲ = web based", "▼ = lokal"),
-        "en": ("Focusing:","▲ = web based", "▼ = local"),
-        "es": ("Enfoque:","▲ = web based", "▼ = local")
+        #"de": ("Fokussieren:","▲ = web based", "▼ = lokal"),
+        #"en": ("Focusing:","▲ = web based", "▼ = local"),
+        #"es": ("Enfoque:","▲ = web based", "▼ = local")
+
+        "de": ("Fokussieren:","", "▼ = lokal"),
+        "en": ("Focusing:","", "▼ = local"),
+        "es": ("Enfoque:","", "▼ = local")
     },
     ### rtc ###
     "rtc_1": {
