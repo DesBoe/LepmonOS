@@ -14,7 +14,7 @@ def wait(log_mode):
     lang = get_language()
     write_timestamp(0x07E0)
     
-    experiment_start_time, experiment_end_time,time_buffer, minutes_to_sunrise = get_experiment_times()
+    experiment_start_time, experiment_end_time,time_buffer, minutes_to_sunrise = get_experiment_times(log_mode)
     _, lokale_Zeit, _ = Zeit_aktualisieren(log_mode)
     experiment_start_time = datetime.strptime(experiment_start_time, "%H:%M:%S")
     experiment_end_time = datetime.strptime(experiment_end_time, "%H:%M:%S")

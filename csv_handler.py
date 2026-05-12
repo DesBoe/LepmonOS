@@ -32,9 +32,9 @@ def erstelle_und_aktualisiere_csv(sensor_data, log_mode):
             latitude, longitude, _, _, _, _ = get_coordinates()
             
             
-            sunset, sunrise, _ = get_sun()
+            sunset, sunrise, _ = get_sun(log_mode)
             moonrise, moonset, moon_phase, max_altitude = get_moon(log_mode)
-            experiment_start_time, experiment_end_time,_,_ = get_experiment_times()
+            experiment_start_time, experiment_end_time,_,_ = get_experiment_times(log_mode)
             
             sensor_id = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")  
             interval = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "interval")

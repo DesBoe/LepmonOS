@@ -44,11 +44,20 @@ def get_coordinates():
         try:
             latitude = float(lat_str)
             longitude = float(lon_str)
+            print(f"Koordinaten aus FRAM gelesen: Latitude={latitude}, Longitude={longitude}")
         except ValueError:
             raise ValueError("Latitude oder Longitude ist keine gültige Zahl!")
 
-        Pol = read_fram(0x03D0, 1).replace('\x00', '').strip()
-        Block = read_fram(0x03F0, 1).replace('\x00', '').strip()
+        try:
+            Pol = read_fram(0x03D0, 1).replace('\x00', '').strip()
+            Block = read_fram(0x03F0, 1).replace('\x00', '').strip()
+            print(f"Pol und Block aus FRAM gelesen: Pol={Pol}, Block={Block}")
+        except Exception as polar_block_error:
+            raise IOError(f"Fehler beim Lesen von Pol und Block aus FRAM: {polar_block_error}")
+    
+        if (Pol not in ["N", "S", ""]) or (Block not in ["E", "W", ""]):
+            print(f"DEBUG: Pol='{Pol}', Block='{Block}'")
+            raise ValueError("Ungültige Werte für Pol oder Block im FRAM!")
 
     except Exception as e:
         try:

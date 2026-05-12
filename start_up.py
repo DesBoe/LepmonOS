@@ -68,15 +68,14 @@ def start_up(log_mode):
     RPI_time(log_mode)
 
     if hardware == "CSS_Gen_1":
-        display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_9u9.png",sleeptime = 0) # Logo wird für die Dauer angezeigt, in der es möglich ist, die SN manuell zu setzen.
-    else:
-        display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_K2W.png",sleeptime = 0) # Logo wird für die Dauer angezeigt, in der es möglich ist, die SN manuell zu setzen.
-    sn_trigger, _, Gen_json = trigger_manual_sn()
+        display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_9u9.png",sleeptime = 4) # Logo wird für die Dauer angezeigt, in der es möglich ist, die SN manuell zu setzen.
+    
+    display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_K2W.png",sleeptime = 0) # Logo wird für die Dauer angezeigt, in der es möglich ist, die SN manuell zu setzen.
+    sn_trigger, _, Gen_json = trigger_manual_sn(log_mode)
     fram_success = False
     if sn_trigger:
         sn_manual, gen_manual, fram_success = set_sn_manually()
-    if fram_success:
-        log_schreiben(f"SN und Gen wurden erfolgreich im FRAM aktualisiert: {sn_manual}, {gen_manual}", log_mode=log_mode)
+        # log eintrag erfolgt, nachdem das Log initialisiert wurde
         if gen_manual == "Pro_Gen_1" and Gen_json != "Pro_Gen_1":
             display_text_and_image("Neustart","restart","reiniciar","/home/Ento/LepmonOS/startsequenz/end.png",0)
             os.system("sudo reboot")
@@ -239,14 +238,14 @@ def start_up(log_mode):
 
     display_text_and_image("Bien-","venido","", "/home/Ento/LepmonOS/startsequenz/Logo_7_9.png",1)
     try:
-        sunset, sunrise, Zeitzone = get_sun()
+        sunset, sunrise, Zeitzone = get_sun(log_mode)
         send_lora(f"Zeiten für Power Management\nSonnenuntergang: {sunset.strftime('%H:%M:%S')}\nSonnenaufgang: {sunrise.strftime('%H:%M:%S')}")
     except Exception as e:
         log_schreiben(f"Fehler beim Abrufen der Sonnenzeiten: {e}", log_mode=log_mode)
 
     display_text_and_image("Bien-","venido", "", "/home/Ento/LepmonOS/startsequenz/Logo_8_9.png",1)
     try:
-        experiment_start_time, experiment_end_time, _, _ = get_experiment_times()
+        experiment_start_time, experiment_end_time, _, _ = get_experiment_times(log_mode)
         minutes_after_sunset = str(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "minutes_after_sunset"))
     except Exception as e:
         log_schreiben(f"Fehler beim Abrufen der Experimentzeiten: {e}", log_mode=log_mode)

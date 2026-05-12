@@ -233,12 +233,14 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                 log_schreiben("------------------", log_mode=log_mode)
                                 log_schreiben("Fokussierhilfe geöffnet", log_mode=log_mode)
                                 mode = "on_arni"
-                                show_message("hmi_focus_select_mode", lang=lang)
+                                show_message("focus_select_mode", lang=lang)
                                 while True:
                                     if button_pressed("unten"):
                                         set_focus(log_mode)
                                         mode = "on_arni"   
                                         turn_off_led("gelb")
+
+                                        show_message("hmi_03", lang=lang)
                                         break
                                     if button_pressed("oben"):
                                         mode = "web_interface"
@@ -246,15 +248,21 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                         camera = LED(5)
                                         camera.on()
                                         log_schreiben("Fokussierhilfe im Web Interface geöffnet", log_mode=log_mode)
+                                        time.sleep(3)   
                                         # TODO: Benedict, hier bitte den Liveview starten :)
                                         # Message: starte Server
                                         # Message: Via QR code auf das Web Interface verbinden
                                         # Message: mit Handy oder Laptop die Fokussierhilfe bedienen
+
+                                        show_message("hmi_03", lang=lang)
                                         break
                                     if button_pressed("rechts") or button_pressed("enter"):
+                                        log_schreiben("Fokussierhilfe wurde vom Nutzer beendet.", log_mode=log_mode)
+                                        log_schreiben("------------------", log_mode=log_mode)
+                                        show_message("hmi_03", lang=lang)
                                         break
                                     time.sleep(.05)
-                                    show_message("hmi_03", lang=lang)
+                                    
                                     hidden_menu_start = time.time()
                                 
                                     
@@ -715,7 +723,7 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                     USB = 1   
                                 time.sleep(.05)    
                     
-                            sunset, sunrise, Zeitzone = get_sun()
+                            sunset, sunrise, Zeitzone = get_sun(log_mode)
                             sunset = sunset.strftime('%H:%M:%S')
                             sunrise = sunrise.strftime('%H:%M:%S')
                             log_schreiben("==============================================", log_mode=log_mode)
@@ -771,15 +779,14 @@ if __name__ == "__main__":
     print("#################")
     print("Hinweis: Die Tasteneingaben 'Oben', 'Unten', 'Links' und 'Rechts' können durch eintippen dieser Worte im Terminal simuliert werden.")
     print("#################")
-    open_trap_hmi(log_mode="manual", start_step=1)
+    open_trap_hmi(log_mode="manual", start_step=0)
     
     # MENÜ Punkte:      start_step:
     #hidden             0
     #power              1   
     #delete_usb         2
     #heat               3 --> nur Pro_Gen_2, Pro_Gen_3, Pro_Gen_4
-
-#time               4
+    #time               4
     #gps                5
     #diagnose_return    6
     #diagnose_start     7

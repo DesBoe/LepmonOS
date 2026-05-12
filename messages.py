@@ -532,9 +532,9 @@ MESSAGE_REGISTER = {
     },
     "focus_select_mode": {
         "sleep": 0, 
-        "de": ("Fokussieren:","lokal oder web based?","▲ = web based   ▼ = lokal"),
-        "en": ("Focusing:","local or web based?","▲ = web based   ▼ = local"),
-        "es": ("Enfoque:","¿local o basado en web?","▲ = web based   ▼ = local")
+        "de": ("Fokussieren:","▲ = web based", "▼ = lokal"),
+        "en": ("Focusing:","▲ = web based", "▼ = local"),
+        "es": ("Enfoque:","▲ = web based", "▼ = local")
     },
     ### rtc ###
     "rtc_1": {

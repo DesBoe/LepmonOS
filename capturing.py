@@ -109,8 +109,8 @@ def capturing(log_mode):
 
         
     # Zeiten laden  
-    experiment_start_time, experiment_end_time, _, _ = get_experiment_times()
-    _, sunrise, _ = get_sun()
+    experiment_start_time, experiment_end_time, _, _ = get_experiment_times(log_mode)
+    _, sunrise, _ = get_sun(log_mode)
     sunrise = sunrise.strftime('%H:%M:%S')
 
     if isinstance(experiment_start_time, str):

@@ -5,9 +5,10 @@
 
 ### Hinzugefügt
 - Weitere Logging Befehle als Tabelle
+- Prüfung des Vorzeichens, welches für die Koordinaten aus dem Fram gelesen wird, um nur gültiger Werte (N, E, W, S, "") zu erlauben und Fallback auf die Konfigurationsdatei
 
 ### Behoben
-- Fehlerhafter Gamma Wert von 1.6 auf 0.65 korrigiert, um Aufhellen der Schatten direkt mit Vimba API zu ermöglichen
+- Fehlerhafter Gamma Wert von 1.6 auf 0.6 korrigiert, um Aufhellen der Schatten direkt mit Vimba API zu ermöglichen
 
 
 ## [2.3.1] 2026-03-25

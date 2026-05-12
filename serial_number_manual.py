@@ -3,6 +3,7 @@ from OLED_panel import *
 from json_read_write import *
 from fram_direct import *
 import time
+from service import *
 
 sn_list= [
     ("SN010001", "Pro_Gen_1"),
@@ -58,9 +59,10 @@ def set_sn_manually():
             turn_off_led("blau")
             return sn, gen, fram_success
     
-def trigger_manual_sn():
+def trigger_manual_sn(log_mode):
     sn_json = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","general","serielnumber")
     Gen_json = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","general","ARNI_Gen")
+    _, _, _, sn_ram = get_Lepmon_code(log_mode)
     Ram = check_fram_present()
     forced_by_user = False
     sn_trigger = False
@@ -70,7 +72,8 @@ def trigger_manual_sn():
 
     print("user hat 4 Sekunden Zeit, um die SN neu zu setzen auf ARNI Gen 1 und 2")
     while time.time() < reset_time_out:
-        if not Ram and button_pressed("enter") or button_pressed("rechts"):
+        if ((not Ram and (button_pressed("enter") or button_pressed("rechts")))
+            or (sn_ram not in sn_list and (button_pressed("enter") or button_pressed("rechts")))):
             print("Manuelle SN Eingabe durch User erzwungen.")
             forced_by_user = True
             sn_trigger = True

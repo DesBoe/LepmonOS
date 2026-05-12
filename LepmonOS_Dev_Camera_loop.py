@@ -18,7 +18,7 @@ from OLED_panel import *
 log_mode = "log"
 
 _, lokale_Zeit,_ = Zeit_aktualisieren(log_mode)
-_, experiment_end_time,_, _ = get_experiment_times()
+_, experiment_end_time,_, _ = get_experiment_times(log_mode)
 experiment_start_time = "22:00:00"
 
 camera = get_device_info('camera')

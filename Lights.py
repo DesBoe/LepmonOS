@@ -50,7 +50,6 @@ def dim_down():
         for duty_cycle in range(0, 100,1):
             dimmer_pwm.ChangeDutyCycle(duty_cycle)
             time.sleep(flash / 100)
-            print(duty_cycle)
         dimmer_pwm.start(100)    
 
 
@@ -59,7 +58,6 @@ def dim_down():
         for duty_cycle in range(99, 0, -1):
             dimmer_pwm.ChangeDutyCycle(duty_cycle)
             time.sleep(flash / 100)
-            print(duty_cycle)
         dimmer_pwm.start(0)
     #GPIO.output(dimmer_pin, GPIO.LOW)
 

@@ -64,7 +64,7 @@ def trap_shutdown(i,log_mode,execution="full"):
     if Errorcode != 8 :
         jetzt_local, _,_ = Zeit_aktualisieren(log_mode)
         jetzt_local = datetime.strptime(jetzt_local, "%Y-%m-%d %H:%M:%S")
-        next_experiment_start_time, next_experiment_end_time = get_times_power()
+        next_experiment_start_time, next_experiment_end_time = get_times_power(log_mode)
         next_experiment_start_time = datetime.strptime(next_experiment_start_time, "%Y-%m-%d %H:%M:%S")
         next_experiment_end_time = datetime.strptime(next_experiment_end_time, "%Y-%m-%d %H:%M:%S")
         log_schreiben(f"nächstes Anschalten: {next_experiment_start_time}", log_mode)
