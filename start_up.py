@@ -19,7 +19,6 @@ import os
 from serial_number_manual import *
 from datetime import datetime
 from Box_Experiment_Times import *
-import pandas as pd
 from Lights import dim_down
 
 

@@ -186,7 +186,7 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                 print("Eingabe Menü geöffnet")
                 hardware = get_hardware_version()
                 camera = get_device_info('camera') 
-                print("erwartete Kamera: {camera}")
+                print(f"erwartete Kamera: {camera}")
                 show_message("hmi_03", lang=lang)
                 log_schreiben("------------------", log_mode=log_mode)
                 log_schreiben("------------------", log_mode=log_mode)
