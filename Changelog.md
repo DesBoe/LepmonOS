@@ -1,11 +1,12 @@
 # Changelog
-## [2.3.2] 2026-05-XX
+## [2.3.2] 2026-05-12
 ### Geändert
 - 
 
 ### Hinzugefügt
 - Weitere Logging Befehle als Tabelle
 - Prüfung des Vorzeichens, welches für die Koordinaten aus dem Fram gelesen wird, um nur gültiger Werte (N, E, W, S, "") zu erlauben und Fallback auf die Konfigurationsdatei
+- Fallback für Polarnacht und Polartag
 
 ### Behoben
 - Fehlerhafter Gamma Wert von 1.6 auf 0.6 korrigiert, um Aufhellen der Schatten direkt mit Vimba API zu ermöglichen
