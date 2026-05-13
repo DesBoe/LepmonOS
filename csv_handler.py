@@ -58,9 +58,9 @@ def erstelle_und_aktualisiere_csv(sensor_data, log_mode):
                 csv_writer.writerow(["#Sensor:",                    sensor])
                 csv_writer.writerow(["#Auflösung:",                 f"{length} x {height}"])
 
-                csv_writer.writerow(["#Schirmgröße:",               f"{Schirmbreite} x {Schirmhöhe}"])
-                csv_writer.writerow(["#Abstand:",                   f"{distance}"])
-                csv_writer.writerow(["#Effektive Auflösung:",       f"{effective_resolution}"])
+                csv_writer.writerow(["#Schirmgröße:",               f"{Schirmbreite} mm x {Schirmhöhe} mm"])
+                csv_writer.writerow(["#Abstand:",                   f"{distance} mm"])
+                csv_writer.writerow(["#Effektive Auflösung:",       f"{effective_resolution} px/mm"])
 
                 csv_writer.writerow(["#Stromversorgung:",           Strom])         
 
