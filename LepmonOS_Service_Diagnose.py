@@ -3,7 +3,6 @@ import os
 import random
 import re
 from gpiozero import LED
-from LepmonOS_Dev_Camera_loop import * 
 from GPIO_Setup import *
 from OLED_panel import *
 from Lights import *
