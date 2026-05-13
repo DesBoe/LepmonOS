@@ -8,6 +8,7 @@ import subprocess
 import board
 from service import RPI_time
 from language import get_language
+from RTC_get_time_online import *
 
 lang = get_language()
 x_positions = [4,10,18,25,40,47,59,66,4,10,22,28,40,46]
@@ -257,7 +258,9 @@ if __name__ == "__main__":
         # time string # 
         ################
                             #"JJJJMMTTHHMMSS"
-        date_time_list =     "20260416125000"  
+        date_time_list =     "20260416225000"  # händisches überschreiben möglich, dafür nächste Zeile auskommentieren
+        print("Versuche, die Uhrzeit aus dem Internet zu erhalten - kommentiere Zeile 263 aus für manuellen override")
+        date_time_list = get_internet_time()
 
         if len(date_time_list) != 14 or not date_time_list.isdigit():
             print("Fehler: Die Eingabe muss genau 14 Ziffern enthalten und nur Ziffern!")

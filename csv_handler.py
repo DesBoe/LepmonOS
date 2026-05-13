@@ -19,7 +19,7 @@ def erstelle_und_aktualisiere_csv(sensor_data, log_mode):
         
     if log_mode == "kamera_test":
         csv_path = os.path.join(path, "Kamera_Testreihe.csv")
-
+    
     try:
         if not os.path.exists(csv_path) and log_mode == "log":
             print("Erstelle neue CSV Datei und lese Daten für Header")
@@ -35,7 +35,7 @@ def erstelle_und_aktualisiere_csv(sensor_data, log_mode):
             sunset, sunrise, _ = get_sun(log_mode)
             moonrise, moonset, moon_phase, max_altitude = get_moon(log_mode)
             experiment_start_time, experiment_end_time,_,_ = get_experiment_times(log_mode)
-            
+            print("Debug")           
             sensor_id = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")  
             interval = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "interval")
 
@@ -43,6 +43,11 @@ def erstelle_und_aktualisiere_csv(sensor_data, log_mode):
             kamera = get_device_info("camera")
             length = get_device_info("length")
             height = get_device_info("height")
+
+            Schirmbreite = get_device_info("Schirmbreite")
+            Schirmhöhe = get_device_info("Schirmhöhe")
+            distance = get_device_info("distance")
+            effective_resolution = get_device_info("effective_resolution")
             
             with open(csv_path, mode='w', newline='') as csvfile:
                 csv_writer = csv.writer(csvfile, delimiter='\t')  # Setze den Tabulator als Trennzeichen
@@ -52,6 +57,10 @@ def erstelle_und_aktualisiere_csv(sensor_data, log_mode):
                 csv_writer.writerow(["#Kamera:",                    kamera])
                 csv_writer.writerow(["#Sensor:",                    sensor])
                 csv_writer.writerow(["#Auflösung:",                 f"{length} x {height}"])
+
+                csv_writer.writerow(["#Schirmgröße:",               f"{Schirmbreite} x {Schirmhöhe}"])
+                csv_writer.writerow(["#Abstand:",                   f"{distance}"])
+                csv_writer.writerow(["#Effektive Auflösung:",       f"{effective_resolution}"])
 
                 csv_writer.writerow(["#Stromversorgung:",           Strom])         
 

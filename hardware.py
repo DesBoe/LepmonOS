@@ -7,37 +7,61 @@ geraete_bibliothek = {
         "camera": "AV__Alvium_1800_U-2050",
         "sensor": "imx183",
         "length": 5496,
-        "height": 3672
+        "height": 3672,
+        "Schirmbreite": 360,
+        "Schirmhöhe": 240,
+        "effective_resolution": 16,
+        "distance": 680
     },
     "Pro_Gen_2": {
         "camera": "AV__Alvium_1800_U-2050",
         "sensor": "imx183",
         "length": 5496,
-        "height": 3672
+        "height": 3672,
+        "Schirmbreite": 360,
+        "Schirmhöhe": 240,
+        "effective_resolution": 16,
+        "distance": 680
     },
     "Pro_Gen_3": {
         "camera": "AV__Alvium_1800_U-2050",
         "sensor": "imx183",
         "length": 5496,
-        "height": 3672
+        "height": 3672,
+        "Schirmbreite": 360,
+        "Schirmhöhe": 240,
+        "effective_resolution": 16,
+        "distance": 680
     },
     "Pro_Gen_4": {
         "camera": "AV__Alvium_1800_U-2050",
         "sensor": "imx183",
         "length": 5496,
-        "height": 3672
+        "height": 3672,
+        "Schirmbreite": 360,
+        "Schirmhöhe": 240,
+        "effective_resolution": 16,
+        "distance": 680
     },
     "CSS_Gen_1": {
         "camera": "RPI_Module_3",
         "sensor": "imx708",
         "length": 4608,
-        "height": 2592
+        "height": 2592,
+        "Schirmbreite": 265,
+        "Schirmhöhe": 150,
+        "effective_resolution": 16,
+        "distance": 210
     },
     "CSL_Gen_1": {
         "camera": "RPI_HQ",
         "sensor": "imx477",
         "length": 4056,
-        "height": 3040
+        "height": 3040,
+        "Schirmbreite": 000,
+        "Schirmhöhe": 000,
+        "effective_resolution": 000,
+        "distance": 000
     }
 }
 
@@ -88,5 +112,6 @@ if __name__ == "__main__":
     print(f"Dieser ARNI ist ein {get_hardware_version()} Modell")
     print(f"verbaute Kamera {get_device_info('camera')} mit Sensor {get_device_info('sensor')}")
     print(f"Auflösung: {get_device_info('length')} x {get_device_info('height')}") 
-    
-
+    print(f"Schirmbreite x Höhe in mm: {get_device_info('Schirmbreite')} x {get_device_info('Schirmhöhe')}")
+    print(f"Abstand zwischen Kamera und Schirm: {get_device_info('distance')} ")
+    print(f"Effektive Auflösung: {get_device_info('effective_resolution')} ")

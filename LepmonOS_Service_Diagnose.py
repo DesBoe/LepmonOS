@@ -22,9 +22,10 @@ from configparser import ConfigParser
 from LepmonOS_Service_fram_tabelle import get_Fram_table, write_fram_table_to_log
 from LepmonOS_Service_fram_configurator import write_config_to_fram
 from RTC_new_time import set_hwc
+from RTC_get_time_online import get_internet_time
 
 print("Check Serielnumber in line 28")
-sn = "SN010105"
+sn = "SN010115"
 
 print("\nStarte Diagnose. Schritt 1-9 frei einstellbar in Zeile 32 (1-OLED,2-LEDs,3-Sensoren,4-Uhr,5-RAM,6-RAM_löschen,7-RAM_Konfiguration,8-Knöpfe,9-Kamera)\n")
 
@@ -416,7 +417,7 @@ if __name__ == "__main__":
         print("Teste Uhr")
         try:
             
-            date_time_list =     "20260202190000"  
+            date_time_list = get_internet_time()
             zeile2 = f"Setze Uhr auf:"
             zeile3 = f"{date_time_list}"
             display_text(line1=zeile1,line2=zeile2,line3=zeile3,line4=zeile4,line5=zeile5,line6=zeile6)
@@ -623,4 +624,4 @@ if __name__ == "__main__":
         display_text(line1="Diagnose",line2="",line3="erfolgreich",line4="",line5="",line6="beendet")
         time.sleep(3)
     log_schreiben("Diagnose beendet", log_mode)
-    exit()
+    print(f"Diagnose beendet.\nprüfe Logdatei und Testbild")
