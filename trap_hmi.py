@@ -52,11 +52,11 @@ def display_sensor_status_with_text(sensor_data, sensor_status, log_mode):
             ("Power_Sensor", "bus_voltage", "V"),
             ("Environment_Sensor", "Temp_out", "°C")
         ]
-    log_schreiben("=======================================================", log_mode=log_mode)
+    log_schreiben("==========================================================", log_mode=log_mode)
     log_schreiben(f"Sensoren", log_mode=log_mode)
-    log_schreiben("-------------------------------------------------------", log_mode=log_mode)
+    log_schreiben("----------------------------------------------------------", log_mode=log_mode)
     log_schreiben(f"{'Sensor':<22} | {'Status':<10} | {'Wert':<10} |{'Einheit'}", log_mode=log_mode)
-    log_schreiben("-------------------------------------------------------", log_mode=log_mode)
+    log_schreiben("----------------------------------------------------------", log_mode=log_mode)
     for sensor_name, data_key, einheit in sensors:
         if sensor_name == "Power_Sensor" and hardware in ["Pro_Gen_1", "Pro_Gen_2"]:
             status = "nicht"
@@ -68,8 +68,8 @@ def display_sensor_status_with_text(sensor_data, sensor_status, log_mode):
         
         display_text(sensor_name, f"Status: {status}", f"Wert: {value} {einheit}", 1.5)
         #log_schreiben(f"Sensor: {sensor_name}, Status: {status}, Wert: {value} {einheit}", log_mode=log_mode)
-        log_schreiben(f"{sensor_name:<22} | {status:<10} | {value:<15} | {einheit}", log_mode=log_mode)
-    log_schreiben("==============================================", log_mode=log_mode)
+        log_schreiben(f"{sensor_name:<22} | {status:<10} | {value:<10} | {einheit}", log_mode=log_mode)
+    log_schreiben("==========================================================", log_mode=log_mode)
         
         
 def all_sensors_ok(sensor_status):
@@ -110,7 +110,7 @@ def open_trap_hmi(log_mode, start_step = 0):
              
         if (button_pressed("enter") 
             or set_new_location_code 
-            or read_fram_bytes(0x078F, 1) == b'\x01' # erzwinge erneutes Menü öffnen nach fehlerhaftem Fokussieren
+            #or read_fram_bytes(0x078F, 1) == b'\x01' # erzwinge erneutes Menü öffnen nach fehlerhaftem Fokussieren
             or read_fram_bytes(0x052F, 1) == b'\x01' # erzwinge erneutes Menü öffnen nach Update
             or log_mode == "manual"):
             write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "trigger_for_wb", True)
@@ -228,7 +228,7 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                 log_schreiben("kein Verstecktes Menü geöffnet", log_mode=log_mode)
                                 step += 1
                                 break
-                            if button_pressed("rechts") or read_fram_bytes(0x078F, 1) == b'\x01':
+                            if button_pressed("rechts"):# or read_fram_bytes(0x078F, 1) == b'\x01':
                                 print("Rechts gedrückt. Öffne Fokusmenü")
                                 log_schreiben("------------------", log_mode=log_mode)
                                 log_schreiben("Fokussierhilfe geöffnet", log_mode=log_mode)
@@ -272,7 +272,7 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                 print("Oben gedrückt. Öffne Update Menü")
                                 turn_off_led("blau")
                                 log_schreiben("------------------", log_mode=log_mode)
-                                update(log_mode,"full")
+                                update(log_mode,"force_reboot")
                                 log_schreiben("fahre fort", log_mode=log_mode)
                                 show_message("hmi_03", lang=lang)
                                 hidden_menu_start = time.time()

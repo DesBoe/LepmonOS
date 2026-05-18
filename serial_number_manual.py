@@ -94,6 +94,7 @@ def trigger_manual_sn(log_mode):
 
 
 if __name__ == "__main__":
-    sn_trigger, forced_by_user = trigger_manual_sn()
+    log_mode = "manual"
+    sn_trigger, forced_by_user = trigger_manual_sn(log_mode)
     if sn_trigger:
         set_sn_manually()

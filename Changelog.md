@@ -2,11 +2,14 @@
 ## [2.3.2] 2026-05-18
 ### Geändert
 - Uhrzeit in Daignose bei Internetverbindung automatisch ermttelt und auf RTC geschrieben
+- Fehlerhaftes Fokussieren erzwingt kein erneutes öffnen des Fokussier Menüs. Betroffene ARNIs müssen erneut manuell das Menü öffnen.
 
 ### Hinzugefügt
 - Weitere Logging Befehle als Tabelle
 - Prüfung des Vorzeichens, welches für die Koordinaten aus dem Fram gelesen wird, um nur gültiger Werte (N, E, W, S, "") zu erlauben und Fallback auf die Konfigurationsdatei
 - Fallback für Polarnacht und Polartag
+- ARNIs Gen1 und Gen2 behalten Koordinaten bei bei Update > 2.3.2 via USB
+- Menü zum Eingaben des Lepmon-code wird automatisch geöffnet, wenn Platzhalter (YY-XXX) erkannt wird
 
 ### Behoben
 - Fehlerhafter Gamma Wert von 1.6 auf 0.65 korrigiert, um Aufhellen der Schatten direkt mit Vimba API zu ermöglichen

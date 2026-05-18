@@ -1,6 +1,6 @@
 import time
 from fram_operations import*
-import datetime
+from datetime import datetime
 from hardware import *
 
 
@@ -24,7 +24,7 @@ def write_timestamp(adress):
     Format: "YYYY-MM-DD HH:MM:SS"
     '''
     try:
-        now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         write_fram_bytes(adress, now_str.encode("utf-8"))
     except Exception as e:
         print(f"Fehler beim Schreiben des RPI-Aktivitätszeitstempels: {e}")
@@ -95,10 +95,10 @@ def gap_day():
         # Lese den Aktivitätszeitstempel aus dem FRAM
         activity_timestamp_bytes = read_fram_bytes(0x07E0, 19)
         activity_timestamp_str = activity_timestamp_bytes.decode("utf-8")
-        activity_time = datetime.datetime.strptime(activity_timestamp_str, "%Y-%m-%d %H:%M:%S")
+        activity_time = datetime.strptime(activity_timestamp_str, "%Y-%m-%d %H:%M:%S")
         
         # Hole den aktuellen Zeitstempel
-        now = datetime.datetime.now()
+        now = datetime.now()
         
         # Berechne den Unterschied in Tagen
         difference = round((now - activity_time).total_seconds(), 0)

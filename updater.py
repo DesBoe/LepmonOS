@@ -47,7 +47,7 @@ def get_current_version(log_mode):
     except Exception as e:
         current_version = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "version")
     if current_version:
-        log_schreiben(f"Aktuelle Version aus FRAM gelesen: {current_version.strip()}", log_mode=log_mode)
+        print(f"Aktuelle Version gelesen: {current_version.strip()}")
         return current_version.strip()
     log_schreiben("Konnte aktuelle Version nicht lesen", log_mode=log_mode)
     return None
@@ -63,15 +63,22 @@ def version_tuple(version_str, log_mode):
 def is_update_allowed(log_mode):
     new_version = get_new_version_from_stick(log_mode)
     current_version = get_current_version(log_mode)
+    print("+-------------------+-------------------+")
+    print("|     Aktuell       |       Neu         |")
+    print("+-------------------+-------------------+")
+    print(f"| {str(current_version):<17} | {str(new_version):<17} |")
+    print("+-------------------+-------------------+")
     if not new_version or not current_version:
         print("Konnte Version nicht lesen.")
         show_message("update_7", lang = lang)
         log_schreiben("neue Version nicht gefunden",2, log_mode=log_mode)
         return False
-    if version_tuple(new_version, log_mode) == version_tuple(current_version, log_mode):
-        show_message("update_8", lang = lang)
-        log_schreiben("Firmwareversion bereits aktuell", log_mode=log_mode)
-        return False
+    #if version_tuple(new_version, log_mode) == version_tuple(current_version, log_mode):
+    #    show_message("update_8", lang = lang)
+    #    log_schreiben("Firmwareversion bereits aktuell", log_mode=log_mode)
+    #    return False
+    # für Updates mit dem Pi Imager setzt start_up.py die Version bereits auf die neue Version, damit sie im Log steht. Daher wird die Gleichheitsprüfung auskommentiert.
+
     elif version_tuple(new_version, log_mode) < version_tuple(current_version, log_mode):
         show_message("update_9", lang = lang)
         log_schreiben("Downgrade nicht erlaubt", log_mode=log_mode)
@@ -114,7 +121,7 @@ def ignore_special_files(dir, files):
             pass
     return ignored
 
-def safe_rmtree(path, log_mode):
+def safe_rmtree(path):
     for root, dirs, files in os.walk(path, topdown=False):
         for name in files:
             file_path = os.path.join(root, name)
@@ -142,7 +149,7 @@ def safe_rmtree(path, log_mode):
 
 
 
-def update(log_mode, execution="full"):
+def update(log_mode, execution="force_reboot"):
     write_to_fram()
     show_message("update_10", lang = lang)
     log_schreiben("Menü zum Updaten geöffnet", log_mode)
@@ -168,7 +175,7 @@ def update(log_mode, execution="full"):
                 print("prüfe, ob der Backup-Ordner bereits existiert...")
                 if os.path.exists(backup_folder):
                     print("Backup-Ordner existiert bereits. Lösche Backup-Ordner...")
-                    safe_rmtree(backup_folder, log_mode=log_mode)
+                    safe_rmtree(backup_folder)
                 
                 print(f"Sichere aktuellen LepmonOS Ordner in {backup_folder}...")
                 try:
@@ -179,6 +186,7 @@ def update(log_mode, execution="full"):
 
                 print("frage alten logging path, GPS, und SN ab...")
                 old_log_path = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_log")
+                old_folder = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
                 sn = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")
                 hardware_version = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "ARNI_Gen")
                 latitude = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "GPS", "latitude")
@@ -195,7 +203,7 @@ def update(log_mode, execution="full"):
 
                 print("lösche alten LepmonOS Ordner...")
                 try:
-                    safe_rmtree(target_folder, log_mode=log_mode)
+                    safe_rmtree(target_folder)
                     log_dict["folder_delete_1"] = "alter Programmordner erfolgreich gelöscht"
                 except Exception as e:
                     log_dict["folder_delete_2"] = f"Fehler beim Löschen des alten LepmonOS: {e}"
@@ -215,6 +223,7 @@ def update(log_mode, execution="full"):
                 write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "GPS", "longitude", longitude)
                 write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "GPS", "Pol", Pol)
                 write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "GPS", "Block", Block)
+                write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder", old_folder)
                 log_dict["logging_path_1"] = f"logging path und Geräteinformationen im neuer Config auf alte Werte gesetzt"
                 print("schreibe Logeinträge aus dem Update-Prozess in das Log...")
                 print(log_dict)
@@ -248,6 +257,7 @@ def update(log_mode, execution="full"):
             show_message("update_15", lang=lang, version = new_version, date= new_date)
             log_schreiben(f"Update erfolgreich abgeschlossen. Neue Firmwareversion:{new_version}", log_mode=log_mode)
             log_schreiben("leite Neustart ein, um Update abzuschließen", log_mode=log_mode)
+            log_schreiben("------------------", log_mode=log_mode)
             try:
                 write_fram(0x0520, new_version.ljust(7)) 
                 write_fram(0x0510, new_date.ljust(10))

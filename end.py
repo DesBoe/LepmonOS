@@ -17,6 +17,7 @@ import RPi.GPIO as GPIO
 from logging_utils import *
 from times import *
 from fram_operations import store_times_power
+from runtime import *
 
 GPIO.setmode(GPIO.BCM)
 
@@ -32,6 +33,7 @@ def trap_shutdown(i,log_mode,execution="full"):
     - full: Shutdown - Neustart mit Attiny erst am nächsten Tag, wenn experimentiert wird
     - test: Shutdown - Neustart mit Attiny nach 1 Minute (für Testzwecke)
     - anzeige: Zeige Countdown und Nachricht, aber führe keinen echten Shutdown durch (für Demozwecke)
+    - force_reboot: sofortiger Neustart ohne Rücksicht auf experimentelle Zeiten (zB bei Update via USB)
 
     '''
     try:
@@ -90,7 +92,7 @@ def trap_shutdown(i,log_mode,execution="full"):
         send_lora(f"ARNI fährt herunter. Letzte Nachricht im aktuellen Run\nBeachte, dass der Solarregler ARNI ggf. erst kurz vor der nächsten Dämmerung wieder aktiviert")
         time.sleep(.5)
 
-    if execution != "full":
+    if execution in ["test", "anzeige"]:
         print("Überschreibe Alarmzeit auf 1 Minute in der Zukunft für manuelles Testen.")
         next_experiment_start_time = datetime.now() + timedelta(minutes=1)
         Nächstes_Ausschalten = next_experiment_start_time + timedelta(minutes=4)
@@ -123,6 +125,21 @@ def trap_shutdown(i,log_mode,execution="full"):
     
     on_shutdown()
     time.sleep(2)
+
+
+    if execution == "force_reboot":
+        print("Setze Controlbit auf True")
+        write_fram_bytes(0x07A0, b'\x01')
+        write_timestamp(0x07E0)
+        log_schreiben("sofortiger Reboot in 5 Sekunden", log_mode)
+        log_schreiben("##################################",log_mode)
+        log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###",log_mode)
+        log_schreiben("##################################",log_mode)
+        time.sleep(5)
+        os.system("sudo reboot")
+        time.sleep(2)
+        print("Systembefehl zum Neustart ausgeführt.")
+
 
 
     if hardware in ["Pro_Gen_1","Pro_Gen_2", "Pro_Gen_3"]:
