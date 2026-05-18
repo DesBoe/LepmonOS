@@ -35,6 +35,7 @@
 - Build-Essential und unnötige Firmware nach Installation entfernt (Platzersparnis)
 - Release-Notes in GitHub Actions aktualisiert
 - move Photo Sanity check in snap image function for shorter time between 2 consequtive frames
+- Gamma correction via VimbaX API
 
 ### Hinzugefügt
 - detailierte Fehler Logs in der Alied Vision Kamera

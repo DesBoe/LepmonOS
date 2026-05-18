@@ -100,8 +100,10 @@ def get_usb_path(log_mode):
     search_counter = 0
     while zielverzeichnis is None:
         search_counter += 1  
+        print(f"Suche nach USB-Stick... Versuch {search_counter}")
         if search_counter == 10:
             error_message(3, "USB-Stick nicht gefunden", log_mode)
+            print("Suche weiter nach USB Stick...")
         if 10 < search_counter < 30:
             turn_on_led("gelb")
             time.sleep(.5)
@@ -111,12 +113,16 @@ def get_usb_path(log_mode):
             zielverzeichnis = "Kein USB-Stick gefunden"
             return zielverzeichnis, status
         for media_path in search_paths:
+            print(f"Überprüfe Pfad: {media_path}")
+            print(f"Vorhandene Verzeichnisse in {media_path}: {os.listdir(media_path) if os.path.exists(media_path) else 'Pfad existiert nicht'}")
             if os.path.exists(media_path):
                 for item in os.listdir(media_path):
+                    print(f"Überprüfe {item} in {media_path}")
                     pot_dir = os.path.join(media_path, item)
                     if os.path.ismount(pot_dir):
                         zielverzeichnis = pot_dir
                         status = 1
+                        print(f"USB-Stick gefunden: {zielverzeichnis}")
                         return zielverzeichnis, status
         print("Suche nach USB-Stick...")
         time.sleep(2)
@@ -300,12 +306,13 @@ def compare_hardware_version():
     ARNI_Gen_ram = None
     ARNI_Gen_json = None
     try: 
+        print("Lese ARNI_Gen aus dem FRAM")
         ARNI_Gen_ram = read_fram(0x0130, 16).replace('\x00', '').strip() or ""
+        print(f"ARNI_Gen aus FRAM gelesen: {ARNI_Gen_ram}")
     except Exception as e:
-        print(f"Fehler beim Lesen der ARNI_Gen aus dem FRAM: {e}")
+        print(f"Fehler beim Lesen der ARNI_Gen aus dem FRAM: {e}\n lese ARNI_Gen aus der Konfigurationsdatei als Fallback")
     try:
         ARNI_Gen_json = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "ARNI_Gen")
-        print("Lese ARNI_Gen aus der Konfig Datei nach FRAM Fehler")
     except Exception as e:
         print(f"Fehler beim Lesen der ARNI_Gen aus der JSON: {e}")
     
@@ -330,6 +337,7 @@ def compare_sn(log_mode):
     try:
         sn_json = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")
         sn = sn_json
+        print(f"Seriennummer aus JSON gelesen: {sn_json}")
     except Exception as e:
         print(f"Fehler beim Lesen der Seriennnummer aus der separaten json Datei: {e}")    
         
@@ -357,9 +365,15 @@ def compare_sn(log_mode):
 
 
 def compare_fram_json(log_mode):
-    compare_hardware_version()
-    sn = compare_sn(log_mode)
-    
+    try:
+        compare_hardware_version()
+    except Exception as e:
+        print(f"Fehler beim Vergleichen der Hardware Version: {e}")
+    try:
+        sn = compare_sn(log_mode)
+    except Exception as e:
+        print(f"Fehler beim Vergleichen der Seriennummer: {e}")
+        sn = None
     return sn
     
    
@@ -395,7 +409,7 @@ def set_sn():
 
 
 if __name__ == "__main__":
-    print("Hilfsfunktionen für den Service")
+    print("Hilfsfunktionen für den Service\nIm Terminal mit sudo python3 service.py ausführen\n")
     project_name,province, Kreis_code, sn = get_Lepmon_code(log_mode="manual")
     print(f"Zeichenfolge: {project_name}-{province}-{Kreis_code}-{sn}")
     print("---------------------------------")
@@ -421,6 +435,10 @@ if __name__ == "__main__":
     print("Vergleiche Seriennummer zwischen FRAM und JSON...")
     compare_sn(log_mode="manual")
     print("---------------------------------")
+    print("Firmware Version aus Konfig Datei...")
+    version=get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "version")
+    print(f"LEPMONOS Version: {version}")
+    print("---------------------------------")    
     print("---------------------------------")
 
 

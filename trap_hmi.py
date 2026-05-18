@@ -272,7 +272,7 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                 print("Oben gedrückt. Öffne Update Menü")
                                 turn_off_led("blau")
                                 log_schreiben("------------------", log_mode=log_mode)
-                                update(log_mode)
+                                update(log_mode,"full")
                                 log_schreiben("fahre fort", log_mode=log_mode)
                                 show_message("hmi_03", lang=lang)
                                 hidden_menu_start = time.time()

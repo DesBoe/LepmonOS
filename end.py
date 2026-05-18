@@ -109,9 +109,16 @@ def trap_shutdown(i,log_mode,execution="full"):
     except Exception as e:
         log_schreiben(f"Fehler beim Speichern der Zeiten des nächsten Experiments im FRAM:{e}", log_mode)
 
-    for sec in range(i, 0, -1):
-        show_message("end_1", lang = get_language(), time = sec)
-    display_text_and_image("Neustart","restart","reiniciar","/home/Ento/LepmonOS/startsequenz/end.png",0)
+
+    try:
+        i_int = int(i)
+    except Exception as e:
+        print(f"Ungültiger Wert für i: {i} ({e})")
+        i_int = 5  
+
+    for sec in range(i_int, 0, -1):
+        show_message("end_1", lang=get_language(), time=sec)
+    display_text_and_image("Neustart", "restart", "reiniciar", "/home/Ento/LepmonOS/startsequenz/end.png", 0)
         
     
     on_shutdown()

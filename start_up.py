@@ -73,9 +73,9 @@ def start_up(log_mode):
     sn_trigger, _, Gen_json = trigger_manual_sn(log_mode)
     fram_success = False
     if sn_trigger:
-        sn_manual, gen_manual, fram_success = set_sn_manually()
+        sn_manual, hardware, fram_success = set_sn_manually()
         # log eintrag erfolgt, nachdem das Log initialisiert wurde
-        if gen_manual == "Pro_Gen_1" and Gen_json != "Pro_Gen_1":
+        if hardware == "Pro_Gen_1" and Gen_json != "Pro_Gen_1":
             display_text_and_image("Neustart","restart","reiniciar","/home/Ento/LepmonOS/startsequenz/end.png",0)
             os.system("sudo reboot")
             time.sleep(2)
@@ -219,7 +219,7 @@ def start_up(log_mode):
 
     if sn_trigger:
         log_schreiben("Manuelle SN Eingabe durch User erzwungen.", log_mode=log_mode)
-        log_schreiben(f"Manuell gesetzte SN: {sn_manual}, Gen: {gen_manual}", log_mode=log_mode)
+        log_schreiben(f"Manuell gesetzte SN: {sn_manual}, Gen: {hardware}", log_mode=log_mode)
 
     
     display_text_and_image("Wel-","come", "", "/home/Ento/LepmonOS/startsequenz/Logo_6_9.png",1)  
@@ -255,8 +255,8 @@ def start_up(log_mode):
     log_schreiben("----------------------------------------------", log_mode=log_mode)
     log_schreiben(f"{'Beginn Experiment':<22} | {power_on[:10]}", log_mode=log_mode)
     log_schreiben(f"{'Attiny on':<22} | {power_on[11:]}", log_mode=log_mode)
-    log_schreiben(f"{'Start Aufnahme':<22} | {experiment_start_time}", log_mode=log_mode)
     log_schreiben(f"{'Sonnenuntergang':<22} | {sunset.strftime('%H:%M:%S')}", log_mode=log_mode)
+    log_schreiben(f"{'Start Aufnahme':<22} | {experiment_start_time}", log_mode=log_mode)
     log_schreiben(f"{'Verzögerung Start':<22} | {minutes_after_sunset} Minuten", log_mode=log_mode)
     log_schreiben("----------------------------------------------", log_mode=log_mode)
     log_schreiben(f"{'Ende Experiment':<22} | {power_off[:10]}", log_mode=log_mode)

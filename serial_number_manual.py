@@ -41,11 +41,11 @@ def set_sn_manually():
                 write_fram_bytes(0x0110, b'\x00' * 16)
                 print("SN in FRAM gelöscht")
                 write_fram(0x0110, sn.ljust(16))
-                print("SN in den RAM geschrieben")
+                print(f"SN in den RAM geschrieben: {sn}")
                 write_fram_bytes(0x0130, b'\x00' * 16)
                 print("Gen in FRAM gelöscht")
                 write_fram(0x0130, gen.ljust(16))
-                print(" Gen in den RAM geschrieben")
+                print(f"Gen in den RAM geschrieben: {gen}")
                 fram_success = True
 
 
