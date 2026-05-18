@@ -90,6 +90,7 @@ def capturing(log_mode):
         log_schreiben(f"{'gesamt':<22} | {str(total_space_gb)+' GB':<10} | {''}", log_mode=log_mode)
         log_schreiben(f"{'belegt':<22} | {str(used_space_gb)+' GB':<10} | {used_percent} %", log_mode=log_mode)
         log_schreiben(f"{'frei':<22} | {str(free_space_gb)+' GB':<10} | {free_percent} %", log_mode=log_mode)
+        log_schreiben("==============================================", log_mode=log_mode)
 
     except Exception as e:
         error_message(3,e, log_mode)

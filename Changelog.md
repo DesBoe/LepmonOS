@@ -1,5 +1,5 @@
 # Changelog
-## [2.3.2] 2026-05-18
+## [2.3.2] 2026-05-19
 ### Geändert
 - Uhrzeit in Daignose bei Internetverbindung automatisch ermttelt und auf RTC geschrieben
 - Fehlerhaftes Fokussieren erzwingt kein erneutes öffnen des Fokussier Menüs. Betroffene ARNIs müssen erneut manuell das Menü öffnen.
