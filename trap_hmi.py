@@ -755,24 +755,25 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                 show_message("hmi_35", lang=lang)
                                 json_path = "/home/Ento/LepmonOS/Lepmon_config.json"
                                 update_folder_and_log(json_path, province_old, Kreis_code_old, province, Kreis_code, log_mode)
-                                show_message("hmi_36", lang=lang)
-                                log_schreiben("##################################", log_mode=log_mode)
-                                log_schreiben("##################################", log_mode=log_mode)
-                                log_schreiben("Beende Systemcheck", log_mode=log_mode)
-                                log_schreiben("##################################", log_mode=log_mode)
-                                log_schreiben("##################################", log_mode=log_mode)
-                                menu_exit = True
-                                break
+                            show_message("hmi_36", lang=lang)
+
+
+                            if hardware in ["Pro_Gen_2", "Pro_Gen_3"]:
+                                display_text_and_image("switch", "always", "on", "/home/Ento/LepmonOS/startsequenz/Knopf_An_Aus.png", sleeptime=5)
+
+                            if hardware in ["Pro_Gen_4", "CSS_Gen_1"]:
+                                for _ in range(3):
+                                    display_text_and_image("switch", "always", "on", "/home/Ento/LepmonOS/startsequenz/Knopf_An_Aus.png", sleeptime=2)
+                                    display_text_and_image("power", "safe", "mode", "/home/Ento/LepmonOS/startsequenz/Knopf_An_An.png", sleeptime=2)
+                            log_schreiben("##################################", log_mode=log_mode)
+                            log_schreiben("##################################", log_mode=log_mode)
+                            log_schreiben("Beende Systemcheck", log_mode=log_mode)
+                            log_schreiben("##################################", log_mode=log_mode)
+                            log_schreiben("##################################", log_mode=log_mode)
+                            menu_exit = True
+                            break
                                 
-                            elif not Neustart:
-                                show_message("hmi_36", lang=lang)
-                                log_schreiben("##################################", log_mode=log_mode)
-                                log_schreiben("##################################", log_mode=log_mode)
-                                log_schreiben("Beende Systemcheck", log_mode=log_mode)
-                                log_schreiben("##################################", log_mode=log_mode)
-                                log_schreiben("##################################", log_mode=log_mode)
-                                menu_exit = True
-                                break
+
             
                     
     

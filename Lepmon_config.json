@@ -79,7 +79,7 @@
     "frame_brightness": {
         "black_sanity_level": 0.15,
         "brightness_tolerance": 5,
-        "brightness_reference": 185
+        "brightness_reference": 175
     },
     "GPS": {
         "latitude": 53.8844,
