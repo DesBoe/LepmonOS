@@ -91,9 +91,12 @@ def start_up(log_mode):
     time.sleep(3)
     
     lang = get_language()
+    hardware_display = hardware
+    if hardware_display == "CSS_Gen_1":
+        hardware_display = "CS_Gen_1"
     
     show_message("device_1", lang=lang,
-                 hardware=hardware,
+                 hardware=hardware_display,
                  sn=sn[2:],
                  version=get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "version"))
     time.sleep(1)
