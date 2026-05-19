@@ -26,7 +26,7 @@
         "dusk_treshold": 90,
         "error_code": "0",
         "gamma_correction": true,
-        "trigger_for_wb": false
+        "trigger_for_wb": true
     },
     "RPI_Module_3": {
         "initial_gain_10": 7,
@@ -67,7 +67,7 @@
         "current_gain_10": "85",
         "initial_exposure": 150,
         "minimal_exposure": 90,
-        "maximal_exposure": 210,
+        "maximal_exposure": 200,
         "step_exposure": 5,
         "current_exposure": 165,
         "focus_threshold": 225.0,
