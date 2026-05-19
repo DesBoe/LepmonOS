@@ -91,10 +91,17 @@ def LepiLED_ende(display_mode = "show"):
 
 if __name__ == "__main__":
     print("Funktionen zum Steuern der LEDs")
-    dim_up()
-    time.sleep(1)
-    dim_down()
-    time.sleep(1)
-    LepiLED_start()
-    LepiLED_ende()     
+    hardware = get_hardware_version()
+    print(f"Hardware Version: {hardware}")
+    while True:
+        print("Dimme Visible LED hoch")
+        dim_up()
+        print("---------------------------------")
+        time.sleep(1)
+        print("Dimme Visible LED runter")
+        dim_down()
+        print("---------------------------------")
+        time.sleep(1)
+        LepiLED_start()
+        LepiLED_ende()     
     
