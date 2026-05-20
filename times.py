@@ -1,5 +1,8 @@
 from datetime import datetime, timedelta
-from timezonefinder import TimezoneFinder
+try:
+    from timezonefinder import TimezoneFinder
+except Exception as e:
+    print(f"Fehler beim Importieren von timezonefinder: {e}.")
 import pytz
 import ephem
 from logging_utils import *
