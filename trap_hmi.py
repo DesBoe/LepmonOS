@@ -494,12 +494,13 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                         
                                     log_schreiben("Menü zum aktualisieren der Koordinaten geschlossen", log_mode=log_mode)
                                     show_message("hmi_20", lang=lang)
-                                    _, provinz, Kreiscode, _ = get_Lepmon_code(log_mode)
-                                    show_message("hmi_21", lang=lang, provinz=provinz, Kreiscode=Kreiscode)
-                                    turn_on_led("blau")
                                     if province == "YY" or Kreis_code == "XXX":
                                         print(f"Warnung: LEPMON Code enthält Platzhalterwerte: {province} {Kreis_code}")
                                         show_message("LEPMON-CODE-WARNING", lang=lang)
+                                    _, provinz, Kreiscode, _ = get_Lepmon_code(log_mode)
+                                    show_message("hmi_21", lang=lang, provinz=provinz, Kreiscode=Kreiscode)
+                                    turn_on_led("blau")
+                                   
 
                                     while user_selection_Code == False:
                                         if button_pressed("oben"):
