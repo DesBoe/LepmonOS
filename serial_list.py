@@ -14,7 +14,7 @@ def get_serial_list():
     ("SN010008", "Pro_Gen_1"),
     ("SN010009", "Pro_Gen_2"),
     ("SN010010", "Pro_Gen_2"),
-    ("SN010011", "Pro_Gen_2")
+    ("SN010011", "Pro_Gen_2") 
     ]
     for i in range(12, 91):
         sn = f"SN01{str(i).zfill(4)}"

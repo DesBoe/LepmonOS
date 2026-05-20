@@ -15,6 +15,7 @@ from GPIO_Setup import turn_off_led
 from end import trap_shutdown
 from bootconfig import add_to_bootconfig
 from hardware import *
+from serial_list import *
 import os
 from serial_number_manual import *
 from serial_list import *
@@ -64,6 +65,8 @@ def start_up(log_mode):
     hardware=get_hardware_version()
     if hardware == "CSS_Gen_1":
         dim_down()
+    elif hardware == "Unknown":
+        set_sn_manually()
     turn_off_led("heizung")
     RPI_time(log_mode)
 

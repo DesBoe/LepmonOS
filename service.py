@@ -9,7 +9,7 @@ import subprocess
 from fram_operations import *
 from OLED_panel import show_message
 from language import get_language
-from hardware import get_hardware_version
+from hardware import *
 import re
 from GPIO_Setup import *
 import shutil
@@ -309,6 +309,10 @@ def compare_hardware_version():
         print("Lese ARNI_Gen aus dem FRAM")
         ARNI_Gen_ram = read_fram(0x0130, 16).replace('\x00', '').strip() or ""
         print(f"ARNI_Gen aus FRAM gelesen: {ARNI_Gen_ram}")
+        if ARNI_Gen_ram not in geraete_bibliothek:
+            print(f"Fehler beim Lesen der Generation aus dem RAM: ARNI_Gen '{ARNI_Gen_ram}' nicht in Gerätebibliothek gefunden.")
+            ARNI_Gen_ram = "None"
+        
     except Exception as e:
         print(f"Fehler beim Lesen der ARNI_Gen aus dem FRAM: {e}\n lese ARNI_Gen aus der Konfigurationsdatei als Fallback")
     try:
