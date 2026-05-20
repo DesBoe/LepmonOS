@@ -511,7 +511,6 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
         log_schreiben(f"Dateipfad für Testbild: {dateipfad}", log_mode=log_mode)
 
     if cam_mode == "log":
-        print("Wenn der Cam_mode log manuell ausgeführt, verhält sich das Skript wie in der Aufnahme Schleife.\nAls Speicherort wird der Ordner aus der Lepmon_config.json unter general->current_folder verwendet. \nWenn kein dieser nicht existiert, kann mit start_up.py der Pfad neu gesetzt und der Ordner erstellt werden.")
         time.sleep(5)
 
 
