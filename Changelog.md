@@ -10,6 +10,7 @@
 - Fallback für Polarnacht und Polartag
 - ARNIs Gen1 und Gen2 behalten Koordinaten bei bei Update > 2.3.2 via USB
 - Menü zum Eingaben des Lepmon-code wird automatisch geöffnet, wenn Platzhalter (YY-XXX) erkannt wird
+- Möglichkeit, Seriennummer und Generationenlabel neu zu setzen in Start_up. Entweder händisch erzwungen oder bei Fehlerhaft erkanntem Generationenlabel oder wenn Seriennummer nicht zur angebenen Generation gehört.
 
 ### Behoben
 - Fehlerhafter Gamma Wert von 1.6 auf 0.65 korrigiert, um Aufhellen der Schatten direkt mit Vimba API zu ermöglichen
