@@ -741,6 +741,12 @@ MESSAGE_REGISTER = {
         "es": ("{country}","{province}","{Kreiscode}")
     },                   
 
+    "LEPMON-CODE-WARNING": {
+        "sleep": 3,
+        "de": ("LEPMON-CODE", "ist default", "bitte ändern"),
+        "en": ("LEPMON-CODE", "is default", "please change"),
+        "es": ("LEPMON-CODE", "es predeterminado", "por favor cambie")
+    },
     ### wait ### 
     "wait_1": {
         "sleep": 1,

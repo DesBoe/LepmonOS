@@ -497,8 +497,12 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                     _, provinz, Kreiscode, _ = get_Lepmon_code(log_mode)
                                     show_message("hmi_21", lang=lang, provinz=provinz, Kreiscode=Kreiscode)
                                     turn_on_led("blau")
+                                    if province == "YY" or Kreis_code == "XXX":
+                                        print(f"Warnung: LEPMON Code enthält Platzhalterwerte: {province} {Kreis_code}")
+                                        show_message("LEPMON-CODE-WARNING", lang=lang)
+
                                     while user_selection_Code == False:
-                                        if button_pressed("oben") or set_new_location_code:
+                                        if button_pressed("oben"):
                                             turn_off_led("blau")
                                             log_schreiben("------------------", log_mode=log_mode)
                                             log_schreiben("Menü zum Ändern der Provinz und Kreiskürzel geöffnet. Erwarte neuen LEPMON-Code", log_mode=log_mode)

@@ -386,10 +386,6 @@ def force_new_location_code(log_mode):
         force_set_location_code = True
     else:
         force_set_location_code = False
-
-    if province == "YY" or Kreis_code == "XXX":
-        force_set_location_code = True
-        print(f"Warnung: LEPMON Code enthält Platzhalterwerte: {province} {Kreis_code}")
     
     return force_set_location_code
 
