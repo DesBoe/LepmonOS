@@ -511,6 +511,7 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
         log_schreiben(f"Dateipfad für Testbild: {dateipfad}", log_mode=log_mode)
 
     if cam_mode == "log":
+        print("Wenn der Cam_mode log manuell ausgeführt, verhält sich das Skript wie in der Aufnahme Schleife.\nAls Speicherort wird der Ordner aus der Lepmon_config.json unter general->current_folder verwendet. \nWenn kein dieser nicht existiert, kann mit start_up.py der Pfad neu gesetzt und der Ordner erstellt werden.")
         time.sleep(5)
 
 
@@ -553,7 +554,7 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
 
 
     
-    if cam_mode == "Diagnose":
+    if cam_mode == "Diagnose" or cam_mode == "kamera_test":
         frame, Status_Kamera, power_vis = get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma)
         time.sleep(0.5)
         try:
@@ -579,6 +580,15 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
         except Exception as e:
             power_on = "---"
             log_schreiben(f"Fehler beim Messen des Stromverbrauchs der Visible LED: {e}", log_mode=log_mode)
+        try: 
+            Bild_erfolgreich_gespeichert = check_image(dateipfad, log_mode = "log")
+            if Bild_erfolgreich_gespeichert:
+                print("Foto Sanity Check bestanden")
+            elif not Bild_erfolgreich_gespeichert:
+                print("Foto Sanity nicht Check bestanden")
+        except Exception as e:
+            print(f"Fehler bei der Bildprüfung: {e}")
+
 
     
     if cam_mode == "log":
@@ -670,4 +680,4 @@ if __name__ == "__main__":
         gain = int(
             get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "initial_gain_10")
         ) / 10
-        snap_image_AV("jpg", "log", 0, "manual", exposure, gain)
+        snap_image_AV("jpg", "kamera_test", 0, "manual", exposure, gain)
