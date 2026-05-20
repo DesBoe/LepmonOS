@@ -76,7 +76,7 @@ def log_schreiben(text, log_mode):
                 if attempt == 29:
                     print("Logeintrag nach 30 Versuchen gescheitert. Vermutlich liegt ein Problem in der Verbindung zum USB stick vor. Starte neu") 
                     from end import trap_shutdown
-                    trap_shutdown(log_mode, 10) 
+                    trap_shutdown(log_mode, 10, execution="force_reboot") 
                     break
 
 Logging_MESSAGES = {

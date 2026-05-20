@@ -128,7 +128,7 @@ def install_packages(log_mode):
             log_schreiben("##################################", log_mode=log_mode)
             log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###", log_mode=log_mode)
             log_schreiben("##################################", log_mode=log_mode) 
-            trap_shutdown(log_mode,5)
+            trap_shutdown(log_mode,5, execution="force_reboot")
             os.system("sudo reboot now")
             show_message("blank", lang=lang)
             time.sleep(10)

@@ -130,7 +130,7 @@ def start_up(log_mode):
             log_schreiben("##################################", log_mode=log_mode) 
         except Exception as e:
             pass
-        trap_shutdown(log_mode,10)
+        trap_shutdown(log_mode,10, execution="force_reboot")
         return
         
     display_text_and_image("Will-","kommen", "", "/home/Ento/LepmonOS/startsequenz/Logo_1_9.png",1) 
@@ -173,7 +173,7 @@ def start_up(log_mode):
             log_schreiben("##################################", log_mode=log_mode)
             log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###", log_mode=log_mode)
             log_schreiben("##################################", log_mode=log_mode)
-            trap_shutdown(log_mode,10)
+            trap_shutdown(log_mode,10, execution="force_reboot")
             return
         initialisiere_logfile(log_mode)
         log_schreiben("==============================================", log_mode=log_mode)
