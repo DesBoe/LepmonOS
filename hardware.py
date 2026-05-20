@@ -2,7 +2,6 @@ from fram_operations import *
 from fram_direct import *
 from json_read_write import *
 from serial_list  import *
-from GPIO_Setup import *
 
 geraete_bibliothek = {
     "Pro_Gen_1": {
