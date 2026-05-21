@@ -94,9 +94,7 @@ def start_up(log_mode):
     on_start()
     sn = compare_fram_json(log_mode)
 
-    # Kontrolle, ob gegebene Seriennummer zur Geräteversion passt. Wenn nicht, manuelle SN Eingabe erzwingen
-    # Dazu muss K2W die verbauten Seriennummern bekannt geben.
-    print("Vergleiche gegebene Seriennummer mit der Geräteversion. Wenn sie nicht zusammenpassen, erzwinge manuelle SN Eingabe. Dazu muss K2W die verbauten Seriennummern bekannt geben.")
+    print("Vergleiche gegebene Seriennummer mit der Geräteversion. Wenn sie nicht zusammenpassen, erzwinge manuelle SN Eingabe")
     try:
         hardware_in_list = get_generation_by_serial(sn)
         if hardware_in_list != hardware:
