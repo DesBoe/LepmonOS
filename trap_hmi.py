@@ -28,6 +28,12 @@ from coordinates_region_check import find_country_and_region
 from Box_Experiment_Times import *
 from gpiozero import LED
 
+def timedelta_to_hms(td):
+    total_seconds = int(td.total_seconds())
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02}:{minutes:02}:{seconds:02}"
+
 def display_sensor_status_with_text(sensor_data, sensor_status, log_mode):
     """
     Gibt die Sensorinformationen mit display_text aus.
@@ -752,7 +758,8 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                             if sn in ["SN010010", "SN010011"]:
                                 jetzt_local, _, _= Zeit_aktualisieren(log_mode=log_mode)
                                 Delay, Box_Experiment_Run, Round = get_experiment_delay(sn, jetzt_local)
-                                display_text(f"Box Run: {Box_Experiment_Run}\nRunde: {Round}\nVerzögerung: {Delay.strftime('%H:%M:%S')}", lang=lang)
+                                anzeige = timedelta_to_hms(Delay)
+                                display_text(f"Box Run: {Box_Experiment_Run}\nRunde: {Round}\nVerzögerung: {anzeige}", lang=lang)
 
 
                             
