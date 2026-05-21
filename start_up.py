@@ -156,10 +156,13 @@ def start_up(log_mode):
         
     display_text_and_image("Will-","kommen", "", "/home/Ento/LepmonOS/startsequenz/Logo_1_9.png",1) 
     try:
-        control_bit = read_fram_bytes(0x07A0, 1) == b'\x01'
-        # Kontrollbit wird nur im Capturing zurückgesetzt --> Ordner für Updates und manuelle Neustarts durch Nutzer werden geloggt und bleiben erhalten
-    except Exception as e:    
+        result = read_fram_bytes(0x07A0, 1)
+        if result is None:
+            raise Exception("FRAM nicht gefunden und Wert für Control Bit ist None. Nutze stattdessen den Wert aus der ConfigJson.")
+        control_bit = result == b'\x01'
+    except Exception as e:
         control_bit = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "Control_End")
+        print(f"JSON Control Bit aus ConfigJson gelesen: {control_bit}")
     print("letzer Fang nicht ordnungsgemäß beendet:", control_bit)    
     
     display_text_and_image("Will-","kommen", "", "/home/Ento/LepmonOS/startsequenz/Logo_2_9.png",1)
@@ -183,7 +186,7 @@ def start_up(log_mode):
     display_text_and_image("Will-","kommen", "", "/home/Ento/LepmonOS/startsequenz/Logo_3_9.png",1)
     
     if control_bit:
-        print("Überprüfe ob ein halber Tag seit letztem Fang vergangen ist. Wenn ja, wird Kontrollbit zurückgesetzt, um neuen Ordner zu erstellen")
+        print("Überprüfe ob 6h seit letztem Fang vergangen ist. Wenn ja, wird Kontrollbit zurückgesetzt, um neuen Ordner zu erstellen")
         control_bit = gap_day()
 
     if not control_bit:

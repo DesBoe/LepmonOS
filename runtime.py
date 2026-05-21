@@ -106,13 +106,15 @@ def gap_day():
         
         # Überprüfe, ob der Unterschied mehr als 6 h beträgt
         return difference <= 60*60*6  # 6h
+        # return True --> weniger als 6h es wird kein neuer Ordner erstellt
+        # return False --> mehr als 6h, es wird ein neuer Ordner erstellt
     except Exception as e:
         print(f"Fehler beim Überprüfen des Aktivitätszeitstempels: {e}")
         if get_hardware_version() not in ["Pro_Gen_1", "Pro_Gen_2"]:
-             print("Da es sich nicht um einen ARNI mit FRAM handelt, wird angenommen, dass kein Tag vergangen ist.")
-             return True
+             print("Da es sich um einen ARNI ohne verbauten FRAM handelt, wird angenommen, dass kein Tag vergangen ist.")
+             return False
         else:
-            return False
+            return True
 
 if __name__ == "__main__":
     print("Laufzeitwerkzeuge")
