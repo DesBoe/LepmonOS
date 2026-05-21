@@ -11,9 +11,17 @@ def get_serial_list():
     ("SN010010", "Pro_Gen_2"),
     ("SN010011", "Pro_Gen_2") 
     ]
-    for i in range(12, 91):
+    for i in range(12, 86):
         sn = f"SN01{str(i).zfill(4)}"
         sn_list.append((sn, "Pro_Gen_3"))
+    
+    for i in range(87, 136):
+        sn = f"SN01{str(i).zfill(4)}"
+        sn_list.append((sn, "CSS_Gen_1"))
+    
+    for i in range(137, 190):
+        sn = f"SN01{str(i).zfill(4)}"
+        sn_list.append((sn, "Pro_Gen_4"))
 
     return sn_list
 
@@ -27,5 +35,6 @@ def get_generation_by_serial(serial_number):
 
 if __name__ == "__main__":
     sn_list = get_serial_list()
-    print(sn_list)
+    for entry in sn_list:
+        print(entry)
     print(get_generation_by_serial("SN010005"))

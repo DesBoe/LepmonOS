@@ -96,8 +96,7 @@ def start_up(log_mode):
 
     # Kontrolle, ob gegebene Seriennummer zur Geräteversion passt. Wenn nicht, manuelle SN Eingabe erzwingen
     # Dazu muss K2W die verbauten Seriennummern bekannt geben.
-    print("TODO: Vergleiche gegebene Seriennummer mit der Geräteversion. Wenn sie nicht zusammenpassen, erzwinge manuelle SN Eingabe. Dazu muss K2W die verbauten Seriennummern bekannt geben.")
-    '''
+    print("Vergleiche gegebene Seriennummer mit der Geräteversion. Wenn sie nicht zusammenpassen, erzwinge manuelle SN Eingabe. Dazu muss K2W die verbauten Seriennummern bekannt geben.")
     try:
         hardware_in_list = get_generation_by_serial(sn)
         if hardware_in_list != hardware:
@@ -106,7 +105,7 @@ def start_up(log_mode):
             sn_manual, hardware, fram_success = set_sn_manually()
     except Exception as e:
         print(f"Fehler beim Überprüfen der Seriennummer: {e}")
-    '''
+
 
     check_Lepmon_code()
     
