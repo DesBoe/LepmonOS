@@ -264,8 +264,8 @@ def capturing(log_mode):
                 write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "current_gain", gain)
             elif camera == "RPI_Module_3":
                 code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, gain,_ ,_ = snap_image_rpi("jpg","log", Kamera_Fehlerserie, log_mode, camera, Exposure=int(Exposure), Gain=gain, focus=focus)
-            elif camera == "RPI_HQ":
-                code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, gain,_ ,_ = snap_image_rpi("jpg","log", Kamera_Fehlerserie, log_mode, camera, Exposure=int(Exposure), Gain=gain)
+            #elif camera == "RPI_HQ":
+            #    code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, gain,_ ,_ = snap_image_rpi("jpg","log", Kamera_Fehlerserie, log_mode, camera, Exposure=int(Exposure), Gain=gain)
 
             elif camera not in ["AV__Alvium_1800_U-2050","RPI_Module_3","RPI_HQ"]:
                 log_schreiben(f"unbekannte Kamera gefunden:{camera}.", log_mode)

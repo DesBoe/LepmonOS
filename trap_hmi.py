@@ -586,7 +586,7 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
 
                             
                     if current == "diagnose_start":
-                            
+                            '''
                             log_schreiben("------------------", log_mode=log_mode)
                             log_schreiben("Starte Systemcheck", log_mode=log_mode)
 
@@ -735,7 +735,8 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                     log_schreiben("USB Speicher OK", log_mode=log_mode)
                                     USB = 1   
                                 time.sleep(.05)    
-                    
+
+                            '''
                             sunset, sunrise, Zeitzone = get_sun(log_mode)
                             sunset = sunset.strftime('%H:%M:%S')
                             sunrise = sunrise.strftime('%H:%M:%S')
@@ -759,7 +760,7 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                 jetzt_local, _, _= Zeit_aktualisieren(log_mode=log_mode)
                                 Delay, Box_Experiment_Run, Round = get_experiment_delay(sn, jetzt_local)
                                 anzeige = timedelta_to_hms(Delay)
-                                display_text(f"Box Run: {Box_Experiment_Run}\nRunde: {Round}\nVerzögerung: {anzeige}", lang=lang)
+                                display_text(f"{str(Box_Experiment_Run)[15:]}",f"Runde: {Round}",f"Delay: {anzeige}", 3)
 
 
                             

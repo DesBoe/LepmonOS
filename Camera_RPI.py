@@ -21,6 +21,7 @@ from hardware import get_device_info
 from sensor_data import get_power
 import numpy as np
 import gc
+from gamma_korr import gamma_correction
 
 def dict_to_xml(tag, d):
     elem = ET.Element(tag)
@@ -106,7 +107,7 @@ def get_frame_RPI(expected_camera, cam_mode,log_mode, Exposure, Gain, compressio
                     print(f"Prüfe Kamera Verbindung und Stromversorgung. Versuch {cam_Initiliase_tries}")
 
 
-
+    '''
     if expected_camera == "RPI_HQ": # imx477
         print(f"Konfiguriere {expected_camera}...")
         #picam2.options["quality"] = compression_quality
@@ -164,6 +165,7 @@ def get_frame_RPI(expected_camera, cam_mode,log_mode, Exposure, Gain, compressio
                     show_message("err_1a",lang=lang,tries = cam_Initiliase_tries)
                     print(f"Fehler beim Abrufen des Frames: {e}")  
                     error_details = str(e)
+    '''
             
 
             
@@ -212,6 +214,8 @@ def snap_image_rpi(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, expec
     power_on = 0
     code = 000
     image_file = ""
+    Bild_erfolgreich_gespeichert = False
+    hardware = get_device_info("hardware")
 
     avg_brightness, good_exposure = "---", False
     image_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","capture_mode","gamma_correction")
@@ -259,119 +263,168 @@ def snap_image_rpi(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, expec
         ordnerpfad,_ = get_usb_path(log_mode)
         dateipfad = "Testbild.jpg"
         dateipfad = os.path.join(ordnerpfad, dateipfad)
-        print(f"Ordnerpfad für Testbild:{dateipfad}")
+        log_schreiben(f"Dateipfad für Testbild: {dateipfad}", log_mode=log_mode)
     
-    #### Frage Frame der RPI Cam ab ####
-    frame,Kamera_RPI_Status, power_vis, metadata, red_gain, blue_gain = get_frame_RPI(expected_camera, cam_mode,log_mode, Exposure, Gain, compression_quality, focus)
-                                                                 
 
 
-    if frame is not None:
-        Kamera_Fehlerserie = 0
-        if cam_mode == "log":
-            avg_brightness, Exposure, Gain, good_exposure  = calculate_Exposure_and_gain(frame, Exposure, Gain, expected_camera, log_mode) 
-            avg_brightness = round(avg_brightness,0)
-            
-
-    
-            # gamma correction for shadow brightening
-            if image_correction and gamma is not None and gamma != 0:
-                time.sleep(1)
-                print(f"Belichtungsoptimierung: Wende Gamma Korrektur an (gamma={gamma})", flush=True)
-                
-                height = frame.shape[0]
-                split1 = height // 3
-                split2 = 2 * height // 3
-                
-                teile = [frame[:split1], frame[split1:split2], frame[split2:]]
-                del frame
-                
-                bearbeitet = []
-                for i, teil in enumerate(teile):
-                    print(f"korrigiere frame Teil {i+1}", flush=True)
-                    teil = teil / 255.0
-                    teil = np.power(teil, 1 / gamma)
-                    teil = (teil * 255).astype(np.uint8)
-                    bearbeitet.append(teil)
-                    del teil
-                    gc.collect()
-                frame = np.vstack(bearbeitet)
-                del bearbeitet
-                gc.collect()
-                print("Belichtungsoptimierung: Gamma Korrektur vollständig angewendet", flush=True) 
-            elif gamma is None or gamma == 0:
-                    print(f"FEHLER: gamma ist :{gamma}!", flush=True)
-                    
-
-    
-    if frame is None:
-        if cam_mode == "display":
-            error_message(1,"Fehler beim Abrufen des Frames", log_mode)
-
-        if cam_mode == "log": 
-           Kamera_Fehlerserie += 1
-
-    if cam_mode == "log" or cam_mode == "Diagnose":
-        time.sleep(.5)
-        try:
-            _, _, _, power_cam, _ = get_power()
-            power_on = round(power_vis - power_cam,2)
-            time.sleep(.1)   
-        except Exception as e:
-            power_on = "---"
-            print(f"Fehler beim Messen des Stromverbrauchs der Visible LED: {e}") 
 
 
-    if cam_mode == "display":
-        show_message("cam_6",lang=lang) 
-        LepiLED_ende("show")
-        
+    # prüfen ob Ordnerpfad existiert, außer im display Modus, da hier nur ein Testbild gespeichert wird und der Ordner nicht zwingend vorhanden sein muss
 
     if not os.path.exists(ordnerpfad) and cam_mode != "display":
-            if ordnerpfad == "":
-                ordnerpfad = f"Ordnerpfad ist leer!"
-            error_message(3, f"USB-Stick nicht gefunden: {ordnerpfad}", log_mode)
-            print(f"Fehler: USB-Stick nicht gefunden: {ordnerpfad}")
-            #Status_Kamera = 0
-            #Kamera_Fehlerserie = 1
-            print("Zum estelllen des Ordners bitte USB-Stick anschließen und start_up.py ausführen ")
-            return code, dateipfad, Kamera_RPI_Status, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, Gain, red_gain, blue_gain
-    
-    if frame is not None:
-        if expected_camera == "RPI_Module_3" and frame is not None:
-            try: 
-                frame = cv2.rotate(frame, cv2.ROTATE_180)
+        if ordnerpfad == "":
+            ordnerpfad = erstelle_ordner(log_mode, Cameramodel = "None")
+            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder", ordnerpfad)
+            print(f"Ordnerpfad war leer, neuer Ordner erstellt: {ordnerpfad}")
+            print("Skript neu starten, um mit dem neuen Ordner zu arbeiten.")
+        error_message(3, f"USB-Stick nicht gefunden: {ordnerpfad}", log_mode)
+        print(f"Fehler: USB-Stick nicht gefunden: {ordnerpfad}")
+        Status_Kamera = 0
+       
+        return code, dateipfad, Status_Kamera, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, Gain, None, None
+
+    # Abrufen des Frames in Abhängigkeit vom Kameramodus
+
+    if cam_mode == "display":
+        log_schreiben("Versuche Frame von Kamera abzurufen...", log_mode=log_mode)
+        frame,Kamera_RPI_Status, power_vis, metadata, red_gain, blue_gain = get_frame_RPI(expected_camera, cam_mode,log_mode, Exposure, Gain, compression_quality, focus)
+        show_message("cam_6",lang=lang) 
+        LepiLED_ende("show")
+        if frame is None:
+            error_message(1, "Fehler beim Abrufen des Frames", log_mode)
+        elif frame is not None:
+            log_schreiben("Frame erfolgreich von Kamera abgerufen", log_mode=log_mode)
+            try:
                 cv2.imwrite(dateipfad, frame)
-                log_schreiben(f"Bild für imx708 um 180 Grad gedreht und gespeichert: {dateipfad}", log_mode)
+                log_schreiben(f"Testbild erfolgreich gespeichert:{dateipfad}", log_mode=log_mode)
+                show_message("cam_7", lang=lang)
+                os.remove(dateipfad)
+                log_schreiben(f"Testbild vom Speicher gelöscht: {dateipfad}", log_mode=log_mode)
+                log_schreiben("Kamera Zugriff erfolgreich", log_mode=log_mode)
             except Exception as e:
-                log_schreiben(f"Fehler beim Drehen des Bildes um 180 Grad: {e}", log_mode)
+                print(f"Kamerafehler:{e}")
+                error_message(3, f"Bild konnte nicht gespeichert werden: {dateipfad}", log_mode)
+                log_schreiben(f"Fehlerdetails: {e}", log_mode=log_mode)
+                Status_Kamera = 0
+
+
+
+
+    if cam_mode == "Diagnose" or cam_mode == "kamera_test":
+        frame,Kamera_RPI_Status, power_vis, metadata, red_gain, blue_gain = get_frame_RPI(expected_camera, cam_mode,log_mode, Exposure, Gain, compression_quality, focus)
+        show_message("cam_6",lang=lang) 
+        LepiLED_ende("show")
+        if image_correction:
+            print("Wende Gamma Korrektur an für Belichtungsoptimierung...")
+            frame = gamma_correction(frame, gamma=gamma)
+            print("Gamma Korrektur angewendet")
+        try:
+            print("Drehe Frame um 180 Grad...") 
+            frame = cv2.rotate(frame, cv2.ROTATE_180)
+        except Exception as e:
+            print(f"Fehler beim Drehen des Frames um 180 Grad: {e}")
+            log_schreiben(f"Fehler beim Drehen des Frames um 180 Grad: {e}", log_mode=log_mode)
+        time.sleep(.5)
 
         try:
-            print(dateipfad)
             cv2.imwrite(dateipfad, frame)
+            print(f"Bild erfolgreich gespeichert!\nPfad: {dateipfad}")
+            Status_Kamera = 1
+            Kamera_Fehlerserie = 0
+            log_schreiben(f"Bild gespeichert: {dateipfad}", log_mode=log_mode)
 
-            Kamera_RPI_Status = 1
-            if cam_mode == "display":
-                show_message("cam_7",lang=lang) 
-                os.remove(dateipfad)
-                print(f"Bild vom Speicher gelöscht: {dateipfad}")
-                log_schreiben("Kamera Zugriff erfolgreich",log_mode=log_mode)
-            if cam_mode == "log": 
-                log_schreiben(f"Bild gespeichert: {dateipfad}", log_mode=log_mode)  
-            
         except Exception as e:
+                print(f"Kamerafehler:{e}")
+                log_schreiben(f"Bild gespeichert: {dateipfad}", log_mode=log_mode)  
+                Status_Kamera = 0
+                Kamera_Fehlerserie += 1        
 
-            print(f"Kamerafehler:{e}")
-            error_message(3, f"Bild konnte nicht gespeichert werden: {dateipfad}", log_mode)
-            Kamera_RPI_Status = 0
-            Kamera_Fehlerserie += 1
-            return code, dateipfad, Kamera_RPI_Status, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, Gain, red_gain, blue_gain
-    elif frame is None:
-        print("Kein Bild zum Speichern vorhanden")       
-                        
+        try:
+            _, _, _, power_cam, _ = get_power()
+            if hardware in ["Pro_Gen_1", "Pro_Gen_2"]:
+                print("Stromverbrauch der Visible LED kann auf diesem ARNI-Modell nicht gemessen werden.")
+                power_on = "---"
+            elif hardware in ["Pro_Gen_3", "Pro_Gen_4", "CSL_Gen_1", "CSS_Gen_1"]:
+                power_on = round(power_vis - power_cam, 2)
+            time.sleep(0.1)
+        except Exception as e:
+            power_on = "---"
+            log_schreiben(f"Fehler beim Messen des Stromverbrauchs der Visible LED: {e}", log_mode=log_mode)
+
+        try: 
+            Bild_erfolgreich_gespeichert = check_image(dateipfad, log_mode = "log")
+            if Bild_erfolgreich_gespeichert:
+                print("Foto Sanity Check bestanden")
+            elif not Bild_erfolgreich_gespeichert:
+                print("Foto Sanity nicht Check bestanden")
+        except Exception as e:
+            log_schreiben(f"Fehler bei der Bildprüfung: {e}", log_mode=log_mode)
+
+
 
     if cam_mode == "log":
-        write_timestamp(0x07E0)
+        _, now, _ = Zeit_aktualisieren(log_mode=log_mode)
+        sanity_tries = 0
+
+        while (not Bild_erfolgreich_gespeichert) and (sanity_tries < 3):
+            print(f"Versuch {sanity_tries + 1}: Bildaufnahme und Speicherung läuft...")
+
+            now_dt = datetime.strptime(now, "%H:%M:%S")
+            write_timestamp(0x07E0)
+            show_message("blank", lang=lang)
+
+            frame,Kamera_RPI_Status, power_vis, metadata, red_gain, blue_gain = get_frame_RPI(expected_camera, cam_mode,log_mode, Exposure, Gain, compression_quality, focus)
+            show_message("cam_6",lang=lang) 
+            LepiLED_ende("show")
+
+            if image_correction:
+                print("Wende Gamma Korrektur an für Belichtungsoptimierung...")
+                frame = gamma_correction(frame, gamma=gamma)
+                print("Gamma Korrektur angewendet")
+            try:
+                print("Drehe Frame um 180 Grad...") 
+                frame = cv2.rotate(frame, cv2.ROTATE_180)
+            except Exception as e:
+                print(f"Fehler beim Drehen des Frames um 180 Grad: {e}")
+                log_schreiben(f"Fehler beim Drehen des Frames um 180 Grad: {e}", log_mode=log_mode)
+            time.sleep(.5)
+
+            if frame is not None:
+                Kamera_Fehlerserie = 0
+                try:
+                    cv2.imwrite(dateipfad, frame)
+                    print(f"Bild erfolgreich gespeichert!\nPfad: {dateipfad}")
+                    Status_Kamera = 1
+                    Kamera_Fehlerserie = 0
+                    log_schreiben(f"Bild gespeichert: {dateipfad}", log_mode=log_mode)
+
+                except Exception as e:
+                    print(f"Kamerafehler:{e}")
+                    error_message(3, f"Bild konnte nicht gespeichert werden: {dateipfad}", log_mode)
+                    Status_Kamera = 0
+                    Kamera_Fehlerserie += 1
+
+
+                try: 
+                    Bild_erfolgreich_gespeichert = check_image(dateipfad, log_mode = "log")
+                    if Bild_erfolgreich_gespeichert:
+                        print("Foto Sanity Check bestanden")
+                        break
+                    elif not Bild_erfolgreich_gespeichert:
+                        sanity_tries += 1
+
+                except Exception as e:
+                    print(f"Fehler bei der Bildprüfung: {e}")
+                    sanity_tries += 1
+
+
+            if frame is None:
+                Kamera_Fehlerserie += 1
+                log_schreiben("Kein Frame zum Speichern vorhanden", log_mode)
+            
+            avg_brightness, Exposure, Gain, good_exposure  = calculate_Exposure_and_gain(frame, Exposure, Gain, expected_camera, log_mode) 
+            avg_brightness = round(avg_brightness,0)
+
 
   
     try:
@@ -385,7 +438,19 @@ def snap_image_rpi(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, expec
             log_schreiben(f"Kameraeinstellungen geschrieben in: {xml_zieldatei}", log_mode)
     except Exception as e:
         log_schreiben(f"Fehler beim Schreiben der Kameraeinstellungen: {e}", log_mode)
-  
+
+    try:
+        _, _, _, power_cam, _ = get_power()
+        if hardware in ["Pro_Gen_1", "Pro_Gen_2"]:
+            print("Stromverbrauch der Visible LED kann auf diesem ARNI-Modell nicht gemessen werden.")
+            power_on = "---"
+        elif hardware in ["Pro_Gen_3", "Pro_Gen_4", "CSL_Gen_1", "CSS_Gen_1"]:
+            power_on = round(power_vis - power_cam, 2)
+            time.sleep(0.1)
+    except Exception as e:
+        power_on = "---"
+        log_schreiben(f"Fehler beim Messen des Stromverbrauchs der Visible LED: {e}", log_mode=log_mode)
+
 
     return code, dateipfad, Kamera_RPI_Status, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, Gain, red_gain, blue_gain
     
@@ -395,11 +460,11 @@ def snap_image_rpi(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, expec
 if __name__ == "__main__":
     camera = get_device_info("camera")
     
-    if camera == "RPI_HQ":
+    '''if camera == "RPI_HQ":
         Exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","initial_exposure_10"))/10
         Gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","initial_gain_10"))/10
         compression_quality = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_HQ","compression_quality")
-
+    '''
     if camera == "RPI_Module_3":
         Exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","initial_exposure_10"))/10
         Gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","initial_gain_10"))/10
@@ -409,10 +474,10 @@ if __name__ == "__main__":
         print(f"unbekannte Kamera gefunden:{camera}.")
     time.sleep(2)
 
-
+    '''
     if camera == "RPI_HQ":
         code, dateipfad, Kamera_RPI_Status, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, Gain, red_gain, blue_gain = snap_image_rpi("jpg","kamera_test", 0, "manual", camera, Exposure, Gain)
-        
+    '''   
 
                                                                                         
     if camera == "RPI_Module_3":
