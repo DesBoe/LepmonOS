@@ -416,7 +416,7 @@ def capturing(log_mode):
                 send_lora(f"in dieser Nacht wurden {size_rounded} GB an Daten mit {counted_images} gezählten Bildern von {expected_images} erwarteten Bildern generiert")
                 
             except Exception as e:
-                log_schreiben("Verbrauchter Speicher und gezählte Bildernicht gemessen: {e}",log_mode)
+                log_schreiben(f"Verbrauchter Speicher und gezählte Bilder nicht gemessen: {e}",log_mode)
                 pass
             log_schreiben("##################################", log_mode)
             log_schreiben("##################################", log_mode)

@@ -8,7 +8,7 @@ from language import get_language
 
 lang = get_language()
 
-
+'''
 def coordinates_in_list(latitude, longitude):
     if latitude / 10 < 1:
         latitude_str = str(latitude).replace('.', '')
@@ -32,7 +32,22 @@ def coordinates_in_list(latitude, longitude):
     if fehlende_nullen > 0:
         longitude_str = longitude_str + '0' * fehlende_nullen
     longitude_list = [int(x) for x in longitude_str]
-    return latitude_list, longitude_list        
+    return latitude_list, longitude_list       
+'''
+def coordinates_in_list(latitude, longitude):
+    try:
+        latitude_str = f"{abs(float(latitude)):.7f}".replace('.', '').rjust(9, '0')
+        latitude_list = [int(x) for x in latitude_str]
+    except Exception as e:
+        print(f"Fehler bei der Verarbeitung der Breite: {e}")
+        latitude_list = [0] * 9
+    try:
+        longitude_str = f"{abs(float(longitude)):.7f}".replace('.', '').rjust(10, '0')
+        longitude_list = [int(x) for x in longitude_str]
+    except Exception as e:
+        print(f"Fehler bei der Verarbeitung der Länge: {e}")
+        longitude_list = [0] * 10
+    return latitude_list, longitude_list 
 
 def is_valid_latitude(latitude_list):
     try:
