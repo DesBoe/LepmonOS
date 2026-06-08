@@ -531,14 +531,34 @@ MESSAGE_REGISTER = {
         "es": ("Enfoque terminado", "Dioptrías antiguas: {dioptrien_alt}", "Dioptrías nuevas: {dioptrien_neu}")
     },
     "focus_select_mode": {
-        "sleep": 0, 
-        #"de": ("Fokussieren:","▲ = web based", "▼ = lokal"),
-        #"en": ("Focusing:","▲ = web based", "▼ = local"),
-        #"es": ("Enfoque:","▲ = web based", "▼ = local")
-
-        "de": ("Fokussieren:","", "▼ = lokal"),
-        "en": ("Focusing:","", "▼ = local"),
-        "es": ("Enfoque:","", "▼ = local")
+        "sleep": 0,
+        "de": ("Fokussieren:", "▲ = web based", "▼ = lokal"),
+        "en": ("Focusing:",    "▲ = web based", "▼ = local"),
+        "es": ("Enfoque:",     "▲ = web based", "▼ = local"),
+    },
+    "focus_web_started": {
+        "sleep": 1,
+        "de": ("Web Fokus startet", "{url}", "QR scannen"),
+        "en": ("Web focus starting", "{url}", "Scan QR code"),
+        "es": ("Enfoque web inicia", "{url}", "Escanear QR"),
+    },
+    "focus_web_running": {
+        "sleep": 0,
+        "de": ("Web Fokus aktiv", "{ip}:8080", "Enter=stop {sec}s"),
+        "en": ("Web focus active", "{ip}:8080", "Enter=stop {sec}s"),
+        "es": ("Enfoque web activo", "{ip}:8080", "Enter=parar {sec}s"),
+    },
+    "focus_web_stopped": {
+        "sleep": 2,
+        "de": ("Web Fokus", "beendet", ""),
+        "en": ("Web focus", "ended", ""),
+        "es": ("Enfoque web", "terminado", ""),
+    },
+    "focus_web_no_ip": {
+        "sleep": 3,
+        "de": ("Keine IP gefunden", "Web Fokus nicht", "verfügbar"),
+        "en": ("No IP found", "Web focus not", "available"),
+        "es": ("Sin IP", "Enfoque web", "no disponible"),
     },
     ### rtc ###
     "rtc_1": {

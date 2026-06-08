@@ -34,7 +34,13 @@ class CaptureState:
     last_image_path: Optional[str] = None
     error_message: Optional[str] = None
     stop_requested: bool = False
-    
+    # Web focus session — set by OLED menu when the user opens the
+    # browser-based focus helper. The streaming endpoint only delivers
+    # real camera frames while this is True.
+    web_focus_active: bool = False
+    web_focus_started_at: Optional[datetime] = None
+    stop_focus_requested: bool = False
+
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
         return {
@@ -45,9 +51,12 @@ class CaptureState:
             "current_gain": self.current_gain,
             "last_image_path": self.last_image_path,
             "error_message": self.error_message,
-            "stop_requested": self.stop_requested
+            "stop_requested": self.stop_requested,
+            "web_focus_active": self.web_focus_active,
+            "web_focus_started_at": self.web_focus_started_at.isoformat() if self.web_focus_started_at else None,
+            "stop_focus_requested": self.stop_focus_requested,
         }
-    
+
     @classmethod
     def from_dict(cls, data: dict) -> 'CaptureState':
         """Create instance from dictionary."""
@@ -57,7 +66,14 @@ class CaptureState:
                 start_time = datetime.fromisoformat(data["start_time"])
             except (ValueError, TypeError):
                 pass
-        
+
+        web_focus_started_at = None
+        if data.get("web_focus_started_at"):
+            try:
+                web_focus_started_at = datetime.fromisoformat(data["web_focus_started_at"])
+            except (ValueError, TypeError):
+                pass
+
         return cls(
             is_capturing=data.get("is_capturing", False),
             start_time=start_time,
@@ -66,7 +82,10 @@ class CaptureState:
             current_gain=data.get("current_gain", 5.0),
             last_image_path=data.get("last_image_path"),
             error_message=data.get("error_message"),
-            stop_requested=data.get("stop_requested", False)
+            stop_requested=data.get("stop_requested", False),
+            web_focus_active=data.get("web_focus_active", False),
+            web_focus_started_at=web_focus_started_at,
+            stop_focus_requested=data.get("stop_focus_requested", False),
         )
 
 
@@ -207,6 +226,63 @@ def reset_state() -> None:
     """Reset the state to initial values."""
     with STATE_LOCK:
         _write_state(CaptureState())
+
+
+# ---------------------------------------------------------------------------
+# Web focus session
+# ---------------------------------------------------------------------------
+
+def set_web_focus_active(active: bool = True) -> None:
+    """
+    Mark a web-based focus session as active.
+
+    Only the OLED menu should call this with active=True (the user activates
+    the helper on the device). The web service and the OLED menu both call
+    it with active=False when the session ends.
+    """
+    with STATE_LOCK:
+        state = _read_state()
+        state.web_focus_active = active
+        if active:
+            state.web_focus_started_at = datetime.now()
+            state.stop_focus_requested = False
+        else:
+            state.web_focus_started_at = None
+            state.stop_focus_requested = False
+        _write_state(state)
+
+
+def is_web_focus_active() -> bool:
+    """True while a web focus session is open."""
+    with STATE_LOCK:
+        return _read_state().web_focus_active
+
+
+def request_stop_focus() -> None:
+    """
+    Ask the OLED loop to leave the web focus session.
+
+    Set by POST /api/focus/stop (or by an OLED button). The OLED polling
+    loop sees the flag, clears web_focus_active, and returns to the menu.
+    """
+    with STATE_LOCK:
+        state = _read_state()
+        state.stop_focus_requested = True
+        _write_state(state)
+
+
+def is_stop_focus_requested() -> bool:
+    """True if the web UI or hardware asked the focus session to stop."""
+    with STATE_LOCK:
+        return _read_state().stop_focus_requested
+
+
+def clear_stop_focus_request() -> None:
+    """Clear the focus-stop flag (called by the OLED loop on entry)."""
+    with STATE_LOCK:
+        state = _read_state()
+        state.stop_focus_requested = False
+        _write_state(state)
 
 
 # Initialize state file on module load

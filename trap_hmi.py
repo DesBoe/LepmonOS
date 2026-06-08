@@ -4,6 +4,7 @@ from Camera_RPI import snap_image_rpi
 from GPIO_Setup import turn_on_led, turn_off_led, button_pressed
 from OLED_panel import *
 import time
+import socket
 from RTC_new_time import set_hwc
 from coordinates import set_coordinates
 from times import *
@@ -18,7 +19,7 @@ from site_selection import *
 import os
 from fram_operations import *
 from updater import *
-from end import trap_shutdown    
+from end import trap_shutdown
 from service import *
 from hardware import *
 from json_read_write import get_value_from_section, write_value_to_section
@@ -27,6 +28,148 @@ from runtime import write_timestamp
 from coordinates_region_check import find_country_and_region
 from Box_Experiment_Times import *
 from gpiozero import LED
+from capturing_state import (
+    set_web_focus_active,
+    is_stop_focus_requested,
+    clear_stop_focus_request,
+)
+
+
+WEB_FOCUS_EMERGENCY_TIMEOUT_S = 300  # mirrors find_focus.vis_emergency (5 min)
+WEB_FOCUS_QR_PATH = "/tmp/lepmon_focus_qr.png"
+
+
+def _get_local_ip():
+    """
+    Best-effort IPv4 detection. Tries an outbound UDP socket trick first
+    (works on the AP because dnsmasq hands out the gateway), falls back to
+    wlan0 then eth0. Returns None if nothing is configured.
+    """
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0.5)
+        s.connect(("10.255.255.255", 1))
+        ip = s.getsockname()[0]
+        s.close()
+        if ip and not ip.startswith("127."):
+            return ip
+    except OSError:
+        pass
+
+    for iface in ("wlan0", "eth0"):
+        try:
+            import fcntl, struct as _struct
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sk:
+                ip = socket.inet_ntoa(fcntl.ioctl(
+                    sk.fileno(), 0x8915,  # SIOCGIFADDR
+                    _struct.pack('256s', iface[:15].encode())
+                )[20:24])
+                if ip and not ip.startswith("127."):
+                    return ip
+        except OSError:
+            continue
+    return None
+
+
+def _render_focus_qr(url):
+    """Generate a 64x64 black/white QR PNG for the focus URL. Returns path or None."""
+    try:
+        import qrcode
+        qr = qrcode.QRCode(
+            version=None,
+            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            box_size=2,
+            border=2,
+        )
+        qr.add_data(url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="white", back_color="black").convert("1")
+        img.save(WEB_FOCUS_QR_PATH)
+        return WEB_FOCUS_QR_PATH
+    except Exception as e:
+        log_schreiben(f"QR generation failed: {e}", log_mode="log")
+        return None
+
+
+def run_web_focus_session(log_mode, lang):
+    """
+    Hold the camera open for a browser-based focus session.
+
+    Sets web_focus_active=True so lepmon_web_service.frame_generator will
+    actually stream frames. Polls every 50 ms for an Enter/Right button
+    press (local stop) or stop_focus_requested (web Stop). Hard-limits the
+    session to WEB_FOCUS_EMERGENCY_TIMEOUT_S to match the local focus path.
+    """
+    ip = _get_local_ip()
+    if not ip:
+        log_schreiben("Web focus aborted — no local IP", log_mode=log_mode)
+        show_message("focus_web_no_ip", lang=lang)
+        return
+
+    url = f"http://{ip}:8080/"
+    log_schreiben(f"Web focus URL: {url}", log_mode=log_mode)
+
+    camera_pin = LED(5)
+    camera_pin.on()
+    turn_on_led("blau")
+
+    clear_stop_focus_request()
+    set_web_focus_active(True)
+
+    qr_path = _render_focus_qr(url)
+    show_message("focus_web_started", lang=lang, url=url)
+
+    session_start = time.time()
+    try:
+        while True:
+            elapsed = time.time() - session_start
+            remaining = max(0, int(WEB_FOCUS_EMERGENCY_TIMEOUT_S - elapsed))
+
+            # Render IP + countdown + QR (or text-only fallback if QR failed).
+            if qr_path:
+                display_text_and_image(
+                    f"Web {ip}",
+                    f":8080  E=stop",
+                    f"Timeout {remaining}s",
+                    qr_path,
+                    sleeptime=0,
+                )
+            else:
+                show_message(
+                    "focus_web_running", lang=lang, ip=ip, sec=remaining
+                )
+
+            if elapsed >= WEB_FOCUS_EMERGENCY_TIMEOUT_S:
+                log_schreiben("Web focus emergency timeout", log_mode=log_mode)
+                show_message("focus_12", lang=lang)
+                break
+
+            if is_stop_focus_requested():
+                log_schreiben("Web focus stopped via web UI", log_mode=log_mode)
+                show_message("focus_web_stopped", lang=lang)
+                break
+
+            # ~1 s of button polling — same cadence as the local focus loop.
+            stopped_by_button = False
+            for _ in range(20):
+                if button_pressed("enter") or button_pressed("rechts"):
+                    stopped_by_button = True
+                    break
+                time.sleep(0.05)
+            if stopped_by_button:
+                log_schreiben("Web focus stopped via OLED button", log_mode=log_mode)
+                show_message("focus_web_stopped", lang=lang)
+                break
+    finally:
+        set_web_focus_active(False)
+        clear_stop_focus_request()
+        turn_off_led("blau")
+        try:
+            camera_pin.off()
+        except Exception:
+            pass
+        log_schreiben("Web-Fokussierhilfe beendet", log_mode=log_mode)
+        log_schreiben("------------------", log_mode=log_mode)
 
 def timedelta_to_hms(td):
     total_seconds = int(td.total_seconds())
@@ -248,22 +391,14 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
 
                                         show_message("hmi_03", lang=lang)
                                         break
-                                    '''
                                     if button_pressed("oben"):
                                         mode = "web_interface"
-                                        print("Fokussierhilfe im Web Interface geöffnet. Bitte öffne die IP Adresse von ARNI im Browser, um die Fokussierhilfe zu sehen.")
-                                        camera = LED(5)
-                                        camera.on()
-                                        log_schreiben("Fokussierhilfe im Web Interface geöffnet", log_mode=log_mode)
-                                        time.sleep(3)   
-                                        # TODO: Benedict, hier bitte den Liveview starten :)
-                                        # Message: starte Server
-                                        # Message: Via QR code auf das Web Interface verbinden
-                                        # Message: mit Handy oder Laptop die Fokussierhilfe bedienen
-
+                                        log_schreiben("Web-Fokussierhilfe geöffnet", log_mode=log_mode)
+                                        run_web_focus_session(log_mode, lang)
+                                        mode = "on_arni"
+                                        turn_off_led("gelb")
                                         show_message("hmi_03", lang=lang)
                                         break
-                                    '''
                                     if button_pressed("rechts") or button_pressed("enter"):
                                         log_schreiben("Fokussierhilfe wurde vom Nutzer beendet.", log_mode=log_mode)
                                         log_schreiben("------------------", log_mode=log_mode)

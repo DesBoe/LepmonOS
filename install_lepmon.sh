@@ -195,6 +195,37 @@ if [ -d /home/Ento/LepmonOS/packages ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# Vendor Swagger UI assets so /docs works without internet
+# ---------------------------------------------------------------------------
+SWAGGER_VER="5.17.14"
+SWAGGER_BASE="https://cdn.jsdelivr.net/npm/swagger-ui-dist@${SWAGGER_VER}"
+STATIC_DIR="/home/Ento/LepmonOS/static"
+mkdir -p "$STATIC_DIR"
+
+for asset in swagger-ui-bundle.js swagger-ui.css favicon-32x32.png; do
+  if [ ! -s "$STATIC_DIR/$asset" ]; then
+    echo "Downloading $asset ..."
+    wget --tries=3 --timeout=30 -q -O "$STATIC_DIR/$asset" "$SWAGGER_BASE/$asset" || \
+      echo "WARN: $asset download failed — /docs will show a placeholder"
+  fi
+done
+# FastAPI's get_swagger_ui_html expects /static/favicon.ico — symlink the PNG.
+if [ -s "$STATIC_DIR/favicon-32x32.png" ] && [ ! -e "$STATIC_DIR/favicon.ico" ]; then
+  ln -sf favicon-32x32.png "$STATIC_DIR/favicon.ico"
+fi
+
+# Optional ReDoc bundle — same offline guarantee for /redoc.
+REDOC_VER="2.1.5"
+if [ ! -s "$STATIC_DIR/redoc.standalone.js" ]; then
+  wget --tries=3 --timeout=30 -q \
+    -O "$STATIC_DIR/redoc.standalone.js" \
+    "https://cdn.jsdelivr.net/npm/redoc@${REDOC_VER}/bundles/redoc.standalone.js" || \
+    echo "WARN: redoc bundle download failed — /redoc will show a placeholder"
+fi
+
+chown -R Ento:Ento "$STATIC_DIR"
+
+# ---------------------------------------------------------------------------
 # VimbaX SDK for Allied Vision cameras
 # ---------------------------------------------------------------------------
 VIMBA_DIR="/opt/VimbaX"

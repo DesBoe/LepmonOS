@@ -27,12 +27,13 @@ from find_white_balance import get_wb
 
 
 from capturing_state import (
-    set_capturing_active, 
-    update_capture_progress, 
+    set_capturing_active,
+    update_capture_progress,
     increment_image_count,
     is_stop_requested,
     clear_stop_request
 )
+from thumbnail_utils import write_thumbnail_for
 
 def capturing(log_mode):
     überleiten_zu_shutdown = False
@@ -290,6 +291,14 @@ def capturing(log_mode):
                         increment_image_count()
                 except Exception as e:
                         print(f"Fehler beim Schreiben des Bild-Counters im Ram Modul: {e}")
+
+                # Precompute a small JPEG so the gallery doesn't have to
+                # re-decode a 16-bit raw on every request. write_thumbnail_for
+                # swallows errors — never block the capture loop.
+                try:
+                    write_thumbnail_for(current_image)
+                except Exception as e:
+                    print(f"Thumbnail generation failed for {current_image}: {e}")
             
             if trigger_for_wb and Status_Kamera == 1 and lokale_Zeit >= time_for_wb.strftime('%H:%M:%S'):
                 log_schreiben("Trigger für Weißabgleich aktiviert und Zeit für WB Anpassung erreicht. Starte Weißabgleichsanpassung...", log_mode)

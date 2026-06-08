@@ -19,6 +19,7 @@ from fastapi import FastAPI, Response, Request
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 import uvicorn
 import os
 import sys
@@ -34,7 +35,23 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Import capturing state module
-from capturing_state import get_capturing_state, CaptureState
+from capturing_state import (
+    get_capturing_state,
+    CaptureState,
+    is_web_focus_active,
+    is_stop_focus_requested,
+    request_stop_focus,
+)
+
+# Thumbnail helpers shared with the capture loop.
+from thumbnail_utils import (
+    THUMBS_DIR_NAME,
+    THUMB_MAX_PX,
+    find_usb_mount as _find_usb_mount_shared,
+    thumb_path_for as _thumb_path_for,
+    make_thumbnail_bytes as _make_thumbnail,
+    write_thumbnail_for,
+)
 
 # Global variables for camera management
 camera_lock = threading.Lock()
@@ -213,26 +230,39 @@ def frame_generator() -> Generator[bytes, None, None]:
     """
     Generator function for MJPEG streaming.
     Captures frames from camera, applies min/max stretch, and yields JPEG data.
+
+    The camera is only touched while a web focus session is active
+    (set by the OLED "Web Focus" menu entry) AND no timelapse is running.
+    Otherwise we yield a low-rate status placeholder.
     """
     global current_frame, streaming_active, stream_consumers
-    
+
     with stream_consumers_lock:
         stream_consumers += 1
         streaming_active = True
-    
+
     logger.info(f"Stream consumer connected. Total consumers: {stream_consumers}")
-    
+
     try:
         # Use global camera settings
         exposure = camera_settings["exposure"]
         gain = camera_settings["gain"]
-        
+
         while True:
-            # Check if capturing is active - if so, don't compete for camera
             state = get_capturing_state()
+
+            # Timelapse wins — never compete with it.
             if state.is_capturing:
-                # Send a status frame instead
                 status_frame = create_status_frame("Capturing in progress...")
+                _, jpeg = cv2.imencode('.jpg', status_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
+                time.sleep(1.0)
+                continue
+
+            # No web focus session — show a hint instead of grabbing the camera.
+            if not state.web_focus_active:
+                status_frame = create_status_frame("Open Web Focus on device menu")
                 _, jpeg = cv2.imencode('.jpg', status_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
@@ -331,13 +361,67 @@ app = FastAPI(
     title="Lepmon Web Service",
     description="Camera streaming and monitoring service for Lepmon insect monitoring system",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    # We serve Swagger UI from a vendored bundle below so the device
+    # works without internet access.
+    docs_url=None,
+    redoc_url=None,
 )
 
 # Setup templates
 templates_dir = Path(__file__).parent / "templates"
 templates_dir.mkdir(exist_ok=True)
 templates = Jinja2Templates(directory=str(templates_dir))
+
+# Vendored frontend assets (Swagger UI bundle, etc.). The install script
+# downloads these into static/ during SD card build; if missing, the
+# /docs route still responds with a friendly hint instead of 500-ing.
+static_dir = Path(__file__).parent / "static"
+static_dir.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+
+def _swagger_assets_present() -> bool:
+    return (static_dir / "swagger-ui-bundle.js").is_file() and \
+           (static_dir / "swagger-ui.css").is_file()
+
+
+@app.get("/docs", include_in_schema=False)
+async def custom_swagger_ui():
+    """Serve the Swagger UI from local assets — no CDN required."""
+    if not _swagger_assets_present():
+        return HTMLResponse(
+            "<h1>Swagger UI assets not installed</h1>"
+            "<p>Run install_lepmon.sh or place "
+            "<code>swagger-ui-bundle.js</code> and <code>swagger-ui.css</code> "
+            "into the <code>static/</code> directory next to "
+            "<code>lepmon_web_service.py</code>.</p>",
+            status_code=503,
+        )
+    return get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title=f"{app.title} – API",
+        swagger_js_url="/static/swagger-ui-bundle.js",
+        swagger_css_url="/static/swagger-ui.css",
+        swagger_favicon_url="/static/favicon.ico",
+    )
+
+
+@app.get("/redoc", include_in_schema=False)
+async def custom_redoc():
+    """ReDoc served from the local bundle if available."""
+    if not (static_dir / "redoc.standalone.js").is_file():
+        return HTMLResponse(
+            "<h1>ReDoc not installed</h1>"
+            "<p>Place <code>redoc.standalone.js</code> in <code>static/</code>.</p>",
+            status_code=503,
+        )
+    return get_redoc_html(
+        openapi_url=app.openapi_url,
+        title=f"{app.title} – ReDoc",
+        redoc_js_url="/static/redoc.standalone.js",
+        redoc_favicon_url="/static/favicon.ico",
+    )
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -391,15 +475,35 @@ async def snapshot():
 async def get_status():
     """Get current system status."""
     state = get_capturing_state()
-    
+
     return {
         "is_capturing": state.is_capturing,
         "capture_start_time": state.start_time.isoformat() if state.start_time else None,
         "images_captured": state.images_captured,
         "stream_active": streaming_active,
         "stream_consumers": stream_consumers,
+        "web_focus_active": state.web_focus_active,
+        "web_focus_started_at": state.web_focus_started_at.isoformat() if state.web_focus_started_at else None,
+        "stop_focus_requested": state.stop_focus_requested,
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
     }
+
+
+@app.post("/api/focus/stop")
+async def request_focus_stop():
+    """
+    Ask the OLED loop to end the active web focus session.
+
+    The OLED polling loop sees the flag, clears web_focus_active,
+    releases the camera, and returns to the main menu. Safe to call
+    repeatedly or when no session is active.
+    """
+    state = get_capturing_state()
+    if not state.web_focus_active:
+        return {"message": "No active focus session", "web_focus_active": False}
+
+    request_stop_focus()
+    return {"message": "Stop request sent", "web_focus_active": True}
 
 
 @app.get("/api/camera/info")
@@ -498,25 +602,17 @@ async def request_capture_stop():
 # Captured Images Gallery - serve latest images from USB drive
 # ---------------------------------------------------------------------------
 
-def find_usb_mount() -> Optional[str]:
-    """
-    Find the mounted USB drive path.
-    Images are stored on USB sticks mounted under /media/Ento/.
-    """
-    media_path = "/media/Ento"
-    if not os.path.exists(media_path):
-        return None
-    for item in os.listdir(media_path):
-        full = os.path.join(media_path, item)
-        if os.path.ismount(full):
-            return full
-    return None
+# find_usb_mount + _thumb_path_for live in thumbnail_utils so the capture
+# loop can use them without importing FastAPI.
+find_usb_mount = _find_usb_mount_shared
 
 
 def find_latest_images(count: int = 10) -> List[dict]:
     """
     Recursively find the latest `count` image files on the USB drive.
     Returns list of dicts with path, filename, modified time, and size.
+    The .thumbs/ shadow tree is skipped so precomputed previews don't
+    show up in the gallery as their own entries.
     """
     usb_path = find_usb_mount()
     if not usb_path:
@@ -525,7 +621,8 @@ def find_latest_images(count: int = 10) -> List[dict]:
     image_extensions = ('.jpg', '.jpeg', '.png', '.tif', '.tiff', '.bmp')
     images = []
 
-    for root, _dirs, files in os.walk(usb_path):
+    for root, dirs, files in os.walk(usb_path):
+        dirs[:] = [d for d in dirs if d != THUMBS_DIR_NAME]
         for f in files:
             if f.lower().endswith(image_extensions):
                 full_path = os.path.join(root, f)
@@ -601,31 +698,43 @@ async def serve_image(path: str):
 
 
 @app.get("/api/images/thumbnail")
-async def serve_thumbnail(path: str, max_size: int = 320):
+async def serve_thumbnail(path: str, max_size: int = THUMB_MAX_PX):
     """
     Serve a downscaled thumbnail of an image from the USB drive.
-    This avoids sending full-resolution images to the browser.
+
+    Prefers a precomputed JPEG from the .thumbs/ shadow tree (written
+    by the capture loop). Falls back to a lazy 16-bit-aware decode,
+    caching the result for next time.
     """
-    # Security: only serve files under /media/Ento/
     if not path.startswith("/media/Ento/"):
         return JSONResponse({"error": "Access denied"}, status_code=403)
     if not os.path.isfile(path):
         return JSONResponse({"error": "File not found"}, status_code=404)
 
+    thumb_path = _thumb_path_for(path)
+
+    if thumb_path and os.path.isfile(thumb_path):
+        try:
+            with open(thumb_path, 'rb') as f:
+                return Response(content=f.read(), media_type="image/jpeg")
+        except OSError as e:
+            logger.warning(f"Failed to serve cached thumbnail {thumb_path}: {e}")
+
     try:
-        frame = cv2.imread(path)
-        if frame is None:
+        data = _make_thumbnail(path, max_size)
+        if data is None:
             return JSONResponse({"error": "Cannot read image"}, status_code=500)
 
-        # Downscale to thumbnail
-        h, w = frame.shape[:2]
-        scale = min(max_size / w, max_size / h, 1.0)
-        if scale < 1.0:
-            new_w, new_h = int(w * scale), int(h * scale)
-            frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        # Best-effort cache write so subsequent requests are cheap.
+        if thumb_path:
+            try:
+                os.makedirs(os.path.dirname(thumb_path), exist_ok=True)
+                with open(thumb_path, 'wb') as f:
+                    f.write(data)
+            except OSError as e:
+                logger.warning(f"Could not cache thumbnail {thumb_path}: {e}")
 
-        _, jpeg = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
-        return Response(content=jpeg.tobytes(), media_type="image/jpeg")
+        return Response(content=data, media_type="image/jpeg")
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 

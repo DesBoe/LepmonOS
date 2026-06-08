@@ -460,6 +460,9 @@
                     <button class="btn btn-secondary" onclick="toggleStream()">
                         <span id="streamToggle">Stop Stream</span>
                     </button>
+                    <button id="endFocusBtn" class="btn btn-primary" onclick="endFocusSession()" disabled>
+                        ⏹ End Focus Session
+                    </button>
                     <button class="btn btn-primary" onclick="takeSnapshot()">
                         📸 Snapshot
                     </button>
@@ -469,9 +472,13 @@
             <div id="captureAlert" class="alert alert-warning">
                 ⚠️ Capturing in progress - camera stream shows status only
             </div>
-            
+
+            <div id="focusInactiveAlert" class="alert alert-warning">
+                📟 Open the <b>Web Focus</b> entry on the device's OLED menu to start streaming
+            </div>
+
             <img id="streamImage" class="stream-video" src="/stream" alt="Camera Stream">
-            
+
             <div class="stream-footer">
                 <span id="streamStatus">Stream active</span>
                 <span id="timestamp">--:--:--</span>
@@ -497,6 +504,10 @@
             
             <div class="card">
                 <h3>📈 System Status</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Web Focus</span>
+                    <span id="webFocusStatus" class="stat-value">--</span>
+                </div>
                 <div class="stat-row">
                     <span class="stat-label">Capturing</span>
                     <span id="capturingStatus" class="stat-value">--</span>
@@ -617,27 +628,56 @@
                 .then(data => {
                     const statusBadge = document.getElementById('systemStatus');
                     const captureAlert = document.getElementById('captureAlert');
-                    
+                    const focusInactiveAlert = document.getElementById('focusInactiveAlert');
+                    const endFocusBtn = document.getElementById('endFocusBtn');
+
                     if (data.is_capturing) {
                         statusBadge.textContent = 'Capturing Active';
                         statusBadge.className = 'status-badge status-capturing';
                         captureAlert.classList.add('show');
+                    } else if (data.web_focus_active) {
+                        statusBadge.textContent = 'Web Focus Active';
+                        statusBadge.className = 'status-badge status-capturing';
+                        captureAlert.classList.remove('show');
                     } else {
                         statusBadge.textContent = 'System Idle';
                         statusBadge.className = 'status-badge status-idle';
                         captureAlert.classList.remove('show');
                     }
-                    
-                    document.getElementById('capturingStatus').textContent = 
+
+                    if (!data.is_capturing && !data.web_focus_active) {
+                        focusInactiveAlert.classList.add('show');
+                    } else {
+                        focusInactiveAlert.classList.remove('show');
+                    }
+
+                    endFocusBtn.disabled = !data.web_focus_active;
+
+                    document.getElementById('webFocusStatus').textContent =
+                        data.web_focus_active ? 'Active' : 'Idle';
+                    document.getElementById('webFocusStatus').className =
+                        'stat-value ' + (data.web_focus_active ? 'good' : '');
+
+                    document.getElementById('capturingStatus').textContent =
                         data.is_capturing ? 'Yes' : 'No';
-                    document.getElementById('capturingStatus').className = 
+                    document.getElementById('capturingStatus').className =
                         'stat-value ' + (data.is_capturing ? 'warning' : 'good');
-                    
+
                     document.getElementById('imagesCount').textContent = data.images_captured || '0';
                     document.getElementById('viewersCount').textContent = data.stream_consumers || '0';
                     document.getElementById('timestamp').textContent = data.timestamp;
                 })
                 .catch(err => console.error('Status update failed:', err));
+        }
+
+        function endFocusSession() {
+            fetch('/api/focus/stop', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Focus stop:', data.message);
+                    updateStatus();
+                })
+                .catch(err => console.error('Focus stop failed:', err));
         }
         
         function updateFocus() {
