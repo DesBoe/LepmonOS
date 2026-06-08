@@ -821,7 +821,9 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                             if Status_Kamera == 0:
                                         show_message("hmi_27", lang=lang)
                                         log_schreiben("Kamera Test fehlgeschlagen, Kamera nicht verfügbar",log_mode=log_mode)
-                                        log_schreiben("#####\nSELBSTINDUZIERTER SHUTDOWN\n#####", log_mode=log_mode)
+                                        log_schreiben("##################################", log_mode=log_mode)
+                                        log_schreiben("####SELBSTINDUZIERTER SHUTDOWN####", log_mode=log_mode)
+                                        log_schreiben("##################################", log_mode=log_mode)
                                         trap_shutdown(log_mode,5, execution="force_reboot")
                                         os.system('sudo reboot')
                                         show_message("blank", lang=lang)
