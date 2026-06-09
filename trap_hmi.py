@@ -71,7 +71,7 @@ def _get_local_ip():
     return None
 
 
-def _render_focus_qr(url):
+def _render_focus_qr(url, log_mode):
     """Generate a 64x64 black/white QR PNG for the focus URL. Returns path or None."""
     try:
         import qrcode
@@ -87,7 +87,7 @@ def _render_focus_qr(url):
         img.save(WEB_FOCUS_QR_PATH)
         return WEB_FOCUS_QR_PATH
     except Exception as e:
-        log_schreiben(f"QR generation failed: {e}", log_mode="log")
+        log_schreiben(f"QR generation failed: {e}", log_mode=log_mode)
         return None
 
 
@@ -116,8 +116,9 @@ def run_web_focus_session(log_mode, lang):
     clear_stop_focus_request()
     set_web_focus_active(True)
 
-    qr_path = _render_focus_qr(url)
-    show_message("focus_web_started", lang=lang, url=url)
+    qr_path = _render_focus_qr(url, log_mode)
+    print(f"QR Code erstellt: {qr_path}")
+    show_message("focus_web_started", lang=lang)
 
     session_start = time.time()
     try:
@@ -128,11 +129,17 @@ def run_web_focus_session(log_mode, lang):
             # Render IP + countdown + QR (or text-only fallback if QR failed).
             if qr_path:
                 display_text_and_image(
-                    f"Web {ip}",
-                    f":8080  E=stop",
-                    f"Timeout {remaining}s",
+                    f"scan qr",
+                    f"on phone",
+                    f"{remaining}s",
                     qr_path,
-                    sleeptime=0,
+                    sleeptime=3,
+                )
+                display_text(
+                    f"Web link",
+                    f"{ip}:8080  ",
+                    f"{remaining}s; Enter=stop",
+                    sleeptime=3,
                 )
             else:
                 show_message(
@@ -157,7 +164,7 @@ def run_web_focus_session(log_mode, lang):
                     break
                 time.sleep(0.05)
             if stopped_by_button:
-                log_schreiben("Web focus stopped via OLED button", log_mode=log_mode)
+                log_schreiben("Web focus stopped via local interface by user", log_mode=log_mode)
                 show_message("focus_web_stopped", lang=lang)
                 break
     finally:
@@ -392,6 +399,14 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                         show_message("hmi_03", lang=lang)
                                         break
                                     if button_pressed("oben"):
+                                        if hardware == "CSS_Gen_1":
+                                            log_schreiben("Web-Fokussierhilfe noch nicht auf ARNI-CS unterstützt.", log_mode=log_mode)
+                                            display_text("Web focussing",
+                                                         "not supported yet",
+                                                         "use local",
+                                                         sleeptime = 3)
+                                            break
+
                                         mode = "web_interface"
                                         log_schreiben("Web-Fokussierhilfe geöffnet", log_mode=log_mode)
                                         run_web_focus_session(log_mode, lang)
@@ -929,7 +944,7 @@ if __name__ == "__main__":
     print("#################")
     print("Hinweis: Die Tasteneingaben 'Oben', 'Unten', 'Links' und 'Rechts' können durch eintippen dieser Worte im Terminal simuliert werden.")
     print("#################")
-    open_trap_hmi(log_mode="manual", start_step=6)
+    open_trap_hmi(log_mode="manual", start_step=0)
     
     # MENÜ Punkte:      start_step:
     #hidden             0

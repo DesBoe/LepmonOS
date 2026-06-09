@@ -3,9 +3,9 @@
         "ARNI_Gen": "Pro_Gen_3",
         "serielnumber": "SN010063",
         "project_name": "Lepmon#",
-        "usb_drive": "/media/Ento/usb",
-        "current_folder": "/media/Ento/D49E-861A/Lepmon#SN010063_Manueller_TestRun_2026-04-16_T_2302",
-        "current_log": "/media/Ento/D49E-861A/Lepmon#SN010063_Manueller_TestRun_2026-04-16_T_2302/Lepmon#SN010063_Manueller_TestRun_2026-04-16_T_2302.log",
+        "usb_drive": "/media/Ento/D49E-861A",
+        "current_folder": "/media/Ento/D49E-861A/Lepmon#SN010063_RP_LU_2026-06-09_T_1248",
+        "current_log": "/media/Ento/D49E-861A/Lepmon#SN010063_RP_LU_2026-06-09_T_1248/Lepmon#SN010063_RP_LU_2026-06-09_T_1248.log",
         "language": "de",
         "expected_images": 197,
         "Control_Night": true,
@@ -14,8 +14,8 @@
     },
     "locality": {
         "country": "Germany",
-        "province": "YY",
-        "Kreis": "XXX"
+        "province": "RP",
+        "Kreis": "LU"
     },
     "capture_mode": {
         "minutes_after_sunset": 10,
@@ -24,9 +24,9 @@
         "flash": 0.25,
         "interval": 2,
         "dusk_treshold": 90,
-        "error_code": 3,
+        "error_code": "0",
         "gamma_correction": true,
-        "trigger_for_wb": false
+        "trigger_for_wb": true
     },
     "RPI_Module_3": {
         "initial_gain_10": 7,

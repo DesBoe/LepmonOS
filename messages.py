@@ -537,10 +537,10 @@ MESSAGE_REGISTER = {
         "es": ("Enfoque:",     "▲ = web based", "▼ = local"),
     },
     "focus_web_started": {
-        "sleep": 1,
-        "de": ("Web Fokus startet", "{url}", "QR scannen"),
-        "en": ("Web focus starting", "{url}", "Scan QR code"),
-        "es": ("Enfoque web inicia", "{url}", "Escanear QR"),
+        "sleep": 5,
+        "de": ("Web Fokus startet", "Nutze URL", "scanne QR"),
+        "en": ("Web focus starting", "Use URL", "Scan QR code"),
+        "es": ("Enfoque web inicia", "Usa la URL", "Escanear QR"),
     },
     "focus_web_running": {
         "sleep": 0,
