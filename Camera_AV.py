@@ -151,10 +151,10 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
     Args:
         file_extension (str): Dateierweiterung des Bildes.
         cam_mode (str): Betriebsmodus der Kamera.
-            - "display": Lokale Anzeige
+            - "display": Lokale Anzeige während des HMI
             - "log": Speichern in der Schleife
-            - "kamera_test": Test der Kamera oder des Skriptes
-            - "Diagnose": Diagnose (Geräteeinrichtung)
+            - "kamera_test": Test der Kamera (Einzelbild) oder des Skriptes
+            - "Diagnose": Diagnoseskript in Geräteeinrichtung
     """
     code = 000
     power_on = 0
@@ -192,12 +192,13 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
 
     if cam_mode == "kamera_test":
         if not os.path.exists(ordnerpfad):
-            erstelle_ordner(log_mode, "AV__Alvium_1800_U-2050")
+            ordnerpfad = erstelle_ordner(log_mode, "AV__Alvium_1800_U-2050")
             print(f"Ordner '{ordnerpfad}' wurde erstellt.")
 
         image_file = f"AV__Alvium_1800_U-2050_{Exposure}_{Gain}.jpg"
         dateipfad = os.path.join(ordnerpfad, image_file)
         print(f"Kamera Test Bild wird gespeichert in: {dateipfad}")
+        time.sleep(2)
 
     if cam_mode == "Diagnose":
         image_file = f"{ordnerpfad}/Lepmon_Diagnose_{sn}_Testbild.jpg"

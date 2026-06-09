@@ -33,6 +33,7 @@ def wait(log_mode):
     # Experiment für Boundingboxen mit Delay, wenn ARNI im entsprechenden Experiment eingesetzt wird
     sn = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")
     if sn in ["SN010010", "SN010011"]:
+        print(f"gelesene SN von Configdatei:{sn}")
         jetzt_local, _, _= Zeit_aktualisieren(log_mode=log_mode)
         Delay, Box_Experiment_Run, Round = get_experiment_delay(sn, jetzt_local)
         experiment_start_time += Delay
