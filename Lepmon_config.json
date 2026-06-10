@@ -1,11 +1,11 @@
 {
     "general": {
         "ARNI_Gen": "Pro_Gen_3",
-        "serielnumber": "SN010063",
+        "serielnumber": "SN010064",
         "project_name": "Lepmon#",
         "usb_drive": "/media/Ento/D49E-861A",
-        "current_folder": "/media/Ento/D49E-861A/Lepmon#SN010063_RP_LU_2026-06-09_T_1248",
-        "current_log": "/media/Ento/D49E-861A/Lepmon#SN010063_RP_LU_2026-06-09_T_1248/Lepmon#SN010063_RP_LU_2026-06-09_T_1248.log",
+        "current_folder": "/media/Ento/D49E-861A",
+        "current_log": "/media/Ento/D49E-861A/Lepmon_Diagnose_SN010064_log.log",
         "language": "de",
         "expected_images": 197,
         "Control_Night": true,
@@ -14,8 +14,8 @@
     },
     "locality": {
         "country": "Germany",
-        "province": "RP",
-        "Kreis": "LU"
+        "province": "TH",
+        "Kreis": "J"
     },
     "capture_mode": {
         "minutes_after_sunset": 10,
@@ -24,7 +24,7 @@
         "flash": 0.25,
         "interval": 2,
         "dusk_treshold": 90,
-        "error_code": "0",
+        "error_code": 8,
         "gamma_correction": true,
         "trigger_for_wb": true
     },
@@ -64,12 +64,12 @@
         "minimal_gain_10": 60,
         "maximal_gain_10": 160,
         "step_gain_10": 5,
-        "current_gain_10": "160",
+        "current_gain_10": "90",
         "initial_exposure": 150,
         "minimal_exposure": 90,
         "maximal_exposure": 200,
         "step_exposure": 5,
-        "current_exposure": 210,
+        "current_exposure": "150",
         "focus_threshold": 225.0,
         "gamma_value": 0.65,
         "current_gain": 16.0,

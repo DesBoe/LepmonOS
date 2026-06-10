@@ -25,15 +25,15 @@ from RTC_new_time import set_hwc
 from RTC_get_time_online import get_internet_time
 
 print("Check Serielnumber in line 28")
-sn = "SN010115"
+sn = "SN010064"
 
 print("\nStarte Diagnose. Schritt 1-9 frei einstellbar in Zeile 32 (1-OLED,2-LEDs,3-Sensoren,4-Uhr,5-RAM,6-RAM_löschen,7-RAM_Konfiguration,8-Knöpfe,9-Kamera)\n")
 
 selected_tests = {
-        #0 : "Seriennummer",
-        #1: "OLED",
-        #2: "LEDs",
-        #3: "Sensoren",
+        0 : "Seriennummer",
+        1: "OLED",
+        2: "LEDs",
+        3: "Sensoren",
         4: "Uhr",
         5: "RAM",
         6: "RAM_löschen",
