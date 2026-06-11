@@ -2,6 +2,7 @@ from fram_operations import *
 from fram_direct import *
 from json_read_write import *
 from serial_list  import *
+from functools import lru_cache
 
 geraete_bibliothek = {
     "Pro_Gen_1": {
@@ -82,13 +83,13 @@ def get_device_info(key):
 
 
 
-
-def get_hardware_version():
+def _read_hardware_version():
     """
     Gibt die Geräte-Generation zurück.
     Default: "Unknown"
     """
     ARNI_Gen = "Unknown"
+    print("Lese ARNI_Gen...")
 
     try:
         # lesen und Null-Bytes/Leerzeichen entfernen
@@ -110,9 +111,26 @@ def get_hardware_version():
             ARNI_Gen = "Unknown"
     if ARNI_Gen == "Unknown":
         print(f"ARNI_Gen konnte nicht ermittelt werden. Es muss manuell eingestellt werden.")
-    else:
-        print(f"Ermittelte ARNI_Gen (Bei FRAM Fehler Fallback auf LEPMON Config): {ARNI_Gen}")
-        return ARNI_Gen
+
+    return ARNI_Gen
+
+
+@lru_cache(maxsize=1)
+def get_hardware_version():
+    """
+    Gecachte Variante: in jedem Prozess nur einmal lesen.
+    Für alle Skripte weiterhin dieselbe API.
+    """
+    return _read_hardware_version()
+
+
+def refresh_hardware_version_cache():
+    """
+    Cache leeren und Version neu lesen.
+    Nützlich nach Konfig-/FRAM-Änderungen zur Laufzeit.
+    """
+    get_hardware_version.cache_clear()
+    return get_hardware_version()
 
 if __name__ == "__main__":
     print(f"Dieser ARNI ist ein {get_hardware_version()} Modell")

@@ -94,5 +94,9 @@
     "powermode": {
         "supply": "Netz",
         "Heizung": false
+    },
+    "wlan": {
+        "ssid": "SNXXXXXX",
+        "password": "lepmon12"
     }
 }

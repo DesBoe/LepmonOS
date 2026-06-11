@@ -914,7 +914,21 @@ MESSAGE_REGISTER = {
         "de": ("","",""),
         "en": ("","",""),
         "es": ("","","")
+    },
+    ### WLAN ###
+    "wlan_login": {
+        "sleep": 3,
+        "de": ("WLAN verbinden...","{ssid}","Code:{password}"),
+        "en": ("Connecting WiFi...","{ssid}","Code:{password}"),
+        "es": ("Conectando a WiFi...","{ssid}","Code:{password}")
+    },
+    "wlan_success": {
+        "sleep": 2,
+        "de": ("WLAN mit PC/", "Handy verbunden?","Enter = weiter"),
+        "en": ("WiFi connected to PC/", "mobile device?","Enter = continue"),
+        "es": ("WiFi conectado a PC/", "dispositivo móvil?","Enter = continuar")
     }
+
 }    
 
 

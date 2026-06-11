@@ -336,7 +336,7 @@ def compare_hardware_version():
 def compare_sn(log_mode):
     sn_ram = None
     sn_json = None    
-    hardware = get_hardware_version()
+    HARDWARE_VERSION = get_hardware_version()
     
     try:
         sn_json = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")
@@ -345,7 +345,7 @@ def compare_sn(log_mode):
     except Exception as e:
         print(f"Fehler beim Lesen der Seriennnummer aus der separaten json Datei: {e}")    
         
-    if hardware in ["Pro_Gen_3", "Pro_Gen_4", 
+    if HARDWARE_VERSION in ["Pro_Gen_3", "Pro_Gen_4", 
                     "CSL_Gen_1", "CSS_Gen_1"]:
         try: 
             sn_ram = read_fram(0x0110, 8).strip()

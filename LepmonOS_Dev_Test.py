@@ -12,8 +12,8 @@ from OLED_panel import *
 
 LepiLed_pin = 26
 Blitz_PMW = 350
-hardware = get_hardware_version() 
-if hardware == "Pro_Gen_1":
+HARDWARE_VERSION = get_hardware_version() 
+if HARDWARE_VERSION == "Pro_Gen_1":
     dimmer_pin = 6
 else:
     dimmer_pin = 13 

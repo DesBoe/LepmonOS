@@ -160,7 +160,7 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
     power_on = 0
     image_file = ""
     Bild_erfolgreich_gespeichert = False
-    hardware = get_hardware_version()
+    HARDWARE_VERSION = get_hardware_version()
 
     avg_brightness, good_exposure = "---", False
     image_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "gamma_correction")
@@ -273,10 +273,10 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
                 Kamera_Fehlerserie += 1
         try:
             _, _, _, power_cam, _ = get_power()
-            if hardware in ["Pro_Gen_1", "Pro_Gen_2"]:
+            if HARDWARE_VERSION in ["Pro_Gen_1", "Pro_Gen_2"]:
                 print("Stromverbrauch der Visible LED kann auf diesem ARNI-Modell nicht gemessen werden.")
                 power_on = "---"
-            elif hardware in ["Pro_Gen_3", "Pro_Gen_4", "CSL_Gen_1", "CSS_Gen_1"]:
+            elif HARDWARE_VERSION in ["Pro_Gen_3", "Pro_Gen_4", "CSL_Gen_1", "CSS_Gen_1"]:
                 power_on = round(power_vis - power_cam, 2)
             time.sleep(0.1)
         except Exception as e:
@@ -350,9 +350,9 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
     camera.off()
     camera.close()
 
-    if hardware in ["Pro_Gen_1", "Pro_Gen_2"]:
+    if HARDWARE_VERSION in ["Pro_Gen_1", "Pro_Gen_2"]:
             print("Stromverbrauch der Visible LED kann auf diesem ARNI-Modell nicht gemessen werden.")
-    elif hardware in ["Pro_Gen_3", "Pro_Gen_4", "CSL_Gen_1", "CSS_Gen_1"]:
+    elif HARDWARE_VERSION in ["Pro_Gen_3", "Pro_Gen_4", "CSL_Gen_1", "CSS_Gen_1"]:
         try:
             _, _, _, power_cam, _ = get_power()
             power_on = round(power_vis - power_cam, 2)

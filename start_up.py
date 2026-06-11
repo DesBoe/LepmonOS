@@ -22,18 +22,26 @@ from serial_list import *
 from datetime import datetime
 from Box_Experiment_Times import *
 from Lights import dim_down
+from end import trap_shutdown
+from SSID import *
 
 
 def version_tuple(version_str):
     return tuple(map(int, version_str.strip().split(".")))
 
 def start_up(log_mode):
-    # Update:Ram Neu Beschreiben für INFO zur Firmware.
-    # Kontrollbit für Trigger versteckte Menüs bei (nur) bei Update zusätzlich zurücksetzen
+    ############################################################################################################################################################################################################
+    # hello World
+    print("starte Setup")
+    turn_off_led("blau")
+    send_lora("Starte Lepmon Software")
 
+
+    ############################################################################################################################################################################################################
+    # Update: Ram Neu Beschreiben für INFO zur Firmware.
+    # Kontrollbit für Trigger versteckte Menüs bei (nur) bei Update zusätzlich zurücksetzen
     new_version = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "version")
     new_date = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "date")
-
     try: 
         current_version = read_fram(0x0520, 5)
         current_version = current_version.strip()
@@ -47,24 +55,20 @@ def start_up(log_mode):
             write_fram(0x0520, new_version.ljust(7)) 
             write_fram(0x0510, new_date.ljust(10))
             print(f"Firmware Version im FRAM aktualisiert:{new_version}; {new_date}")
-    
             write_fram_bytes(0x078F, b'\x00')
             print("Kontrollbit für versteckte Menüs zurückgesetzt")
         
         elif current_version == None:
-
             print("keine aktuelle Firmware-Version im FRAM gefunden")
     
     except Exception as e:
                 print(f"Fehler beim Zugriff auf FRAN wärend Kontrollbit bzw. Versionsvergleich im FRAM: {e}")
     
 
-
-    print("starte Setup")
-    turn_off_led("blau")
-    hardware=get_hardware_version()
-
-    if hardware not in geraete_bibliothek:
+    ############################################################################################################################################################################################################
+    # Check Match SN - Gen
+    HARDWARE_VERSION = get_hardware_version()
+    if HARDWARE_VERSION not in geraete_bibliothek:
         try:
             set_sn_manually()
         except Exception as e:
@@ -73,16 +77,16 @@ def start_up(log_mode):
     turn_off_led("heizung")
     RPI_time(log_mode)
 
-    if hardware == "CSS_Gen_1":
+    if HARDWARE_VERSION == "CSS_Gen_1":
         display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_9u9.png",sleeptime = 4) # Logo wird für die Dauer angezeigt, in der es möglich ist, die SN manuell zu setzen.
     
     display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_K2W.png",sleeptime = 0) # Logo wird für die Dauer angezeigt, in der es möglich ist, die SN manuell zu setzen.
     sn_trigger, _, Gen_json = trigger_manual_sn(log_mode)
     fram_success = False
     if sn_trigger:
-        sn_manual, hardware, fram_success = set_sn_manually()
+        sn_manual, HARDWARE_VERSION, fram_success = set_sn_manually()
         # log eintrag erfolgt, nachdem das Log initialisiert wurde
-        if hardware == "Pro_Gen_1" and Gen_json != "Pro_Gen_1":
+        if HARDWARE_VERSION == "Pro_Gen_1" and Gen_json != "Pro_Gen_1":
             display_text_and_image("Neustart","restart","reiniciar","/home/Ento/LepmonOS/startsequenz/end.png",0)
             os.system("sudo reboot")
             time.sleep(2)
@@ -90,26 +94,37 @@ def start_up(log_mode):
 
     display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_U2C.png",sleeptime = 4)
     display_text_and_image("Leitfaden","Guide","Guia","/home/Ento/LepmonOS/startsequenz/link_manual.png",4)
-    on_start()
+  
     sn = compare_fram_json(log_mode)
 
     print("Vergleiche gegebene Seriennummer mit der Geräteversion. Wenn sie nicht zusammenpassen, erzwinge manuelle SN Eingabe")
     try:
         hardware_in_list = get_generation_by_serial(sn)
-        if hardware_in_list != hardware:
-            print(f"Seriennummer {sn} passt nicht zur erkannten Hardware {hardware}. Erzwinge manuelle SN Eingabe.")
+        if hardware_in_list != HARDWARE_VERSION:
+            print(f"Seriennummer {sn} passt nicht zur erkannten Hardware {HARDWARE_VERSION}. Erzwinge manuelle SN Eingabe.")
             sn_trigger = True
-            sn_manual, hardware, fram_success = set_sn_manually()
+            sn_manual, HARDWARE_VERSION, fram_success = set_sn_manually()
     except Exception as e:
         print(f"Fehler beim Überprüfen der Seriennummer: {e}")
 
 
+    ############################################################################################################################################################################################################
+    # Runtimes
+    on_start() # runtime comparison
     check_Lepmon_code()
-    
+
+    try:
+        device_run = ram_counter(0x0310)
+    except Exception as e:
+        print(f"Fehler beim Lesen des RAM-Counters: {e}")
+    delete_error_code()
     time.sleep(3)
-    
+
+
+    ############################################################################################################################################################################################################
+    # Display Device Info
     lang = get_language()
-    hardware_display = hardware
+    hardware_display = HARDWARE_VERSION
     if hardware_display == "CSS_Gen_1":
         hardware_display = "CS_Gen_1"
     
@@ -119,20 +134,12 @@ def start_up(log_mode):
                  version=get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "version"))
     time.sleep(1)
     
-    
-    
     date = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "date") 
-
     write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber", sn)
 
-    send_lora("Starte Lepmon Software")
-    
-    try:
-        device_run = ram_counter(0x0310)
-    except Exception as e:
-        print(f"Fehler beim Lesen des RAM-Counters: {e}")
 
-    delete_error_code()
+    ############################################################################################################################################################################################################
+    # suche USB
     status_USB = 0
     try:
         USB_stick, status_USB = get_usb_path(log_mode)
@@ -142,15 +149,11 @@ def start_up(log_mode):
         print(f"Fehler beim USB Stick:{e}")
     if not status_USB:   
         print(f"Fehler beim Erkennen des USB-Sticks")
-        try:
-            log_schreiben("##################################", log_mode=log_mode)
-            log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###", log_mode=log_mode)
-            log_schreiben("##################################", log_mode=log_mode) 
-        except Exception as e:
-            pass
-        trap_shutdown(log_mode,10, execution="force_reboot")
-        return
+        trap_shutdown(log_mode,5, execution="during_run")
         
+
+    ############################################################################################################################################################################################################
+    # CONTROLBIt - Lese Status des letzten Durchlaufs
     display_text_and_image("Will-","kommen", "", "/home/Ento/LepmonOS/startsequenz/Logo_1_9.png",1) 
     try:
         result = read_fram_bytes(0x07A0, 1)
@@ -171,9 +174,10 @@ def start_up(log_mode):
     ordner_path = os.path.join(USB_stick, ordner)
     print(f"Vollständiger Pfad zum neuen Ordner: {ordner_path}")
     
-    print(f"bestimme, ob neuer Ordner existiert: {ordner_path}")
 
-    
+    ############################################################################################################################################################################################################
+    # CONTROLBIt - Check auf neuen USB Stick
+    print(f"bestimme, ob neuer Ordner existiert: {ordner_path}")
     if not os.path.exists(ordner_path) or ordner == "":
         control_bit = False
         print("Ordner auf USB Stick nicht gefunden. Annahme, dass ein neuer USB Stick eingelegt wurde. Erstelle neuen Ordner")
@@ -182,10 +186,16 @@ def start_up(log_mode):
         
     display_text_and_image("Will-","kommen", "", "/home/Ento/LepmonOS/startsequenz/Logo_3_9.png",1)
     
+
+    ############################################################################################################################################################################################################
+    # CONTROLBIt - Check vergangene Zeit 
     if control_bit:
         print("Überprüfe ob 6h seit letztem Fang vergangen ist. Wenn ja, wird Kontrollbit zurückgesetzt, um neuen Ordner zu erstellen")
         control_bit = gap_day()
 
+
+    ############################################################################################################################################################################################################
+    # Neuer Ordner 
     if not control_bit:
         ordner = erstelle_ordner(log_mode)
         print (f"neuer Ordner erstellt: {ordner}")
@@ -204,6 +214,8 @@ def start_up(log_mode):
         log_schreiben(f"{'Alter Ordner':<22} | {ordner_from_config}", log_mode=log_mode)
         log_schreiben(f"{'Neuer Ordner':<22} | {ordner}", log_mode=log_mode)
     
+    ############################################################################################################################################################################################################
+    # Starte Logfile mit Laufinformationen
     display_text_and_image("Wel-","come", "", "/home/Ento/LepmonOS/startsequenz/Logo_4_9.png",4)   
     if control_bit:
         print("letzer Fang nicht ordnungsgemäß beendet, benutze alten Ordner")
@@ -221,14 +233,15 @@ def start_up(log_mode):
         log_schreiben(f"{'Neuer Ordner':<22} | {ordner_path}", log_mode=log_mode)
 
         
-    
+    ############################################################################################################################################################################################################
+    # Gerätedaten   
     display_text_and_image("Wel-","come", "", "/home/Ento/LepmonOS/startsequenz/Logo_5_9.png",1)
 
     log_schreiben("==============================================", log_mode=log_mode)
     log_schreiben(f"Gerätedaten", log_mode=log_mode)
     log_schreiben("----------------------------------------------", log_mode=log_mode)
     log_schreiben(f"{'ARNI SN Nummer':<22} | {sn}", log_mode=log_mode)
-    log_schreiben(f"{'ARNI Generation':<22} | {hardware}", log_mode=log_mode)
+    log_schreiben(f"{'ARNI Generation':<22} | {HARDWARE_VERSION}", log_mode=log_mode)
     log_schreiben(f"{'verbaute Kamera':<22} | {get_device_info('camera')}", log_mode=log_mode)
     log_schreiben(f"{'verbauter Sensor':<22} | {get_device_info('sensor')}", log_mode=log_mode)
     log_schreiben(f"{'Auflösung (LxB)':<22} | {get_device_info('length')} x {get_device_info('height')}", log_mode=log_mode)
@@ -243,9 +256,11 @@ def start_up(log_mode):
 
     if sn_trigger:
         log_schreiben("Manuelle SN Eingabe durch User erzwungen.", log_mode=log_mode)
-        log_schreiben(f"Manuell gesetzte SN: {sn_manual}, Gen: {hardware}", log_mode=log_mode)
+        log_schreiben(f"Manuell gesetzte SN: {sn_manual}, Gen: {HARDWARE_VERSION}", log_mode=log_mode)
 
     
+    ############################################################################################################################################################################################################
+    # Experiment Zeiten
     display_text_and_image("Wel-","come", "", "/home/Ento/LepmonOS/startsequenz/Logo_6_9.png",1)  
     try: 
         power_on, power_off = get_times_power(log_mode)
@@ -289,6 +304,9 @@ def start_up(log_mode):
     log_schreiben(f"{'Sonnenaufgang':<22} | {sunrise.strftime('%H:%M:%S')}", log_mode=log_mode)
     log_schreiben("==============================================", log_mode=log_mode)
 
+
+    ############################################################################################################################################################################################################
+    # Vergleiche Zeiten des Power Management 
     try:
         estimated_start_based_on_last_run = read_fram(0x06A0,19)
         estimated_end_based_on_last_run = read_fram(0x06C0,19)
@@ -305,12 +323,11 @@ def start_up(log_mode):
         estimated_start_based_on_last_run = "---"
         estimated_end_based_on_last_run = "---"
         
-
     log_schreiben(f"Vergleiche Experiment Zeiten", log_mode=log_mode)
     log_schreiben("----------------------------------------------", log_mode=log_mode)
     log_schreiben(f"{'gespeicherter Anfang':<22} | {estimated_start_based_on_last_run}", log_mode=log_mode)
     log_schreiben(f"{'gespeichertes Ende':<22} | {estimated_end_based_on_last_run}", log_mode=log_mode)
-
+    
     try: 
         power_on = datetime.strptime(power_on.strip(), "%Y-%m-%d %H:%M:%S")
         diff_start = power_on - estimated_start_based_on_last_run
@@ -322,6 +339,9 @@ def start_up(log_mode):
         log_schreiben(f"{'Differenz Startzeiten':<22} | ---", log_mode=log_mode)
     log_schreiben("eine positive Differenz oder 0:00 ist erwartet - der im letzten Run errechnete Startzeitpunkt liegt vor dem tatsächlichen. Kein Datenverlust ist erwartet", log_mode=log_mode)
 
+
+    ############################################################################################################################################################################################################
+    # speichere Start und Stop Zeiten
     display_text_and_image("Bien-","venido", "", "/home/Ento/LepmonOS/startsequenz/Logo_9_9.png",1)
     try:
         store_times_power(power_on, power_off, "start_up")
@@ -330,12 +350,14 @@ def start_up(log_mode):
         print(f"Fehler beim Speichern der Zeiten: {e}")
         print("ARNI besitzt kein Power Management. Fahre fort")
 
-    
+
+    ############################################################################################################################################################################################################
     # Setze Alarme zurück
     reset_alarms(log_mode)
-    
     write_timestamp(0x07E0)
 
+
+    ############################################################################################################################################################################################################
     # Experiment für Boundingboxen mit Delay, wenn ARNI im entsprechenden Experiment eingesetzt wird
     if sn in ["SN010010", "SN010011"]:
         jetzt_local, _, _= Zeit_aktualisieren(log_mode=log_mode)
@@ -354,6 +376,43 @@ def start_up(log_mode):
             log_schreiben(f"Fehler beim Berechnen der Startzeit mit Delay: {e}", log_mode=log_mode)
 
 
+    ############################################################################################################################################################################################################
+    # WLAN Name
+    log_schreiben("----------------------------------------------", log_mode=log_mode)
+    log_schreiben("prüfe WLAN Name...", log_mode=log_mode)
+    ssid = get_ap_ssid(log_mode="manual")
+    password = get_ap_password(log_mode="manual")
+
+    log_schreiben("==============================================", log_mode=log_mode)
+    log_schreiben(f"WLAN Übersicht:", log_mode=log_mode)
+    log_schreiben("----------------------------------------------", log_mode=log_mode)
+    log_schreiben(f"{'SSID':<22} | {ssid}", log_mode=log_mode)
+    log_schreiben(f"{'Passwort':<22} | {password}", log_mode=log_mode)
+    log_schreiben("==============================================", log_mode=log_mode)
+
+
+    if is_valid_ssid(ssid):
+        print(f"SSID ist bereits korrekt formatiert: '{ssid}'")
+
+    if not is_valid_ssid(ssid):
+
+        log_schreiben("----------------------------------------------", log_mode=log_mode)
+        log_schreiben("Bennene WLAN um", log_mode=log_mode)
+
+        ssid = get_ap_ssid(log_mode=log_mode)
+        new_ssid = set_ap_ssid(log_mode=log_mode)
+        password = get_ap_password(log_mode=log_mode)
+
+        log_schreiben("==============================================", log_mode=log_mode)
+        log_schreiben(f"WLAN Übersicht:", log_mode=log_mode)
+        log_schreiben("----------------------------------------------", log_mode=log_mode)
+        log_schreiben(f"{'Alte SSID':<22} | {ssid}", log_mode=log_mode)
+        log_schreiben(f"{'Neue SSID':<22} | {new_ssid}", log_mode=log_mode)
+        log_schreiben(f"{'Passwort':<22} | {password}", log_mode=log_mode)
+        log_schreiben("==============================================", log_mode=log_mode)
+
+    ############################################################################################################################################################################################################
+    # schreibe Ende
     log_schreiben("##################################", log_mode=log_mode)
     log_schreiben("##################################", log_mode=log_mode)
     log_schreiben("beende start_up", log_mode=log_mode)

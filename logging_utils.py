@@ -158,7 +158,8 @@ def error_message(error_number, error_details, log_mode):
     Zeigt die Fehlermeldung auf dem Display an, loggt sie und sendet sie per LoRa.
     :param error_number: Fehlernummer (int)
     """
-    if error_number != 9 and get_hardware_version() != "Pro_Gen_1" or error_number != 9 and get_hardware_version() != "Pro_Gen_2":
+    HARDWARE_VERSION = get_hardware_version()
+    if error_number != 9 or HARDWARE_VERSION not in ["Pro_Gen_1", "Pro_Gen_2"]:
         turn_on_led("rot")  
         logging_text, _ = get_log_message(error_number)  
         try:

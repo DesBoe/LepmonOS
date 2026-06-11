@@ -87,7 +87,7 @@ def find_exposure_and_gain_for_focus(log_mode):
             error_message(2, "Kamera mehrfach beim Fokussieren nicht initialisiert. ARNI startet neu", log_mode=log_mode)
             show_message("focus_2", lang = lang)
             show_message("focus_3", lang = lang)
-            trap_shutdown(log_mode, 5, execution="force_reboot")
+            trap_shutdown(5, log_mode, execution="during_run")
 
         print("Belichtungs Analyse")
         
@@ -182,10 +182,7 @@ def find_focal_position(Exposure, Gain, vis_emergency, expected_camera, log_mode
                 show_message("focus_3", lang = lang)
                 log_schreiben("Kamera mehrfach beim Fokussieren nicht initialisiert", log_mode=log_mode)
                 #write_fram_bytes(0x078F, b'\x01')
-                log_schreiben("##################################", log_mode=log_mode)
-                log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###", log_mode=log_mode)
-                log_schreiben("##################################", log_mode=log_mode)
-                trap_shutdown(log_mode, 5, execution="force_reboot")
+                trap_shutdown(5, log_mode, execution="during_run")
                 os.system("sudo reboot now")
                 show_message("blank", lang=lang)
             time.sleep(10)

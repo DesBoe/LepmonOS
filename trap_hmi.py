@@ -34,6 +34,7 @@ from capturing_state import (
     clear_stop_focus_request,
 )
 
+HARDWARE_VERSION = get_hardware_version()
 
 WEB_FOCUS_EMERGENCY_TIMEOUT_S = 300  # mirrors find_focus.vis_emergency (5 min)
 WEB_FOCUS_QR_PATH = "/tmp/lepmon_focus_qr.png"
@@ -111,6 +112,15 @@ def run_web_focus_session(log_mode, lang):
         log_schreiben("Web focus aborted — no local IP", log_mode=log_mode)
         show_message("focus_web_no_ip", lang=lang)
         return
+    
+    # Hinweis an Nutzer, das WLAN zu suchen
+    ssid = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "wlan", "ssid")
+    password = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "wlan", "password")
+    while not button_pressed("enter"):
+        show_message("wlan_login", ssid=ssid, password=password, lang=lang)
+        show_message("wlan_success", lang=lang)
+
+
 
     url = f"http://{ip}:8080/"
     log_schreiben(f"Web focus URL: {url}", log_mode=log_mode)
@@ -135,7 +145,7 @@ def run_web_focus_session(log_mode, lang):
             # Render IP + countdown + QR (or text-only fallback if QR failed).
             if qr_path:
                 display_text_and_image(
-                    f"scan qr",
+                    f"scan QR",
                     f"on phone",
                     f"{remaining}s",
                     qr_path,
@@ -197,7 +207,7 @@ def display_sensor_status_with_text(sensor_data, sensor_status, log_mode):
     2. Zeile: Sensorzustand (OK oder Fehler)
     3. Zeile: Erster Wert, den der Sensor in sensor_data schreibt, inkl. Einheit.
     """
-    if hardware in ["Pro_Gen_1", "Pro_Gen_2"]:
+    if HARDWARE_VERSION in ["Pro_Gen_1", "Pro_Gen_2"]:
         sensors = [
             ("Light_Sensor", "LUX", "Lux"),
             ("Inner_Sensor", "Temp_in", "°C"),
@@ -206,7 +216,7 @@ def display_sensor_status_with_text(sensor_data, sensor_status, log_mode):
         ]
         log_schreiben("Power_Sensor nicht verbaut in Pro Gen 1 und 2", log_mode=log_mode)
     
-    elif hardware in ["Pro_Gen_3", "Pro_Gen_4",
+    elif HARDWARE_VERSION in ["Pro_Gen_3", "Pro_Gen_4",
                       "CSL_Gen_1", "CSS_Gen_1"]:
         sensors = [
             ("Light_Sensor", "LUX", "Lux"),
@@ -220,7 +230,7 @@ def display_sensor_status_with_text(sensor_data, sensor_status, log_mode):
     log_schreiben(f"{'Sensor':<22} | {'Status':<10} | {'Wert':<10} |{'Einheit'}", log_mode=log_mode)
     log_schreiben("----------------------------------------------------------", log_mode=log_mode)
     for sensor_name, data_key, einheit in sensors:
-        if sensor_name == "Power_Sensor" and hardware in ["Pro_Gen_1", "Pro_Gen_2"]:
+        if sensor_name == "Power_Sensor" and HARDWARE_VERSION in ["Pro_Gen_1", "Pro_Gen_2"]:
             status = "nicht"
             value = "verbaut"
         else:
@@ -254,12 +264,12 @@ def open_trap_hmi(log_mode, start_step = 0):
     Menu_open = False
     turn_on_led("blau") 
 
-    hardware = get_hardware_version()
-    if hardware == "Pro_Gen_1":
+    #HARDWARE_VERSION = get_hardware_version()
+    if HARDWARE_VERSION == "Pro_Gen_1":
         show_message("hmi_01", lang=lang)
         print("Eingabe Menü mit der Taste Enter ganz links unten öffnen")
     
-    elif hardware in ["Pro_Gen_2","Pro_Gen_3", "Pro_Gen_4",
+    elif HARDWARE_VERSION in ["Pro_Gen_2","Pro_Gen_3", "Pro_Gen_4",
                       "CSL_Gen_1", "CSS_Gen_1"]:
         show_message("hmi_02", lang=lang)            
         print("Eingabe Menü mit der Taste Enter ganz rechts unten öffnen")
@@ -346,7 +356,7 @@ def open_trap_hmi(log_mode, start_step = 0):
                   
 def menu_options(log_mode, set_new_location_code, lang, start_step = 0):        
                 print("Eingabe Menü geöffnet")
-                hardware = get_hardware_version()
+                #HARDWARE_VERSION = get_hardware_version()
                 camera = get_device_info('camera') 
                 print(f"erwartete Kamera: {camera}")
                 show_message("hmi_03", lang=lang)
@@ -365,9 +375,9 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                 province_old = Kreis_code_old = province = Kreis_code = None
                 latitude_ohne_Vorzeichen = longitude_ohne_Vorzeichen = None
                 
-                if hardware in ["Pro_Gen_2", "Pro_Gen_3"]:
+                if HARDWARE_VERSION in ["Pro_Gen_2", "Pro_Gen_3"]:
                     steps = ["hidden","power", "delete_usb", "heat", "time", "gps","diagnose_return","diagnose_start"]
-                elif hardware in ["Pro_Gen_1","CSL_Gen_1", "CSS_Gen_1","Pro_Gen_4"]:
+                elif HARDWARE_VERSION in ["Pro_Gen_1","CSL_Gen_1", "CSS_Gen_1","Pro_Gen_4"]:
                     steps = ["hidden","power", "delete_usb", "time", "gps","diagnose_return","diagnose_start"]
                 
                 print(log_mode, start_step)
@@ -405,7 +415,7 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                         show_message("hmi_03", lang=lang)
                                         break
                                     if button_pressed("oben"):
-                                        if hardware == "CSS_Gen_1":
+                                        if HARDWARE_VERSION == "CSS_Gen_1":
                                             log_schreiben("Web-Fokussierhilfe noch nicht auf ARNI-CS unterstützt.", log_mode=log_mode)
                                             display_text("Web focussing",
                                                          "not supported yet",
@@ -530,7 +540,7 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                 break
                             time.sleep(.05)
                     elif current == "heat":
-                        if hardware == "Pro_Gen_2" or hardware == "Pro_Gen_3":
+                        if HARDWARE_VERSION == "Pro_Gen_2" or HARDWARE_VERSION == "Pro_Gen_3":
                             print("Scheibenheizung aktivieren?\nOben = Ja\nUnten = Nein\nRechts = Zurück")
                             turn_on_led("blau")
                             show_message("hmi_13", lang=lang)
@@ -842,13 +852,7 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                             if Status_Kamera == 0:
                                         show_message("hmi_27", lang=lang)
                                         log_schreiben("Kamera Test fehlgeschlagen, Kamera nicht verfügbar",log_mode=log_mode)
-                                        log_schreiben("##################################", log_mode=log_mode)
-                                        log_schreiben("####SELBSTINDUZIERTER SHUTDOWN####", log_mode=log_mode)
-                                        log_schreiben("##################################", log_mode=log_mode)
-                                        trap_shutdown(log_mode,5, execution="force_reboot")
-                                        os.system('sudo reboot')
-                                        show_message("blank", lang=lang)
-                                        time.sleep(10)
+                                        trap_shutdown(5,log_mode, execution="during_run")
                                         
                             elif Status_Kamera == 1:        
                                     show_message("hmi_28", lang=lang)  
@@ -874,18 +878,12 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                 show_message("hmi_29", lang=lang, total_space = str(total_space_gb), free_space = str(free_space_gb))
                                 if total_space_gb is None:
                                     show_message("hmi_30", lang=lang)
-                                    log_schreiben("##################################", log_mode=log_mode)
-                                    log_schreiben("####SELBSTINDUZIERTER SHUTDOWN####", log_mode=log_mode)
-                                    log_schreiben("##################################", log_mode=log_mode)
-                                    trap_shutdown(log_mode,5, execution="force_reboot")
+                                    trap_shutdown (5,log_mode, execution="during_run")
                                     return
                                 elif free_space_gb < 16:
                                     show_message("hmi_31", lang=lang)
                                     log_schreiben("USB Speicher fast voll, bitte leeren", log_mode=log_mode)
-                                    log_schreiben("##################################", log_mode=log_mode)
-                                    log_schreiben("####SELBSTINDUZIERTER SHUTDOWN####", log_mode=log_mode)
-                                    log_schreiben("##################################", log_mode=log_mode) 
-                                    trap_shutdown(log_mode, 5, execution="force_reboot")
+                                    trap_shutdown (5,log_mode, execution="during_run")
                                     return
                                 elif free_space_gb >= 16:
                                     show_message("hmi_32", lang=lang)
@@ -926,10 +924,10 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                             show_message("hmi_36", lang=lang)
 
 
-                            if hardware in ["Pro_Gen_2", "Pro_Gen_3"]:
+                            if HARDWARE_VERSION in ["Pro_Gen_2", "Pro_Gen_3"]:
                                 display_text_and_image("switch", "always", "on", "/home/Ento/LepmonOS/startsequenz/Knopf_An_Aus.png", sleeptime=5)
 
-                            if hardware in ["Pro_Gen_4", "CSS_Gen_1"]:
+                            if HARDWARE_VERSION in ["Pro_Gen_4", "CSS_Gen_1"]:
                                 for _ in range(3):
                                     display_text_and_image("switch", "always", "on", "/home/Ento/LepmonOS/startsequenz/Knopf_An_Aus.png", sleeptime=2)
                                     display_text_and_image("power", "safe", "mode", "/home/Ento/LepmonOS/startsequenz/Knopf_An_An.png", sleeptime=2)

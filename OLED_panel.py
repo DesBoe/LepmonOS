@@ -27,8 +27,8 @@ except:
         time.sleep(0.25)
     
 
-hardware = get_hardware_version()
-if hardware == "Pro_Gen_1":
+HARDWARE_VERSION = get_hardware_version()
+if HARDWARE_VERSION == "Pro_Gen_1":
     oled.rotate = 2
     
 

@@ -45,11 +45,12 @@ try:
 except Exception as e:
     print(f"Fehler in der Initialisierung des Stromsensors:{e}")  
 
-def get_power():
+def get_power(HARDWARE_VERSION=None):
     bus_voltage, shunt_voltage, current, power, Sensorstatus_Strom = "---", "---", "---", "---", 0
-    hardware = get_hardware_version()
+    if HARDWARE_VERSION is None:
+        HARDWARE_VERSION = get_hardware_version()
     try:         
-        if hardware != "Pro_Gen_1" and hardware != "Pro_Gen_2":
+        if HARDWARE_VERSION != "Pro_Gen_1" and HARDWARE_VERSION != "Pro_Gen_2":
             time.sleep(0.2)
             Sensorstatus_Strom = 1
 
@@ -58,7 +59,7 @@ def get_power():
             current = round(ina.current(), 2) 
             power = round(ina.power()/1000, 2)
         
-        elif hardware == "Pro_Gen_1" or hardware == "Pro_Gen_2":
+        elif HARDWARE_VERSION == "Pro_Gen_1" or HARDWARE_VERSION == "Pro_Gen_2":
             print("Warnung: Stromsensor ist auf diesem Hardware-Modell nicht verfügbar.")
             Sensorstatus_Strom = 1
 
@@ -89,7 +90,7 @@ def get_light(log_mode):
     
     
 def read_sensor_data(code,lokale_Zeit, log_mode):
-    hardware = get_hardware_version()
+    HARDWARE_VERSION = get_hardware_version()
 
     update_sensor_data(sensor_data, "code", code)
     update_sensor_data(sensor_data, "time_read", lokale_Zeit)
@@ -105,9 +106,9 @@ def read_sensor_data(code,lokale_Zeit, log_mode):
 
 
     try:
-        if get_hardware_version() == "Pro_Gen_1":
+        if HARDWARE_VERSION == "Pro_Gen_1":
             Temp_in = adafruit_bmp280.Adafruit_BMP280_I2C(i2c)
-        elif hardware in ["Pro_Gen_2","Pro_Gen_3","Pro_Gen_4",
+        elif HARDWARE_VERSION in ["Pro_Gen_2","Pro_Gen_3","Pro_Gen_4",
                           "CSL_Gen_1","CSS_Gen_1"]:  
             Temp_in = adafruit_pct2075.PCT2075(i2c, address=0x48)
         Temp_in = round(Temp_in.temperature, 2) 
@@ -123,13 +124,13 @@ def read_sensor_data(code,lokale_Zeit, log_mode):
     update_sensor_data(sensor_status, "Inner_Sensor", Sensorstatus_Inne)        
     
         
-    bus_voltage, shunt_voltage, current, power, Sensorstatus_Strom = get_power()
-    if Sensorstatus_Strom == 0 or Sensorstatus_Strom == 1 and get_hardware_version() in ["Pro_Gen_1", "Pro_Gen_2"]:
+    bus_voltage, shunt_voltage, current, power, Sensorstatus_Strom = get_power(HARDWARE_VERSION)
+    if Sensorstatus_Strom == 0 or Sensorstatus_Strom == 1 and HARDWARE_VERSION in ["Pro_Gen_1", "Pro_Gen_2"]:
         update_sensor_data(sensor_data, "bus_voltage", "---")
         update_sensor_data(sensor_data, "shunt_voltage", "---")
         update_sensor_data(sensor_data, "current", "---")
         update_sensor_data(sensor_data, "power", "---")
-    elif Sensorstatus_Strom == 1 and not get_hardware_version() in ["Pro_Gen_1", "Pro_Gen_2"]:
+    elif Sensorstatus_Strom == 1 and HARDWARE_VERSION not in ["Pro_Gen_1", "Pro_Gen_2"]:
         
         update_sensor_data(sensor_data, "bus_voltage", f"{bus_voltage:.2f}")
         update_sensor_data(sensor_data, "shunt_voltage", f"{shunt_voltage:.2f}")

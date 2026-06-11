@@ -25,7 +25,7 @@ Power_control_GPIO = 12
 GPIO.setup(Power_control_GPIO, GPIO.OUT, initial=GPIO.HIGH)
 
 from hardware import get_hardware_version  
-hardware = get_hardware_version()
+HARDWARE_VERSION = get_hardware_version()
 
 def trap_shutdown(i,log_mode,execution="full"):
     ''' 
@@ -59,6 +59,7 @@ def trap_shutdown(i,log_mode,execution="full"):
         log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###",log_mode)
         log_schreiben("##################################",log_mode)
         time.sleep(5)
+        show_message("blank", lang=lang)
         os.system("sudo reboot")
         time.sleep(2)
         os.system("sudo reboot")
@@ -154,7 +155,7 @@ def trap_shutdown(i,log_mode,execution="full"):
 
 
 
-    if hardware in ["Pro_Gen_1","Pro_Gen_2", "Pro_Gen_3"]:
+    if HARDWARE_VERSION in ["Pro_Gen_1","Pro_Gen_2", "Pro_Gen_3"]:
         if power_mode == "Netz":
             log_schreiben("Reboot im Netzmodus in 5 Sekunden", log_mode)
             log_schreiben("##################################",log_mode)
@@ -179,7 +180,7 @@ def trap_shutdown(i,log_mode,execution="full"):
             elif execution != "full":
                 print("System würde jetzt im PV Modus neu starten (Reboot in 61 Sekunden)")
 
-    elif hardware in ["Pro_Gen_4","CSS_Gen_1", "CSL_Gen_1"]:
+    elif HARDWARE_VERSION in ["Pro_Gen_4","CSS_Gen_1", "CSL_Gen_1"]:
             log_schreiben("setze GPIO Pin für Power Control auf LOW, um ARNI herunterzufahren", log_mode)
             if execution == "anzeige":
                 print("GPIO Pin für Power Control würde auf LOW gesetzt, um ARNI herunterzufahren")
