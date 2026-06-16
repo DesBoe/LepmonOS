@@ -38,7 +38,7 @@ def get_ap_ssid(log_mode="manual",
     hostapd_conf: str = "/etc/hostapd/hostapd.conf",
 ) -> str:
     ssid = "LEPMON-XXXX-XXXX"
-    log_schreiben("Versuche, SSID zu ermitteln. Primär: {SSID_FILE}, Sekundär: {hostapd_conf}...", log_mode=log_mode)
+    log_schreiben(f"Versuche, SSID zu ermitteln. Primär: {SSID_FILE}, Sekundär: {hostapd_conf}...", log_mode=log_mode)
     try:
         log_schreiben(f"Versuche, SSID aus {SSID_FILE} zu lesen...", log_mode=log_mode)
         p = Path(SSID_FILE)
