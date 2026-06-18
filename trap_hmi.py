@@ -928,9 +928,7 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                 display_text_and_image("switch", "always", "on", "/home/Ento/LepmonOS/startsequenz/Knopf_An_Aus.png", sleeptime=5)
 
                             if HARDWARE_VERSION in ["Pro_Gen_4", "CSS_Gen_1"]:
-                                for _ in range(3):
-                                    display_text_and_image("switch", "always", "on", "/home/Ento/LepmonOS/startsequenz/Knopf_An_Aus.png", sleeptime=2)
-                                    display_text_and_image("power", "safe", "mode", "/home/Ento/LepmonOS/startsequenz/Knopf_An_An.png", sleeptime=2)
+                                    display_text_and_image("power", "safe", "mode", "/home/Ento/LepmonOS/startsequenz/Knopf_An_An.png", sleeptime=5)
                             log_schreiben("##################################", log_mode=log_mode)
                             log_schreiben("##################################", log_mode=log_mode)
                             log_schreiben("Beende Systemcheck", log_mode=log_mode)

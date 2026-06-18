@@ -50,7 +50,11 @@ def read_fram(address: int, length: int) -> str:
             bus.write_i2c_block_data(FRAM_ADDRESS, high, [low])
             byte = bus.read_byte(FRAM_ADDRESS)
             result.append(byte)
-        decoded = result.decode(errors="ignore").strip()
+        # Am ersten Null-Byte abschneiden (C-String-Terminierung im FRAM)
+        null_pos = result.find(0x00)
+        if null_pos != -1:
+            result = result[:null_pos]
+        decoded = result.decode('utf-8', errors="ignore").strip()
         #print(f"Gelesen von 0x{address:04X} (Länge {length}): '{decoded}'")
         return decoded
     except OSError as e:
