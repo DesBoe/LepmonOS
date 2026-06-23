@@ -24,10 +24,12 @@ apt-get install -y --no-install-recommends \
   ntfs-3g exfatprogs \
   thonny \
   mc \
-  fim
+  fim \
+  visidata
   #DB thonny: Lightweight Python IDE for local development on the desktop image
   #DB mc: add midnight commander for file management on the desktop image
   #DB fim: framebuffer image viewer for quick photo review in CLI mode (e.g. fim -a /media/usb/capture.jpg)
+  #DB visidata: terminal spreadsheet tool for quick CSV/TSV inspection (e.g. visidata /media/usb/data.csv)
 
 # Networking / Access-Point
 apt-get install -y --no-install-recommends \

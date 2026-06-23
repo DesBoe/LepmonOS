@@ -163,7 +163,8 @@ python3 lepmon_web_service.py --host 0.0.0.0 --port 8080
 2. Connect with password `lepmon12`
 3. Open `http://192.168.4.1:8080/` in a browser
 4. SSH: `ssh Ento@192.168.4.1`
-5. in case this adress was used on a different ARNI before: `sudo ssh-keygen -R 192.168.4.1 -f /var/root/.ssh/known_hosts`
+5. in case this adress was used on a different ARNI before: `sudo ssh-keygen -R 192.168.4.1 -f /var/root/.ssh/known_hosts` 
+6. if the adress still can't be accessed: `sed -i '' -E '/^192.168.4.1[ ,]/d; /^[192.168.4.1]:22[ ,]/d' ~/.ssh/known_hosts && ssh -o StrictHostKeyChecking=accept-new Ento@192.168.4.1`
 
 ### Via Ethernet
 1. Connect an Ethernet cable
