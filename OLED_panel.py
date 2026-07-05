@@ -6,7 +6,8 @@ import time
 import os
 from GPIO_Setup import *
 from hardware import get_hardware_version
-from messages import MESSAGE_REGISTER 
+from messages import MESSAGE_REGISTER
+from dev_mode import DEV_MODE, note_mock
 
 try:
     print("Loading Font from :", os.path.join(os.path.dirname(__file__), 'FreeSans.ttf'))
@@ -15,24 +16,32 @@ except Exception as e:
     print(f"Error loading font: {e}")
 
 # OLED-Setup
-Display = i2c(port=1, address=0x3C)
+oled = None
 try:
+    Display = i2c(port=1, address=0x3C)
     oled = sh1106(Display)
-except:
-    print("Fehler beim Initialisieren des OLED-Displays.")
-    for _ in range(3):
-        turn_on_led("rot")
-        time.sleep(0.25)
-        turn_off_led("rot")
-        time.sleep(0.25)
-    
+except Exception:
+    oled = None
+    if DEV_MODE:
+        note_mock("OLED display (sh1106)")
+    else:
+        print("Fehler beim Initialisieren des OLED-Displays.")
+        for _ in range(3):
+            turn_on_led("rot")
+            time.sleep(0.25)
+            turn_off_led("rot")
+            time.sleep(0.25)
 
 hardware = get_hardware_version()
-if hardware == "Pro_Gen_1":
+if hardware == "Pro_Gen_1" and oled is not None:
     oled.rotate = 2
     
 
 def display_text(line1, line2, line3, sleeptime =0):
+    if oled is None:
+        print(f"[OLED] {line1} | {line2} | {line3}")
+        time.sleep(sleeptime)
+        return
     try:
         with canvas(oled) as draw:
             draw.rectangle(oled.bounding_box, outline="black", fill="black")
@@ -53,6 +62,10 @@ def display_text_and_image(line1, line2, line3, image_path,sleeptime =0):
     """
     Zeigt links drei Zeilen Text und rechts ein Bild (64x64 px) auf dem OLED an.
     """
+    if oled is None:
+        print(f"[OLED] {line1} | {line2} | {line3} (image: {image_path})")
+        time.sleep(sleeptime)
+        return
     try:
         logo = Image.open(image_path).convert("1").resize((64, 64))
         with canvas(oled) as draw:
@@ -78,6 +91,10 @@ def display_image_3_2(image_path,sleeptime =0):
     """
     Zeigt ein Bild (128x64 px) auf dem OLED an.
     """
+    if oled is None:
+        print(f"[OLED] (image: {image_path})")
+        time.sleep(sleeptime)
+        return
     try:
         logo = Image.open(image_path).convert("1", dither=Image.NONE).resize((128, 64))
         with canvas(oled) as draw:
@@ -97,6 +114,10 @@ def display_image_3_2(image_path,sleeptime =0):
 
     
 def display_text_with_arrows(line1, line2, line3=None, x_position=None, sleeptime=0):
+    if oled is None:
+        print(f"[OLED] {line1} | {line2} | {line3} (x_position={x_position})")
+        time.sleep(sleeptime)
+        return
     try:
         with canvas(oled) as draw:
             draw.rectangle(oled.bounding_box, outline="black", fill="black")

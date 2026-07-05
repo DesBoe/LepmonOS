@@ -7,6 +7,8 @@ import board
 import adafruit_ds3231
 from logging_utils import *
 from times import *
+from dev_mode import DEV_MODE, note_mock
+from mock_hardware import MockRTC
 
 
 def init_rtc(log_mode):
@@ -15,6 +17,9 @@ def init_rtc(log_mode):
         rtc = adafruit_ds3231.DS3231(i2c)
         return rtc
     except Exception as e:
+        if DEV_MODE:
+            note_mock("hardware RTC (DS3231)")
+            return MockRTC()
         error_message(8, e, log_mode)
         return None
     

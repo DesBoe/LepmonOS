@@ -9,14 +9,27 @@ from logging_utils import *
 from json_read_write import *
 import board
 import adafruit_ds3231
+from dev_mode import DEV_MODE, note_mock
+from mock_hardware import MockRTC
 
 
 
 def Zeit_aktualisieren(log_mode="log"):
-    i2c = board.I2C()
     rtc_status = 0
     try:
+        i2c = board.I2C()
         rtc = adafruit_ds3231.DS3231(i2c)
+    except Exception as e:
+        if DEV_MODE:
+            note_mock("hardware RTC (DS3231)")
+            rtc = MockRTC()
+        else:
+            error_message(8, e, log_mode)
+            jetzt_local = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            lokale_Zeit = datetime.now().strftime("%H:%M:%S")
+            return jetzt_local, lokale_Zeit, rtc_status
+
+    try:
         rtc_status = 1
         t = rtc.datetime
         dt = datetime(t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec)

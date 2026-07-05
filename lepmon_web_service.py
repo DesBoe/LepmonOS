@@ -51,7 +51,11 @@ from thumbnail_utils import (
     thumb_path_for as _thumb_path_for,
     make_thumbnail_bytes as _make_thumbnail,
     write_thumbnail_for,
+    is_usb_path,
 )
+
+from dev_mode import DEV_MODE, note_mock
+from mock_hardware import generate_mock_frame
 
 # Global variables for camera management
 camera_lock = threading.Lock()
@@ -95,24 +99,30 @@ def save_camera_settings():
         logger.error(f"Could not save camera settings: {e}")
 
 
+def _dev_mode_frame() -> np.ndarray:
+    note_mock("Allied Vision camera (vmbpy) for web streaming")
+    return generate_mock_frame(640, 480, label="DEV MODE - stream")
+
+
 def get_vimba_frame(exposure: int = DEFAULT_EXPOSURE, gain: float = DEFAULT_GAIN) -> Optional[np.ndarray]:
     """
     Capture a single frame from the Allied Vision camera using VmbPy SDK.
-    Returns the frame as a numpy array or None if capture fails.
+    Returns the frame as a numpy array, a DEV_MODE mock frame if no camera is
+    found and DEV_MODE is on, or None if capture fails.
     """
     try:
         from vmbpy import VmbSystem, PixelFormat, PersistType
-        
+
         with VmbSystem.get_instance() as vmb:
             cams = vmb.get_all_cameras()
             if not cams:
                 logger.warning("No Allied Vision camera found")
-                return None
-            
+                return _dev_mode_frame() if DEV_MODE else None
+
             with cams[0] as cam:
                 # Don't force pixel format - use whatever camera supports
                 # Most Allied Vision cameras default to Mono8 or BayerRG8
-                
+
                 # Load settings if available
                 settings_file = '/home/Ento/LepmonOS/Kamera_Einstellungen.xml'
                 if os.path.exists(settings_file):
@@ -120,23 +130,24 @@ def get_vimba_frame(exposure: int = DEFAULT_EXPOSURE, gain: float = DEFAULT_GAIN
                         cam.load_settings(settings_file, PersistType.All)
                     except Exception as e:
                         logger.warning(f"Could not load camera settings: {e}")
-                
+
                 # Set exposure and gain
                 try:
                     cam.ExposureTime.set(exposure * 1000)  # Convert to microseconds
                     cam.Gain.set(gain)
                 except Exception as e:
                     logger.warning(f"Could not set exposure/gain: {e}")
-                
+
                 # Capture frame
                 frame = cam.get_frame(timeout_ms=5000).as_opencv_image()
                 return frame
-                
+
     except ImportError:
         logger.error("VmbPy SDK not available - using test pattern")
+        return _dev_mode_frame() if DEV_MODE else None
     except Exception as e:
         logger.error(f"Error capturing frame: {e}")
-        return None
+        return _dev_mode_frame() if DEV_MODE else None
 
 
 def generate_test_pattern() -> np.ndarray:
@@ -677,8 +688,8 @@ async def get_latest_images(count: int = 10):
 @app.get("/api/images/file")
 async def serve_image(path: str):
     """Serve an image file from the USB drive."""
-    # Security: only serve files under /media/Ento/
-    if not path.startswith("/media/Ento/"):
+    # Security: only serve files under a mounted USB drive.
+    if not is_usb_path(path):
         return JSONResponse({"error": "Access denied"}, status_code=403)
     if not os.path.isfile(path):
         return JSONResponse({"error": "File not found"}, status_code=404)
@@ -706,7 +717,7 @@ async def serve_thumbnail(path: str, max_size: int = THUMB_MAX_PX):
     by the capture loop). Falls back to a lazy 16-bit-aware decode,
     caching the result for next time.
     """
-    if not path.startswith("/media/Ento/"):
+    if not is_usb_path(path):
         return JSONResponse({"error": "Access denied"}, status_code=403)
     if not os.path.isfile(path):
         return JSONResponse({"error": "File not found"}, status_code=404)

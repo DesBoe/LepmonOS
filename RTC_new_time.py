@@ -9,6 +9,8 @@ import board
 from service import RPI_time
 from language import get_language
 from RTC_get_time_online import *
+from dev_mode import DEV_MODE, note_mock
+from mock_hardware import MockRTC
 
 lang = get_language()
 x_positions = [4,10,18,25,40,47,59,66,4,10,22,28,40,46]
@@ -21,9 +23,14 @@ def input_time(log_mode):
         rtc_status = True
 
     except Exception as e:
-        error_message(8, e, log_mode)
-        # Fallback: Default-Werte
-        date_time_list = [2,0,2,4,0,1,0,1,0,0,0,0,0,0]    
+        if DEV_MODE:
+            note_mock("hardware RTC (DS3231)")
+            rtc = MockRTC()
+            rtc_status = True
+        else:
+            error_message(8, e, log_mode)
+            # Fallback: Default-Werte
+            date_time_list = [2,0,2,4,0,1,0,1,0,0,0,0,0,0]
     if rtc_status:
 
         t = rtc.datetime
@@ -225,8 +232,13 @@ def set_hwc(rtc_mode, log_mode, date_time_list=None, ):
             rtc = adafruit_ds3231.DS3231(i2c)
             rtc_status = True
         except Exception as e:
-            error_message(8, e, log_mode)
-            show_message("err_08", lang = lang)
+            if DEV_MODE:
+                note_mock("hardware RTC (DS3231)")
+                rtc = MockRTC()
+                rtc_status = True
+            else:
+                error_message(8, e, log_mode)
+                show_message("err_08", lang = lang)
         if rtc_status:                               
             rtc_time = time.struct_time((
                 jahr, monat, tag, stunde, minute, sekunde,

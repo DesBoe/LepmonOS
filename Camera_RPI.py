@@ -22,6 +22,8 @@ from sensor_data import get_power
 import numpy as np
 import gc
 from gamma_korr import gamma_correction
+from dev_mode import DEV_MODE, note_mock
+from mock_hardware import generate_mock_frame
 
 def dict_to_xml(tag, d):
     elem = ET.Element(tag)
@@ -29,6 +31,14 @@ def dict_to_xml(tag, d):
         child = ET.SubElement(elem, key)
         child.text = str(val)
     return elem
+
+
+def _rpi_camera_present():
+    """Cheap presence check - lists cameras without opening/configuring one."""
+    try:
+        return bool(Picamera2.global_camera_info())
+    except Exception:
+        return False
 
 
 def get_frame_RPI(expected_camera, cam_mode,log_mode, Exposure, Gain, compression_quality, focus= 5.3):
@@ -46,7 +56,16 @@ def get_frame_RPI(expected_camera, cam_mode,log_mode, Exposure, Gain, compressio
             show_message("cam_1",lang=lang)
             print("nehme Frame auf")
 
-    if expected_camera == "RPI_Module_3": #imx708  
+    if DEV_MODE and not _rpi_camera_present():
+        note_mock("Raspberry Pi camera (picamera2)")
+        frame = generate_mock_frame(get_device_info('length'), get_device_info('height'), label="DEV MODE - RPI")
+        try:
+            _, _, _, power_vis, _ = get_power()
+        except Exception:
+            power_vis = "---"
+        return frame, 1, power_vis, metadata, red_gain, blue_gain
+
+    if expected_camera == "RPI_Module_3": #imx708
         while cam_Initiliase_tries <= 90 and Kamera_RPI_Status == 0:
             time.sleep(0.1)
             picam2 = None

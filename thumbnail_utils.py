@@ -25,15 +25,44 @@ THUMB_MAX_PX = 320
 
 
 def find_usb_mount() -> Optional[str]:
-    """First mounted USB partition under /media/Ento, or None."""
-    media_path = "/media/Ento"
-    if not os.path.exists(media_path):
-        return None
-    for item in os.listdir(media_path):
-        full = os.path.join(media_path, item)
-        if os.path.ismount(full):
-            return full
+    """
+    First mounted USB partition found, or None.
+
+    Checks the OS-level automount base (/media/usb/<LABEL>, set up by
+    /usr/local/bin/usb-mount.sh + the lepmon udev rule) and the legacy
+    per-user udisks/desktop automount path (/media/<user>/<LABEL>). Kept as a
+    tiny standalone check (no import of usb_controller/service) so this
+    module - shared with the independent, always-on lepmon-web service -
+    doesn't pull in the GPIO/OLED/FRAM hardware stack.
+    """
+    username = os.getenv('USER')
+    search_paths = ["/media/usb"]
+    if username:
+        search_paths.append(f"/media/{username}")
+
+    for media_path in search_paths:
+        if not os.path.exists(media_path):
+            continue
+        for item in os.listdir(media_path):
+            full = os.path.join(media_path, item)
+            if os.path.ismount(full):
+                return full
     return None
+
+
+def is_usb_path(path: str) -> bool:
+    """True if path resolves to somewhere under a known USB-media root
+    (/media/usb/... or /media/<user>/...). Used to keep the web service's
+    file-serving endpoints from reading files outside the USB drive."""
+    username = os.getenv('USER')
+    roots = ["/media/usb"]
+    if username:
+        roots.append(f"/media/{username}")
+    real_path = os.path.realpath(path)
+    return any(
+        real_path == os.path.realpath(root) or real_path.startswith(os.path.realpath(root) + os.sep)
+        for root in roots
+    )
 
 
 def thumb_path_for(image_path: str) -> Optional[str]:

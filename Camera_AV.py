@@ -17,9 +17,20 @@ from runtime import write_timestamp
 from image_quality_check import *
 import numpy as np
 import gc
-from hardware import get_hardware_version
+from hardware import get_hardware_version, get_device_info
+from dev_mode import DEV_MODE, note_mock
+from mock_hardware import generate_mock_frame
 
 lang = get_language()
+
+
+def _av_camera_present():
+    """Cheap presence check - lists cameras without opening/configuring one."""
+    try:
+        with VmbSystem.get_instance() as vmb:
+            return bool(vmb.get_all_cameras())
+    except Exception:
+        return False
 
 
 def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1):
@@ -29,6 +40,15 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1):
     frame = None
     Kamera_Status = 0
     error_details = ""
+
+    if DEV_MODE and not _av_camera_present():
+        note_mock("Allied Vision camera (vmbpy)")
+        frame = generate_mock_frame(get_device_info('length'), get_device_info('height'), label="DEV MODE - AV")
+        try:
+            _, _, _, power_vis, _ = get_power()
+        except Exception:
+            power_vis = "---"
+        return frame, 1, power_vis
 
     while cams is None:
         if cam_mode == "display" and cam_Initiliase_tries == 0:

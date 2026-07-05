@@ -3,6 +3,31 @@ import time
 from logging_utils import log_schreiben
 import subprocess
 from json_read_write import get_value_from_section
+from dev_mode import DEV_MODE
+
+
+def find_usb_mount():
+    """
+    Returns the path of the first mounted USB partition found, or None.
+
+    Checks the OS-level automount base (/media/usb/<LABEL>, set up by
+    /usr/local/bin/usb-mount.sh + the lepmon udev rule) and the legacy
+    per-user udisks/desktop automount path (/media/<user>/<LABEL>).
+    """
+    username = os.getenv('USER')
+    search_paths = ["/media/usb"]
+    if username:
+        search_paths.append(f"/media/{username}")
+
+    for media_path in search_paths:
+        if not os.path.exists(media_path):
+            continue
+        for item in os.listdir(media_path):
+            candidate = os.path.join(media_path, item)
+            if os.path.ismount(candidate):
+                return candidate
+    return None
+
 
 def wait_for_write_completion():
     """
@@ -81,10 +106,13 @@ def usb_auswerfen(mount_path):
 
 
 def remount_usb_drive(log_mode):
+    if DEV_MODE:
+        print("[DEV MODE] Uberspringe USB-Port-Reset (kein physischer USB-Stick).")
+        return
     wait_for_write_completion()
     time.sleep(2)
     log_schreiben("Schalte USB Ports des Raspberry aus", log_mode=log_mode)
-    mount_path = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "usb_drive")
+    mount_path = find_usb_mount() or get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "usb_drive")
     success = False
     error_count = 0
     while not success:

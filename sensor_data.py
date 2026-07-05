@@ -19,16 +19,24 @@ import logging
 from json_read_write import get_value_from_section
 from logging_utils import error_message
 from hardware import get_hardware_version
+from dev_mode import DEV_MODE, note_mock
+from mock_hardware import MockINA226, mock_lux, mock_inner_temp, mock_outer_climate
 
 from times import *
 
 
-os.system('sudo raspi-config nonint do_i2c 0')
-i2c = busio.I2C(board.SCL, board.SDA)
-
 port = 1
 address = 0x76
-bus = smbus2.SMBus(port)
+try:
+    os.system('sudo raspi-config nonint do_i2c 0')
+    i2c = busio.I2C(board.SCL, board.SDA)
+    bus = smbus2.SMBus(port)
+except Exception as e:
+    if not DEV_MODE:
+        raise
+    note_mock("I2C sensor bus (BH1750/BME280/PCT2075/INA226)")
+    i2c = None
+    bus = None
 
 sensor_data = {}
 sensor_status = {}
@@ -36,28 +44,32 @@ sensor_status = {}
 
 def update_sensor_data(lib,key, value):
     lib[key] = value
-    
+
 # ina
 try:
     ina = INA226(busnum=1, address=0x40, max_expected_amps=10, log_level=logging.INFO)
     ina.configure()
-    ina.set_low_battery(5)   
+    ina.set_low_battery(5)
 except Exception as e:
-    print(f"Fehler in der Initialisierung des Stromsensors:{e}")  
+    if DEV_MODE:
+        note_mock("INA226 power sensor")
+        ina = MockINA226()
+    else:
+        print(f"Fehler in der Initialisierung des Stromsensors:{e}")
 
 def get_power():
     bus_voltage, shunt_voltage, current, power, Sensorstatus_Strom = "---", "---", "---", "---", 0
     hardware = get_hardware_version()
-    try:         
+    try:
         if hardware != "Pro_Gen_1" and hardware != "Pro_Gen_2":
             time.sleep(0.2)
             Sensorstatus_Strom = 1
 
             bus_voltage = round(ina.voltage(), 2)
             shunt_voltage = round(ina.shunt_voltage(), 2)
-            current = round(ina.current(), 2) 
+            current = round(ina.current(), 2)
             power = round(ina.power()/1000, 2)
-        
+
         elif hardware == "Pro_Gen_1" or hardware == "Pro_Gen_2":
             print("Warnung: Stromsensor ist auf diesem Hardware-Modell nicht verfügbar.")
             Sensorstatus_Strom = 1
@@ -75,15 +87,19 @@ def get_light(log_mode):
         Dämmerungsschwellenwert = 90
 
     try:
-        LUX = adafruit_bh1750.BH1750(i2c) 
+        LUX = adafruit_bh1750.BH1750(i2c)
         LUX = round(LUX.lux, 2)
         Sensorstatus_Licht = 1
     except Exception as e:
-        error_message(4,e,log_mode)
+        if DEV_MODE:
+            note_mock("light sensor (BH1750)")
+            LUX = mock_lux()
+            Sensorstatus_Licht = 1
+        else:
+            error_message(4,e,log_mode)
+            Sensorstatus_Licht = 0
+            LUX = Dämmerungsschwellenwert
 
-        Sensorstatus_Licht = 0
-        LUX = Dämmerungsschwellenwert
-        
     return LUX, Sensorstatus_Licht
     
     
@@ -107,17 +123,24 @@ def read_sensor_data(code,lokale_Zeit, log_mode):
     try:
         if get_hardware_version() == "Pro_Gen_1":
             Temp_in = adafruit_bmp280.Adafruit_BMP280_I2C(i2c)
+            Temp_in = round(Temp_in.temperature, 2)
         elif hardware in ["Pro_Gen_2","Pro_Gen_3","Pro_Gen_4",
-                          "CSL_Gen_1","CSS_Gen_1"]:  
+                          "CSL_Gen_1","CSS_Gen_1"]:
             Temp_in = adafruit_pct2075.PCT2075(i2c, address=0x48)
-        Temp_in = round(Temp_in.temperature, 2) 
+            Temp_in = round(Temp_in.temperature, 2)
         Sensorstatus_Inne = 1
         update_sensor_data(sensor_data, "Temp_in", f"{Temp_in:.2f}")
     except Exception as e:
-        error_message(6,e,log_mode)
-        Temp_in = "---"
-        update_sensor_data(sensor_data, "Temp_in", Temp_in)
-        Sensorstatus_Inne = 0
+        if DEV_MODE:
+            note_mock("inner temperature sensor")
+            Temp_in = mock_inner_temp()
+            Sensorstatus_Inne = 1
+            update_sensor_data(sensor_data, "Temp_in", f"{Temp_in:.2f}")
+        else:
+            error_message(6,e,log_mode)
+            Temp_in = "---"
+            update_sensor_data(sensor_data, "Temp_in", Temp_in)
+            Sensorstatus_Inne = 0
         
     update_sensor_data(sensor_data, "Inner_Sensor", Sensorstatus_Inne)
     update_sensor_data(sensor_status, "Inner_Sensor", Sensorstatus_Inne)        
@@ -151,10 +174,10 @@ def read_sensor_data(code,lokale_Zeit, log_mode):
         update_sensor_data(sensor_data, "Environment_Sensor", Status_außen)
     except Exception as e:
         print(f"Warnung: Außensensor konnte nicht initialisiert werden, versuche Alternative: {e}")
-        
+
         try:
             calibration_params = bme280.load_calibration_params(bus, address)
-            Außensensor = bme280.sample(bus, address, calibration_params) 
+            Außensensor = bme280.sample(bus, address, calibration_params)
             Temperatur = round(Außensensor.temperature, 2)
             Luftdruck = round(Außensensor.pressure, 2)
             Luftfeuchte = round(Außensensor.humidity, 2)
@@ -163,19 +186,27 @@ def read_sensor_data(code,lokale_Zeit, log_mode):
             update_sensor_data(sensor_data, "air_pressure", f"{Luftdruck:.2f}")
             update_sensor_data(sensor_data, "air_humidity", f"{Luftfeuchte:.2f}")
             update_sensor_data(sensor_data, "Environment_Sensor", Status_außen)
-    
+
         except Exception as e:
-            error_message(5,e,log_mode)
-            Temperatur = "---"
-            Luftdruck = "---"
-            Luftfeuchte = "---"
-            Status_außen = 0
-        
-            update_sensor_data(sensor_data, "Temp_out", Temperatur)
-            update_sensor_data(sensor_data, "air_pressure", Luftdruck)
-            update_sensor_data(sensor_data, "air_humidity", Luftfeuchte)
-            update_sensor_data(sensor_data, "Environment_Sensor", Status_außen)
-            pass
+            if DEV_MODE:
+                note_mock("outer climate sensor (BME280)")
+                Temperatur, Luftdruck, Luftfeuchte = mock_outer_climate()
+                Status_außen = 1
+                update_sensor_data(sensor_data, "Temp_out", f"{Temperatur:.2f}")
+                update_sensor_data(sensor_data, "air_pressure", f"{Luftdruck:.2f}")
+                update_sensor_data(sensor_data, "air_humidity", f"{Luftfeuchte:.2f}")
+                update_sensor_data(sensor_data, "Environment_Sensor", Status_außen)
+            else:
+                error_message(5,e,log_mode)
+                Temperatur = "---"
+                Luftdruck = "---"
+                Luftfeuchte = "---"
+                Status_außen = 0
+
+                update_sensor_data(sensor_data, "Temp_out", Temperatur)
+                update_sensor_data(sensor_data, "air_pressure", Luftdruck)
+                update_sensor_data(sensor_data, "air_humidity", Luftfeuchte)
+                update_sensor_data(sensor_data, "Environment_Sensor", Status_außen)
     update_sensor_data(sensor_status, "Environment_Sensor", Status_außen)
 
     return sensor_data, sensor_status

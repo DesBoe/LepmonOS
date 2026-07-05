@@ -43,3 +43,7 @@ Icon*
 # Dateien aus dem LepmonOS Ordner
 serial_number.json
 .lgd-nfy0
+
+# DEV_MODE (LEPMON_DEV_MODE=1) local artifacts
+dev_fram_store.json
+dev_usb_mock/

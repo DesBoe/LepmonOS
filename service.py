@@ -15,9 +15,13 @@ from GPIO_Setup import *
 import shutil
 import re
 from GPIO_Setup import *
+from usb_controller import find_usb_mount
+from dev_mode import DEV_MODE, note_mock
 
 
 lang = get_language()
+
+DEV_USB_MOCK_DIR = "/home/Ento/LepmonOS/dev_usb_mock"
 
 
 
@@ -86,20 +90,24 @@ def get_Lepmon_code(log_mode):
 
 def get_usb_path(log_mode):
     """Ermittelt den Pfad des USB-Sticks. Wiederholt, bis ein Stick gefunden wird."""
+    if DEV_MODE:
+        # Prefer a real stick if one happens to be plugged in; otherwise fall
+        # back to a local folder so start_up/capturing never block on missing
+        # USB hardware (and never hit the force_reboot shutdown path below).
+        zielverzeichnis = find_usb_mount()
+        if zielverzeichnis:
+            print(f"USB-Stick gefunden: {zielverzeichnis}")
+            return zielverzeichnis, 1
+        note_mock(f"USB storage (kein Stick gefunden, nutze {DEV_USB_MOCK_DIR})")
+        os.makedirs(DEV_USB_MOCK_DIR, exist_ok=True)
+        return DEV_USB_MOCK_DIR, 1
+
     zielverzeichnis = None
     status = 0
-    username = os.getenv('USER')
-
-    # Search in both the legacy per-user path and the automount base directory.
-    # The Lepmon automounter mounts drives under /media/usb/<LABEL>.
-    search_paths = [
-        "/media/usb",              # new automount location (usb-mount@.service)
-        f"/media/{username}",      # legacy udisks / desktop automounter path
-    ]
 
     search_counter = 0
     while zielverzeichnis is None:
-        search_counter += 1  
+        search_counter += 1
         print(f"Suche nach USB-Stick... Versuch {search_counter}")
         if search_counter == 10:
             error_message(3, "USB-Stick nicht gefunden", log_mode)
@@ -112,21 +120,16 @@ def get_usb_path(log_mode):
             print("USB Stick nach 30 versuchen nicht gefunden. Zielverzeichnis ist None")
             zielverzeichnis = "Kein USB-Stick gefunden"
             return zielverzeichnis, status
-        for media_path in search_paths:
-            print(f"Überprüfe Pfad: {media_path}")
-            print(f"Vorhandene Verzeichnisse in {media_path}: {os.listdir(media_path) if os.path.exists(media_path) else 'Pfad existiert nicht'}")
-            if os.path.exists(media_path):
-                for item in os.listdir(media_path):
-                    print(f"Überprüfe {item} in {media_path}")
-                    pot_dir = os.path.join(media_path, item)
-                    if os.path.ismount(pot_dir):
-                        zielverzeichnis = pot_dir
-                        status = 1
-                        print(f"USB-Stick gefunden: {zielverzeichnis}")
-                        return zielverzeichnis, status
+
+        gefunden = find_usb_mount()
+        if gefunden:
+            zielverzeichnis = gefunden
+            status = 1
+            print(f"USB-Stick gefunden: {zielverzeichnis}")
+            return zielverzeichnis, status
         print("Suche nach USB-Stick...")
         time.sleep(2)
-    return zielverzeichnis, status      
+    return zielverzeichnis, status
             
 def erstelle_ordner(log_mode, Cameramodel = "None"):
     project_name, province, Kreis_code, sn = get_Lepmon_code(log_mode)
