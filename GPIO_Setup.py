@@ -3,7 +3,7 @@ import time
 import threading
 GPIO.setwarnings(False)
 from hardware import get_hardware_version
-hardware = get_hardware_version()
+HARDWARE_VERSION = get_hardware_version()
 
 # Terminal-Eingabe für Buttons simulieren
 terminal_button_input = None
@@ -17,7 +17,7 @@ def terminal_input_listener():
 threading.Thread(target=terminal_input_listener, daemon=True).start()
 
 # Definiere die Pin-Nummern für LEDs und Knöpfe
-if hardware == "Pro_Gen_1":
+if HARDWARE_VERSION == "Pro_Gen_1":
     LED_PINS = {
     'gelb': 27,    
     'blau': 22 ,    
@@ -34,7 +34,7 @@ if hardware == "Pro_Gen_1":
     }
 
 else:
-#else hardware in ["Pro_Gen_2", "Pro_Gen_3","Pro_Gen_4",
+#else HARDWARE_VERSION in ["Pro_Gen_2", "Pro_Gen_3","Pro_Gen_4",
 #                "CSL_Gen_1", "CSS_Gen_1"]:
     LED_PINS = {
         'gelb': 22,    

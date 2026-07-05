@@ -32,8 +32,8 @@ except Exception:
             turn_off_led("rot")
             time.sleep(0.25)
 
-hardware = get_hardware_version()
-if hardware == "Pro_Gen_1" and oled is not None:
+HARDWARE_VERSION = get_hardware_version()
+if HARDWARE_VERSION == "Pro_Gen_1" and oled is not None:
     oled.rotate = 2
     
 

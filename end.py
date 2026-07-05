@@ -25,7 +25,7 @@ Power_control_GPIO = 12
 GPIO.setup(Power_control_GPIO, GPIO.OUT, initial=GPIO.HIGH)
 
 from hardware import get_hardware_version  
-hardware = get_hardware_version()
+HARDWARE_VERSION = get_hardware_version()
 
 def trap_shutdown(i,log_mode,execution="full"):
     ''' 
@@ -34,6 +34,7 @@ def trap_shutdown(i,log_mode,execution="full"):
     - test: Shutdown - Neustart mit Attiny nach 1 Minute (für Testzwecke)
     - anzeige: Zeige Countdown und Nachricht, aber führe keinen echten Shutdown durch (für Demozwecke)
     - force_reboot: sofortiger Neustart ohne Rücksicht auf experimentelle Zeiten (zB bei Update via USB)
+    - during_run: wird von anderen Skripten aufgerufen, um den Shutdown zu triggern, ohne die Alarme neu zu setzen (zB bei Fehlern, die durch Neustart gelöst werden können)
 
     '''
     try:
@@ -49,7 +50,19 @@ def trap_shutdown(i,log_mode,execution="full"):
             Errorcode = 0
             log_schreiben(f"Fehler beim Lesen des Errorcodes: {e}", log_mode)
     log_schreiben(f"Fehlercode vor Shutdown: {Errorcode}", log_mode)
-    
+
+
+    if execution == "during_run":
+        log_schreiben("Shutdown während laufendem Experiment ausgelöst - Erwate Fortsetzung des Experiments im selben Ordner nach Neustart", log_mode)
+        log_schreiben("sofortiger Reboot in 5 Sekunden", log_mode)
+        log_schreiben("##################################",log_mode)
+        log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###",log_mode)
+        log_schreiben("##################################",log_mode)
+        time.sleep(5)
+        show_message("blank", lang=lang)
+        os.system("sudo reboot")
+        time.sleep(2)
+        os.system("sudo reboot")
     try:
         power_mode = read_fram(0x03B0, 16).replace('\x00', '').strip()
         time.sleep(.5)
@@ -142,7 +155,7 @@ def trap_shutdown(i,log_mode,execution="full"):
 
 
 
-    if hardware in ["Pro_Gen_1","Pro_Gen_2", "Pro_Gen_3"]:
+    if HARDWARE_VERSION in ["Pro_Gen_1","Pro_Gen_2", "Pro_Gen_3"]:
         if power_mode == "Netz":
             log_schreiben("Reboot im Netzmodus in 5 Sekunden", log_mode)
             log_schreiben("##################################",log_mode)
@@ -167,7 +180,7 @@ def trap_shutdown(i,log_mode,execution="full"):
             elif execution != "full":
                 print("System würde jetzt im PV Modus neu starten (Reboot in 61 Sekunden)")
 
-    elif hardware in ["Pro_Gen_4","CSS_Gen_1", "CSL_Gen_1"]:
+    elif HARDWARE_VERSION in ["Pro_Gen_4","CSS_Gen_1", "CSL_Gen_1"]:
             log_schreiben("setze GPIO Pin für Power Control auf LOW, um ARNI herunterzufahren", log_mode)
             if execution == "anzeige":
                 print("GPIO Pin für Power Control würde auf LOW gesetzt, um ARNI herunterzufahren")

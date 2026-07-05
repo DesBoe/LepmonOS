@@ -6,8 +6,8 @@ from OLED_panel import *
 
 LepiLed_pin = 26
 Blitz_PMW = 350
-hardware = get_hardware_version() 
-if hardware == "Pro_Gen_1":
+HARDWARE_VERSION = get_hardware_version() 
+if HARDWARE_VERSION == "Pro_Gen_1":
     dimmer_pin = 6
 else:
     dimmer_pin = 13 
@@ -23,8 +23,8 @@ LepiLed_pwm = GPIO.PWM(LepiLed_pin, Blitz_PMW)
 
 
 def dim_up():
-    hardware = get_hardware_version()
     flash = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","capture_mode","flash")
+    '''    
     if hardware == "CSS_Gen_1":
         dimmer_pwm.start(75)
         for duty_cycle in range(75, 0,-1):
@@ -32,18 +32,19 @@ def dim_up():
             time.sleep(flash / 100)
         dimmer_pwm.start(0)    
 
-    else: #Pro    
-        dimmer_pwm.start(0)
-        for duty_cycle in range(0, 100,1):
-            dimmer_pwm.ChangeDutyCycle(duty_cycle)
-            time.sleep(flash / 100)
-        dimmer_pwm.start(100)    
+    else: #Pro       
+    ''' 
+    dimmer_pwm.start(0)
+    for duty_cycle in range(0, 100,1):
+        dimmer_pwm.ChangeDutyCycle(duty_cycle)
+        time.sleep(flash / 100)
+    dimmer_pwm.start(100)    
         #GPIO.output(dimmer_pin, GPIO.HIGH)
         
       
 def dim_down(): 
-    hardware = get_hardware_version()
     flash = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","capture_mode","flash") 
+    '''
     dimmer_pwm.start(10)
     if hardware == "CSS_Gen_1":
         dimmer_pwm.start(0)
@@ -54,11 +55,12 @@ def dim_down():
 
 
     else: #pro
-        dimmer_pwm.start(100)
-        for duty_cycle in range(99, 0, -1):
-            dimmer_pwm.ChangeDutyCycle(duty_cycle)
-            time.sleep(flash / 100)
-        dimmer_pwm.start(0)
+    '''
+    dimmer_pwm.start(100)
+    for duty_cycle in range(99, 0, -1):
+        dimmer_pwm.ChangeDutyCycle(duty_cycle)
+        time.sleep(flash / 100)
+    dimmer_pwm.start(0)
     #GPIO.output(dimmer_pin, GPIO.LOW)
 
 
@@ -91,17 +93,17 @@ def LepiLED_ende(display_mode = "show"):
 
 if __name__ == "__main__":
     print("Funktionen zum Steuern der LEDs")
-    hardware = get_hardware_version()
-    print(f"Hardware Version: {hardware}")
+    print(f"Hardware Version: {HARDWARE_VERSION}")
     while True:
+        print("---------------------------------")
         print("Dimme Visible LED hoch")
         dim_up()
-        print("---------------------------------")
         time.sleep(1)
         print("Dimme Visible LED runter")
         dim_down()
         print("---------------------------------")
         time.sleep(1)
         LepiLED_start()
-        LepiLED_ende()     
+        LepiLED_ende()    
+         
     

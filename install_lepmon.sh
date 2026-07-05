@@ -22,7 +22,14 @@ apt-get install -y --no-install-recommends \
   python3-opencv python3-numpy python3-pil python3-picamera2 \
   libusb-1.0-0 libcap2-bin \
   ntfs-3g exfatprogs \
-  mc   #DB add midnight commander for file management on the desktop image
+  thonny \
+  mc \
+  fim \
+  visidata
+  #DB thonny: Lightweight Python IDE for local development on the desktop image
+  #DB mc: add midnight commander for file management on the desktop image
+  #DB fim: framebuffer image viewer for quick photo review in CLI mode (e.g. fim -a /media/usb/capture.jpg)
+  #DB visidata: terminal spreadsheet tool for quick CSV/TSV inspection (e.g. visidata /media/usb/data.csv)
 
 # Networking / Access-Point
 apt-get install -y --no-install-recommends \

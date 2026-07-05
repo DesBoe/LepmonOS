@@ -292,7 +292,7 @@ def compare_hardware_version():
 def compare_sn(log_mode):
     sn_ram = None
     sn_json = None    
-    hardware = get_hardware_version()
+    HARDWARE_VERSION = get_hardware_version()
     
     try:
         sn_json = get_value_from_section("/home/Ento/serial_number.json", "general", "serielnumber")
@@ -300,7 +300,7 @@ def compare_sn(log_mode):
     except Exception as e:
         print(f"Fehler beim Lesen der Seriennnummer aus der separaten json Datei: {e}")    
         
-    if hardware == "Pro_Gen_3":
+    if HARDWARE_VERSION == "Pro_Gen_3":
         try: 
             sn_ram = read_fram(0x0110, 8).strip()
             print(f"Serial Number from FRAM: {sn_ram}") 

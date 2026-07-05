@@ -11,14 +11,17 @@ def get_serial_list():
     ("SN010010", "Pro_Gen_2"),
     ("SN010011", "Pro_Gen_2") 
     ]
-    for i in range(12, 86):
+    # SN 12 bis 87
+    for i in range(12, 87):
         sn = f"SN01{str(i).zfill(4)}"
         sn_list.append((sn, "Pro_Gen_3"))
     
-    for i in range(87, 136):
+    # SN 87 bis 137
+    for i in range(88, 137):
         sn = f"SN01{str(i).zfill(4)}"
         sn_list.append((sn, "CSS_Gen_1"))
     
+    # SN 137 bis ...
     for i in range(137, 190):
         sn = f"SN01{str(i).zfill(4)}"
         sn_list.append((sn, "Pro_Gen_4"))
@@ -37,4 +40,5 @@ if __name__ == "__main__":
     sn_list = get_serial_list()
     for entry in sn_list:
         print(entry)
-    print(get_generation_by_serial("SN010005"))
+    Test_SN = "SN010136"
+    print(f"ARNI SN {Test_SN} ist ein Gerät: {get_generation_by_serial(Test_SN)}")

@@ -47,10 +47,15 @@ def _mock_read_bytes(address, length):
     return bytes(store.get(address + offset, 0) for offset in range(length))
 
 
+def _seed_text(address, value, width):
+    _mock_write_bytes(address, str(value).ljust(width)[:width].encode("utf-8"))
+
+
 def _seed_mock_store():
-    """On first DEV_MODE run, seed the mock FRAM from Lepmon_config.json so
-    hardware.get_hardware_version() and friends resolve without hitting
-    their JSON-fallback path."""
+    """On first DEV_MODE run, seed the mock FRAM from Lepmon_config.json so a
+    fresh dev boot reads back like an already-provisioned real device -
+    hardware.get_hardware_version(), the Lepmon-code/coordinate lookups, and
+    the firmware-version check all resolve without hitting all-zero memory."""
     if os.path.exists(_MOCK_STORE_PATH):
         return
     try:
@@ -59,11 +64,23 @@ def _seed_mock_store():
         # here would risk a circular import depending on import order.
         config_path = os.path.join(os.path.dirname(__file__), "Lepmon_config.json")
         with open(config_path, "r") as f:
-            general = json.load(f).get("general", {})
-        arni_gen = general.get("ARNI_Gen") or ""
-        sn = general.get("serielnumber") or ""
-        _mock_write_bytes(0x0130, arni_gen.ljust(16)[:16].encode("utf-8"))
-        _mock_write_bytes(0x0110, sn.ljust(8)[:8].encode("utf-8"))
+            config = json.load(f)
+        general = config.get("general", {})
+        locality = config.get("locality", {})
+        gps = config.get("GPS", {})
+        software = config.get("software", {})
+
+        _seed_text(0x0110, general.get("serielnumber", ""), 8)     # Serialnumber
+        _seed_text(0x0130, general.get("ARNI_Gen", ""), 16)        # ARNI-Generation
+        _seed_text(0x0510, software.get("date", ""), 16)           # Software_Date
+        _seed_text(0x0520, software.get("version", ""), 7)         # Software_Version
+        _seed_text(0x04A0, locality.get("country", ""), 32)        # Land
+        _seed_text(0x04D0, locality.get("province", ""), 16)       # Provinz
+        _seed_text(0x04F0, locality.get("Kreis", ""), 16)          # Stadt/Kreis
+        _seed_text(0x03C0, gps.get("latitude", ""), 16)            # latitude
+        _seed_text(0x03D0, gps.get("Pol", ""), 1)                  # Pol (N/S)
+        _seed_text(0x03E0, gps.get("longitude", ""), 16)           # longitude
+        _seed_text(0x03F0, gps.get("Block", ""), 1)                # Block (E/W)
     except Exception as e:
         print(f"[DEV MODE] Konnte Mock-FRAM nicht aus Lepmon_config.json vorbefüllen: {e}")
 
@@ -87,6 +104,16 @@ def _real_write_bytes(address: int, data) -> None:
         high = ((address + offset) >> 8) & 0xFF
         low = (address + offset) & 0xFF
         bus.write_i2c_block_data(FRAM_ADDRESS, high, [low, byte])
+
+
+def _decode_cstring(raw: bytes) -> str:
+    """Truncate at the first null byte (C-string terminator convention used
+    on the FRAM) before decoding, so unwritten/unseeded memory decodes to an
+    empty string instead of literal '\\x00' characters surviving .strip()."""
+    null_pos = raw.find(0x00)
+    if null_pos != -1:
+        raw = raw[:null_pos]
+    return raw.decode("utf-8", errors="ignore").strip()
 
 
 def check_fram_present():
@@ -133,12 +160,12 @@ def read_fram(address: int, length: int) -> str:
     """Liest eine feste Anzahl Bytes ab Adresse und gibt als String zurück."""
     if DEV_MODE:
         try:
-            return _real_read_bytes(address, length).decode(errors="ignore").strip()
+            return _decode_cstring(_real_read_bytes(address, length))
         except OSError:
             note_mock("FRAM (FM24CL64B)")
-            return _mock_read_bytes(address, length).decode(errors="ignore").strip()
+            return _decode_cstring(_mock_read_bytes(address, length))
     try:
-        decoded = _real_read_bytes(address, length).decode(errors="ignore").strip()
+        decoded = _decode_cstring(_real_read_bytes(address, length))
         #print(f"Gelesen von 0x{address:04X} (Länge {length}): '{decoded}'")
         return decoded
     except OSError as e:

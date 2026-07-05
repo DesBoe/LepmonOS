@@ -23,23 +23,25 @@ from LepmonOS_Service_fram_tabelle import get_Fram_table, write_fram_table_to_lo
 from LepmonOS_Service_fram_configurator import write_config_to_fram
 from RTC_new_time import set_hwc
 from RTC_get_time_online import get_internet_time
+from datetime import datetime, timedelta
 
 print("Check Serielnumber in line 28")
-sn = "SN010115"
+sn = "SN010064"
 
-print("\nStarte Diagnose. Schritt 1-9 frei einstellbar in Zeile 32 (1-OLED,2-LEDs,3-Sensoren,4-Uhr,5-RAM,6-RAM_löschen,7-RAM_Konfiguration,8-Knöpfe,9-Kamera)\n")
+print("\nStarte Diagnose. Schritt 1-10 frei einstellbar in Zeile 32 (1-OLED,2-LEDs,3-Sensoren,4-Uhr,5-RAM,6-RAM_löschen,7-RAM_Konfiguration,8-Knöpfe,9-Kamera,10-set_sample_times)\n")
 
 selected_tests = {
-        #0 : "Seriennummer",
-        #1: "OLED",
-        #2: "LEDs",
-        #3: "Sensoren",
+        0 : "Seriennummer",
+        1: "OLED",
+        2: "LEDs",
+        3: "Sensoren",
         4: "Uhr",
         5: "RAM",
         6: "RAM_löschen",
         7: "RAM_Konfiguration",
         8: "Knöpfe",
-        9: "Kamera"
+        9: "Kamera",
+        10: "set_sample_times"
     }
 
 
@@ -621,7 +623,21 @@ if __name__ == "__main__":
 
         display_text(line1=zeile1,line2=zeile2,line3=zeile3,line4=zeile4,line5=zeile5,line6=zeile6)
         time.sleep (3)
-        display_text(line1="Diagnose",line2="",line3="erfolgreich",line4="",line5="",line6="beendet")
-        time.sleep(3)
+
+    if 10 in selected_tests:
+        log_schreiben("---------------------------", log_mode)
+        log_schreiben("Setze Sample Times:", log_mode)
+        next_experiment_start_time = datetime.now() + timedelta(minutes=1)
+        Nächstes_Ausschalten = next_experiment_start_time + timedelta(minutes=4)
+        try:
+            store_times_power(next_experiment_start_time, Nächstes_Ausschalten.strftime('%Y-%m-%d %H:%M:%S'), "end")
+            log_schreiben("Dummy Zeiten für nächsten Experiments  im FRAM gemerkt:", log_mode)
+            log_schreiben(f"Nächster Experimentstart: {next_experiment_start_time}", log_mode)
+            log_schreiben(f"Nächstes Ausschalten: {Nächstes_Ausschalten}", log_mode)
+        except Exception as e:
+            log_schreiben(f"Fehler beim Speichern der Zeiten des nächsten Experiments im FRAM:{e}", log_mode)
+
+    log_schreiben("---------------------------", log_mode)
+    display_text(line1="Diagnose",line2="",line3="erfolgreich",line4="",line5="",line6="beendet")
     log_schreiben("Diagnose beendet", log_mode)
     print(f"Diagnose beendet.\nprüfe Logdatei und Testbild")

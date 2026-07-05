@@ -1,21 +1,21 @@
 {
     "general": {
-        "ARNI_Gen": "Pro_Gen_2",
-        "serielnumber": "SN010010",
+        "ARNI_Gen": "Pro_Gen_3",
+        "serielnumber": "SN010064",
         "project_name": "Lepmon#",
-        "usb_drive": "/home/Ento/LepmonOS/dev_usb_mock",
-        "current_folder": "/home/Ento/LepmonOS/dev_usb_mock/Lepmon#SN010010_YY_XXX_2026-07-05_T_2007",
-        "current_log": "/home/Ento/LepmonOS/dev_usb_mock/Lepmon#SN010010_YY_XXX_2026-07-05_T_2007/Lepmon#SN010010_YY_XXX_2026-07-05_T_2007.log",
+        "usb_drive": "/media/Ento/D49E-861A",
+        "current_folder": "/media/Ento/D49E-861A",
+        "current_log": "/media/Ento/D49E-861A/Lepmon_Diagnose_SN010064_log.log",
         "language": "de",
-        "expected_images": 192,
+        "expected_images": 197,
         "Control_Night": true,
         "Control_End": true,
         "package_up_to_date": true
     },
     "locality": {
         "country": "Germany",
-        "province": "YY",
-        "Kreis": "XXX"
+        "province": "TH",
+        "Kreis": "J"
     },
     "capture_mode": {
         "minutes_after_sunset": 10,
@@ -24,9 +24,9 @@
         "flash": 0.25,
         "interval": 2,
         "dusk_treshold": 90,
-        "error_code": "0",
+        "error_code": 11,
         "gamma_correction": true,
-        "trigger_for_wb": false
+        "trigger_for_wb": true
     },
     "RPI_Module_3": {
         "initial_gain_10": 7,
@@ -64,15 +64,15 @@
         "minimal_gain_10": 60,
         "maximal_gain_10": 160,
         "step_gain_10": 5,
-        "current_gain_10": "70",
+        "current_gain_10": "90",
         "initial_exposure": 150,
         "minimal_exposure": 90,
         "maximal_exposure": 200,
         "step_exposure": 5,
-        "current_exposure": 155,
+        "current_exposure": "150",
         "focus_threshold": 225.0,
         "gamma_value": 0.65,
-        "current_gain": 7.0,
+        "current_gain": 16.0,
         "balance_ratio_red": 2.2928477633017224,
         "balance_ratio_blue": 1.9692419686807972
     },
@@ -94,5 +94,9 @@
     "powermode": {
         "supply": "Netz",
         "Heizung": false
+    },
+    "wlan": {
+        "ssid": "SNXXXXXX",
+        "password": "lepmon12"
     }
 }
