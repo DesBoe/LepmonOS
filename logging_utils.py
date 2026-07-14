@@ -204,6 +204,20 @@ def checksum(dateipfad, log_mode, algorithm="md5"):
   try:
     if not os.path.exists(dateipfad): 
         raise FileNotFoundError(f"Datei nicht gefunden: {dateipfad}")
+    
+    if not dateipfad.isascii():
+        normalized = unicodedata.normalize('NFKD', dateipfad).encode('ascii', errors='ignore').decode('ascii').strip()
+        if normalized and os.path.splitext(normalized)[1]:
+            log_schreiben(f"Warnung: Dateipfad enthielt non-ASCII-Zeichen, bereinigt: {dateipfad!r} → {normalized!r}", log_mode=log_mode)                
+            dateipfad = normalized
+        else:
+            log_schreiben(f"Warnung: Dateipfad enthält ungültige Zeichen (non-ASCII): {dateipfad!r}", log_mode=log_mode)
+            raise ValueError(f"Ungültiger Dateipfad (enthält non-ASCII-Zeichen): {dateipfad!r}")
+
+    if not os.path.exists(dateipfad):
+        log_schreiben(f"Warnung: Datei nicht gefunden: {dateipfad}. Prüfsumme wird nicht berechnet.", log_mode=log_mode)    
+        raise FileNotFoundError(f"Datei nicht gefunden: {dateipfad}")
+
     hash_func = hashlib.new(algorithm) 
     
     with open(dateipfad, "rb") as file:
@@ -243,9 +257,9 @@ def checklist(dateipfad, log_mode, algorithm="md5"):
                         log_schreiben(f"Warnung: Dateipfad enthält ungültige Zeichen (non-ASCII): {dateipfad!r}", log_mode=log_mode)
                         raise ValueError(f"Ungültiger Dateipfad (enthält non-ASCII-Zeichen): {dateipfad!r}")
 
-                        #TODO Peter und Christian müssen entscheiden, wie es in so einem Fall weiter gehen soll
 
         if not os.path.exists(dateipfad):
+            log_schreiben(f"Warnung: Datei nicht gefunden: {dateipfad}. Prüfsumme wird nicht berechnet.", log_mode=log_mode)
             raise FileNotFoundError(f"Datei nicht gefunden: {dateipfad}")
 
         # Checksumme berechnen

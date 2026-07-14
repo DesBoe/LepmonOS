@@ -453,7 +453,6 @@ def set_sn_manually():
             return sn, gen, fram_success
         
 
-
 if __name__ == "__main__":
     print("Hilfsfunktionen für den Service\nIm Terminal mit sudo python3 service.py ausführen\n")
     project_name,province, Kreis_code, sn = get_Lepmon_code(log_mode="manual")

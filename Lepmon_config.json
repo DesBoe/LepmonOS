@@ -89,7 +89,8 @@
     },
     "software": {
         "version": "2.3.2",
-        "date": "2026-05-21"
+        "date": "2026-05-21",
+        "images_count_RTC_failure": 0
     },
     "powermode": {
         "supply": "Netz",

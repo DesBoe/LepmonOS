@@ -295,10 +295,15 @@ FRAM_MEMORY_MAP = {
         "description": "images_count",
         "type": "RPI"
     },
-    (0x0660, 0x067F): {
-        "size": 32,
-        "description": "FREE",
+    (0x0660, 0x066F): {
+        "size": 16,
+        "description": "Counter for images with manipulated year(>4000) when RTC error",
         "type": "Label"
+    },
+    (0x0670, 0x067F): {
+        "size": 16,
+        "description": "Counter for images with manipulated year(>4000) when RTC error",
+        "type": "RPI"
     },
     (0x0680, 0x068F): {
         "size": 16,

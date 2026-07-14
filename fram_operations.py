@@ -122,7 +122,30 @@ def check_Lepmon_code():
         write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "locality", "Kreis", Kreis_Fram_alt)
         print("Stadt in Lepmon_config Datei aktualisiert")
    
-        
+def get_firmware_version():
+    current_version = "1.1.1"
+    version_tuple = (1, 1, 1)
+
+    try:
+        current_version = read_fram(0x0520, 5)
+    except Exception as e:
+        print(f"Fehler beim Lesen der aktuellen Firmware-Version aus dem FRAM: {e}")
+        try:
+            current_version = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "version")
+            print(f"Firmware Version aus Konfig Datei: {current_version}")
+        except Exception as e:
+            print(f"Fehler beim Lesen der Firmware Version aus der Konfigurationsdatei: {e}")
+
+    current_version = str(current_version).replace('\x00', '').replace('\0', '').strip()
+
+    match = re.search(r"(\d+)\.(\d+)\.(\d+)", current_version)
+    if match:
+        version_tuple = tuple(int(part) for part in match.groups())
+    else:
+        print(f"Warnung: Firmware-Version hat kein erwartetes Format 'X.Y.Z': {current_version!r}")
+
+    return current_version, version_tuple
+
 if __name__ == "__main__":
     print("Funktionen zum Lesen und Ändern einzelner Ram Einträge")
     check_Lepmon_code()

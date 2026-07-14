@@ -9,6 +9,7 @@ from logging_utils import *
 from json_read_write import *
 import board
 import adafruit_ds3231
+from fram_operations import *
 
 
 
@@ -20,6 +21,41 @@ def Zeit_aktualisieren(log_mode="log"):
         rtc_status = 1
         t = rtc.datetime
         dt = datetime(t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec)
+
+        if dt.year < 2024 :
+            log_schreiben("RTC Zeit liegt vor 2024. Vermutlich Fehlercode 17.", log_mode=log_mode)
+            log_schreiben("Erweitere Datum um Firmwareversion und zähle in letzten 3 Ziffern des Jahres die Bilder hoch, die in diesm Ausfall wärend des Fehlers aufgenommen werden.", log_mode=log_mode)
+            _, firmware_version = get_firmware_version()
+            try:
+                individual_year = int(ram_counter(0x0670))
+            except Exception as e:
+                log_schreiben(f"Fehler beim Lesen des individuellen Jahres: {e}", log_mode=log_mode)
+                individual_year = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "images_count_RTC_failure"))
+                individual_year += 1
+                write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "images_count_RTC_failure", str(individual_year))
+            if isinstance(firmware_version, tuple) and len(firmware_version) == 3:
+                major, minor, patch = firmware_version
+                t_year = int(t.tm_year) + (1000 * int(major)) + individual_year
+                t_mon = int(minor)
+                t_mday = int(patch)
+
+                try:
+                    dt = datetime(t_year, t_mon, t_mday, t.tm_hour, t.tm_min, t.tm_sec)
+                    log_schreiben(
+                        f"RTC Fallback aktiv: Firmware {firmware_version} -> Datum auf {dt.strftime('%Y-%m-%d')} gesetzt.",
+                        log_mode=log_mode,
+                    )
+                except ValueError as e:
+                    log_schreiben(
+                        f"RTC Fallback ungültig: Firmware-Tuple {firmware_version} ergibt kein valides Datum ({e}).",
+                        log_mode=log_mode,
+                    )
+            else:
+                log_schreiben(
+                    f"RTC Fallback übersprungen: Ungültiges Firmware-Tuple {firmware_version!r}.",
+                    log_mode=log_mode,
+                )
+
         jetzt_local = dt.strftime("%Y-%m-%d %H:%M:%S")
         lokale_Zeit = dt.strftime("%H:%M:%S")
     except Exception as e:
