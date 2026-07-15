@@ -135,7 +135,7 @@ def capturing(log_mode):
     # Bildzahl
     try:
 
-        _, lokale_Zeit,_ = Zeit_aktualisieren(log_mode) # Warte bis zur nächsten vollen Minute für präzise Schätzung der erwarteten Bilder
+        _, lokale_Zeit,_ = Zeit_aktualisieren(log_mode) # Warte bis zur nächsten vollen Minute für präzise Schätzung der erwarteten Bilder 
         
         now = datetime.now()
         seconds_to_next_minute = 60 - now.second

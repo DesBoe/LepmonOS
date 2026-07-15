@@ -45,8 +45,7 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1):
 
                 with cams[0] as cam:
                     print(f"Verwende gefundene Kamera:{cam}")
-                    settings_file = "/home/Ento/LepmonOS/Kamera_Einstellungen_VimbaX.xml".format(cam.get_id()) # VimbaX uses an other format compared to Vimba
-                    # BGR8 is included in the new version of the setings file
+                    settings_file = "/home/Ento/LepmonOS/Kamera_Einstellungen_VimbaX.xml".format(cam.get_id()) 
 
                     try:
                         cam.load_settings(settings_file, PersistType.All)
@@ -182,7 +181,10 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
 
     if cam_mode != "kamera_test":
         project_name, province, Kreis_code, sensor_id = get_Lepmon_code(log_mode)
-        now = datetime.now()
+        now = datetime.now() 
+        if now.strftime('%Y') < '2024':
+            now = Zeit_überschrieben(log_mode="log")
+
         code = (
             f"{project_name}{sensor_id}_{province}_{Kreis_code}_"
             f"{now.strftime('%Y')}-{now.strftime('%m')}-{now.strftime('%d')}_T_{now.strftime('%H%M')}"
