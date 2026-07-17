@@ -213,7 +213,8 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
         log_dateipfad = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_log")
         print(f"gelesener Logdateipfad: {log_dateipfad}")
         if not os.path.exists(log_dateipfad):
-            log_dateipfad= initialisiere_logfile(log_mode, ignore_time = True)
+            print(f"Logdatei existiert nicht, erstelle neue Logdatei\nfalls ein Problem mit der Echteituhr oder dem I2C Bus besteht, das Argument 'ignore_time' auf True setzen, um die Logdatei zu erstellen.")
+            log_dateipfad= initialisiere_logfile(log_mode, ignore_time = False)
             write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_log", log_dateipfad)
             print(f"Logdatei innerhalb der Camera_AV Funktion neu estellt: {log_dateipfad}")
 
