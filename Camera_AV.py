@@ -19,7 +19,60 @@ import numpy as np
 import gc
 from hardware import get_hardware_version
 
+from flatfield import load_flatfield, apply_flatfield
+
 lang = get_language()
+
+# Kamera GPIO Pin
+camera = LED(5)
+
+# check for corrections that should be applied to the image based on the configuration file and load corresponding values or use default
+gamma_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "gamma_correction")
+if gamma_correction:
+    gamma = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "gamma_value")
+else:
+    gamma = 1
+
+adjust_ContrastShape = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "adjust_ContrastShape")
+if adjust_ContrastShape:
+    ContrastShape = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "ContrastShape") 
+else:
+    ContrastShape = 4 # default value. This value was used before introduction of the ContrastShape parameter in the configuration file.
+
+# --- Flatfield-Korrektur ---------------------------------------------------
+# Laedt einmalig das 16-bit-TIF-Flatfield und korrigiert jeden aufgenommenen
+# Frame, bevor er gespeichert wird. Schlaegt etwas fehl, wird der Frame
+# unveraendert durchgereicht (die naechtliche Aufnahme darf nie scheitern).
+flatfield_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "flatfield_correction")
+if flatfield_correction:
+    if HARDWARE_VERSION in ["Pro_Gen_1", "Pro_Gen_2"]:
+        FLATFIELD_TIF = "/home/Ento/LepmonOS/flatfield_divisor_16bit_Pro_Gen_1_2.tif"
+    elif HARDWARE_VERSION in ["Pro_Gen_3"]:
+        FLATFIELD_TIF = "/home/Ento/LepmonOS/flatfield_divisor_16bit_Pro_Gen_3.tif"
+    elif HARDWARE_VERSION in ["Pro_Gen_4"]:
+        FLATFIELD_TIF = "/home/Ento/LepmonOS/flatfield_divisor_16bit_Pro_Gen_4.tif"
+    elif HARDWARE_VERSION in ["CSS_Gen_1"]:
+        FLATFIELD_TIF = "/home/Ento/LepmonOS/flatfield_divisor_16bit_CSS_Gen_1.tif"
+    #TODO ADD files
+    
+    def _load_flat(log_mode="log"):
+        try:
+            flat = load_flatfield(FLATFIELD_TIF)
+            if flat is None:
+                log_schreiben(f"Flatfield nicht ladbar, Korrektur deaktiviert: {FLATFIELD_TIF}", log_mode=log_mode)
+            else:
+                log_schreiben(f"Flatfield geladen ({flat.shape[1]}x{flat.shape[0]}), Korrektur aktiv.", log_mode=log_mode)
+            return flat
+        except Exception as e:
+            log_schreiben(f"Fehler beim Laden des Flatfields: {e}", log_mode=log_mode)
+            return None
+    
+    _FLAT = _load_flat()
+elif not flatfield_correction:
+    _FLAT = None
+    log_schreiben("Flatfield Korrektur deaktiviert.", log_mode="log")
+
+
 
 
 def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4):
@@ -111,6 +164,20 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4)
                     try:
                         frame = cam.get_frame(timeout_ms=5000).as_opencv_image()
                         print("frame erfolgreich aufgenommen")
+                        # --- Flatfield-Korrektur (greift nur bei gueltigem Flat
+                        #     und passender Groesse; sonst unveraendertes Original) ---
+                        if _FLAT is not None and frame is not None:
+                            print("wende Flatfiled Korrektur an...")
+                            if frame.shape[:2] == _FLAT.shape[:2]:
+                                frame = apply_flatfield(frame, _FLAT)
+                                print("Flatfield-Korrektur angewandt")
+                            else:
+                                log_schreiben(
+                                    f"Flatfield-Groesse {_FLAT.shape[:2]} != Frame "
+                                    f"{frame.shape[:2]} -> Korrektur uebersprungen.",
+                                    log_mode=log_mode)
+
+
                     except Exception as e:
                         log_schreiben(f"Fehler bei der Frame Aufnahme:{e}", log_mode=log_mode)
 
@@ -151,7 +218,7 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4)
     return frame, Kamera_Status, power_vis
 
 
-def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposure, Gain=9, sn="", ContrastShape = 4):
+def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposure, Gain=9, sn=""):
     """
     Args:
         file_extension (str): Dateierweiterung des Bildes.
@@ -169,20 +236,6 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
 
     avg_brightness, good_exposure = "---", False
 
-    # check for corrections that should be applied to the image based on the configuration
-    image_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "gamma_correction")
-    if image_correction:
-        gamma = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "gamma_value")
-    else:
-        gamma = 1
-
-    adjust_ContrastShape = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "adjust_ContrastShape")
-    if adjust_ContrastShape:
-        ContrastShape = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "ContrastShape")
-    else:
-        ContrastShape = 4 # default value. This value was used before introduction of the ContrastShape parameter in the configuration file.
-
-    camera = LED(5)
     camera.on()
 
     if cam_mode == "display": 

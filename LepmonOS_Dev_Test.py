@@ -154,6 +154,11 @@ if __name__ == "__main__":
 
 from Camera_AV import *
 from json_read_write import *
+import time
+
+print("warte...")
+time.sleep(7*60*60)
+
 log_mode = "log"
 cam_mode = "kamera_test"
 ContrastShape = 1
