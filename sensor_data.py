@@ -34,6 +34,14 @@ sensor_data = {}
 sensor_status = {}
 
 
+def _format_float(value, decimals=2, fallback="---"):
+    """Format numeric values safely; return fallback for non-numeric placeholders."""
+    try:
+        return f"{float(value):.{decimals}f}"
+    except (TypeError, ValueError):
+        return fallback
+
+
 def update_sensor_data(lib,key, value):
     lib[key] = value
     
@@ -64,7 +72,7 @@ def get_power(HARDWARE_VERSION=None):
             Sensorstatus_Strom = 1
 
     except Exception as e:
-        print("Fehler 7 - Stromsensor ausgefallen")
+        print("Fehler 7 - Stromsensor ausgefallen")    
 
     return bus_voltage, shunt_voltage, current, power, Sensorstatus_Strom
 
@@ -100,7 +108,7 @@ def read_sensor_data(code,lokale_Zeit, log_mode):
     if Sensorstatus_Licht == 0:
         update_sensor_data(sensor_data, "LUX", "---")
     elif Sensorstatus_Licht == 1:
-        update_sensor_data(sensor_data, "LUX", f"{LUX:.2f}")
+        update_sensor_data(sensor_data, "LUX", _format_float(LUX, 2))
     update_sensor_data(sensor_status, "Light_Sensor", Sensorstatus_Licht)
 
 
@@ -113,12 +121,15 @@ def read_sensor_data(code,lokale_Zeit, log_mode):
             Temp_in = adafruit_pct2075.PCT2075(i2c, address=0x48)
         Temp_in = round(Temp_in.temperature, 2) 
         Sensorstatus_Inne = 1
-        update_sensor_data(sensor_data, "Temp_in", f"{Temp_in:.2f}")
     except Exception as e:
         error_message(6,e,log_mode)
         Temp_in = "---"
-        update_sensor_data(sensor_data, "Temp_in", Temp_in)
         Sensorstatus_Inne = 0
+
+    if Sensorstatus_Inne == 0:
+        update_sensor_data(sensor_data, "Temp_in", "---")
+    elif Sensorstatus_Inne == 1:
+        update_sensor_data(sensor_data, "Temp_in", _format_float(Temp_in, 2))
         
     update_sensor_data(sensor_data, "Inner_Sensor", Sensorstatus_Inne)
     update_sensor_data(sensor_status, "Inner_Sensor", Sensorstatus_Inne)        
@@ -132,10 +143,10 @@ def read_sensor_data(code,lokale_Zeit, log_mode):
         update_sensor_data(sensor_data, "power", "---")
     elif Sensorstatus_Strom == 1 and HARDWARE_VERSION not in ["Pro_Gen_1", "Pro_Gen_2"]:
         
-        update_sensor_data(sensor_data, "bus_voltage", f"{bus_voltage:.2f}")
-        update_sensor_data(sensor_data, "shunt_voltage", f"{shunt_voltage:.2f}")
-        update_sensor_data(sensor_data, "current", f"{current:.2f}")
-        update_sensor_data(sensor_data, "power", f"{power:.2f}")
+        update_sensor_data(sensor_data, "bus_voltage", _format_float(bus_voltage, 2))
+        update_sensor_data(sensor_data, "shunt_voltage", _format_float(shunt_voltage, 2))
+        update_sensor_data(sensor_data, "current", _format_float(current, 2))
+        update_sensor_data(sensor_data, "power", _format_float(power, 2))
     update_sensor_data(sensor_data, "Power_Sensor", Sensorstatus_Strom)
     update_sensor_data(sensor_status, "Power_Sensor", Sensorstatus_Strom)
 
@@ -146,9 +157,9 @@ def read_sensor_data(code,lokale_Zeit, log_mode):
         Luftdruck = round(bme280.pressure, 2)
         Luftfeuchte = round(bme280.humidity, 2)
         Status_außen = 1
-        update_sensor_data(sensor_data, "Temp_out", f"{Temperatur:.2f}")
-        update_sensor_data(sensor_data, "air_pressure", f"{Luftdruck:.2f}")
-        update_sensor_data(sensor_data, "air_humidity", f"{Luftfeuchte:.2f}")
+        update_sensor_data(sensor_data, "Temp_out", _format_float(Temperatur, 2))
+        update_sensor_data(sensor_data, "air_pressure", _format_float(Luftdruck, 2))
+        update_sensor_data(sensor_data, "air_humidity", _format_float(Luftfeuchte, 2))
         update_sensor_data(sensor_data, "Environment_Sensor", Status_außen)
     except Exception as e:
         print(f"Warnung: Außensensor konnte nicht initialisiert werden, versuche Alternative: {e}")
@@ -160,9 +171,9 @@ def read_sensor_data(code,lokale_Zeit, log_mode):
             Luftdruck = round(Außensensor.pressure, 2)
             Luftfeuchte = round(Außensensor.humidity, 2)
             Status_außen = 1
-            update_sensor_data(sensor_data, "Temp_out", f"{Temperatur:.2f}")
-            update_sensor_data(sensor_data, "air_pressure", f"{Luftdruck:.2f}")
-            update_sensor_data(sensor_data, "air_humidity", f"{Luftfeuchte:.2f}")
+            update_sensor_data(sensor_data, "Temp_out", _format_float(Temperatur, 2))
+            update_sensor_data(sensor_data, "air_pressure", _format_float(Luftdruck, 2))
+            update_sensor_data(sensor_data, "air_humidity", _format_float(Luftfeuchte, 2))
             update_sensor_data(sensor_data, "Environment_Sensor", Status_außen)
     
         except Exception as e:

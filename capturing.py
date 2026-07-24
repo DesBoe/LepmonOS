@@ -321,10 +321,13 @@ def capturing(log_mode):
 
                 sensors["Status_Kamera"] = Status_Kamera
                 sensors["Exposure"] = Exposure
-                sensors["Gain"] = f"{gain:.1f}"
+                try:
+                    sensors["Gain"] = f"{float(gain):.1f}"
+                except (TypeError, ValueError):
+                    sensors["Gain"] = "---"
                 try:
                     print(avg_brightness)
-                    sensors["Brightness"] = f"{avg_brightness:.1f}"
+                    sensors["Brightness"] = f"{float(avg_brightness):.1f}"
                 except Exception as e:
                     log_schreiben(f"Fehler bei der Abspeichern der durchschnittlichen Helligkeit: {e}", log_mode = log_mode)
                     sensors["Brightness"] = "---"   
@@ -342,7 +345,10 @@ def capturing(log_mode):
                 
                 sensors["Status_Visible_LED"] = Status_LED 
                 if not power_on == "---":
-                    sensors["Power_Visible_LED"] = f"{power_on:.2f}" 
+                    try:
+                        sensors["Power_Visible_LED"] = f"{float(power_on):.2f}"
+                    except (TypeError, ValueError):
+                        sensors["Power_Visible_LED"] = "---"
                 elif power_on == "---":
                     sensors["Power_Visible_LED"] = "---"                    
                 if UV_active:
