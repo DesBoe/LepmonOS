@@ -7,6 +7,12 @@ from language import get_language
 from usb_controller import reset_all_usb_ports
 from runtime import write_timestamp
 from Box_Experiment_Times import *
+from hardware import get_hardware_generation
+from json_read_write import get_value_from_section
+from end import trap_shutdown
+
+HARDWARE_VERSION = get_hardware_version()
+power = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","powermode","supply")
 
 
 
@@ -49,7 +55,7 @@ def wait(log_mode):
     else:
         countdown = (experiment_start_time - lokale_Zeit).total_seconds()
         countdown_time = experiment_start_time - lokale_Zeit
-        log_schreiben(f"{'Warte auf Beginn':<22} | ja, {countdown_time}", log_mode=log_mode)
+        log_schreiben(f"{'Warte auf Beginn':<22} | ja, in {countdown_time}", log_mode=log_mode)
         log_schreiben("==============================================", log_mode=log_mode)
         
         for _ in range(60):
@@ -67,10 +73,26 @@ def wait(log_mode):
             
 
         if countdown > 0:
+
+            # Solarbetriebene ARNI CSS_Gen_1 und Pro_Gen_4 sollen bei countdown über 15 Minuten in den Sleep-Modus gehen, um Energie zu sparen.
+            if HARDWARE_VERSION in ["CSS_Gen_1", "Pro_Gen_4"] and countdown > 15*60 and power == "solar":
+                log_schreiben(f"Coundown > 15 Minuten, ARNI fährt mit ATTINY Kontrolle herunter, um Strom zu sparen", log_mode=log_mode)
+                try:
+                    trap_shutdown(i=60, log_mode="log", execution="full")
+                except Exception as e:
+                    try:
+                        log_schreiben(f"Fehler im Shutdown: {e}", "log")
+                    except Exception as log_error:
+                        print(f"Fehler im Shutdown: {e}", "log")
+
             time.sleep(countdown)
             write_timestamp(0x07E0)
             reset_all_usb_ports(log_mode=log_mode)
             time.sleep(5)
+
+
+
+
         return heater, waiter  
     
 if __name__ == "__main__":

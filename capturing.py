@@ -177,9 +177,10 @@ def capturing(log_mode):
             ordner = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
             Dateiname = os.path.basename(ordner)
             zieldatei = os.path.join(ordner, f"{Dateiname}_Kameraeinstellungen.xml")
-            shutil.copy("/home/Ento/LepmonOS/Kamera_Einstellungen_VimbaX.xml", zieldatei)
-            checklist(zieldatei, log_mode, algorithm="md5")
-            print("Kameraeinstellungen kopiert")
+            if not os.path.exists(zieldatei):
+                shutil.copy("/home/Ento/LepmonOS/Kamera_Einstellungen_VimbaX.xml", zieldatei)
+                checklist(zieldatei, log_mode, algorithm="md5")
+                print("Kameraeinstellungen kopiert")
         except Exception as e:
             log_schreiben(f"Fehler beim Kopieren der Kameraeinstellungen: {e}", log_mode=log_mode)
         
@@ -432,6 +433,15 @@ def capturing(log_mode):
                 
             except Exception as e:
                 log_schreiben(f"Verbrauchter Speicher und gezählte Bilder nicht gemessen: {e}",log_mode)
+                pass
+
+            # Kontrolle der Checkliste für die Bilder und CSV Datei
+            try:
+                ordner = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
+                log_schreiben(f"Kontrolliere Checkliste für Dateien im Ordner: {ordner}", log_mode)
+                checklist_review(ordner, algorithm="md5")
+            except Exception as e:
+                log_schreiben(f"Fehler bei der Kontrolle der Checkliste: {e}", log_mode)
                 pass
             log_schreiben("##################################", log_mode)
             log_schreiben("##################################", log_mode)

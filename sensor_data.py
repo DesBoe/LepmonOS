@@ -21,6 +21,7 @@ from logging_utils import error_message
 from hardware import get_hardware_version
 
 from times import *
+HARDWARE_VERSION = get_hardware_version()
 
 
 os.system('sudo raspi-config nonint do_i2c 0')
@@ -98,7 +99,6 @@ def get_light(log_mode):
     
     
 def read_sensor_data(code,lokale_Zeit, log_mode):
-    HARDWARE_VERSION = get_hardware_version()
 
     update_sensor_data(sensor_data, "code", code)
     update_sensor_data(sensor_data, "time_read", lokale_Zeit)
