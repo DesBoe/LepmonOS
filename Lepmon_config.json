@@ -1,11 +1,11 @@
 {
     "general": {
         "ARNI_Gen": "Pro_Gen_3",
-        "serielnumber": "",
+        "serielnumber": "SN010044",
         "project_name": "Lepmon#",
-        "usb_drive": "/media/Ento/D49E-861A",
-        "current_folder": "/media/Ento/Ento/Belichtungsreihe_AV__Alvium_1800_U-2050__2026-07-24__16_01_20",
-        "current_log": "/media/Ento/Ento/Belichtungsreihe_AV__Alvium_1800_U-2050__2026-07-24__16_01_20/Belichtungsreihe_AV__Alvium_1800_U-2050__2026-07-24__16_01_20.log",
+        "usb_drive": "/media/Ento/Lepmon",
+        "current_folder": "/media/Ento/Lepmon/Lepmon#SN010044_BY_R_2026-07-31_T_1437",
+        "current_log": "/media/Ento/Lepmon/Lepmon#SN010044_BY_R_2026-07-31_T_1437/Lepmon#SN010044_BY_R_2026-07-31_T_1437.log",
         "language": "de",
         "expected_images": 197,
         "Control_Night": true,
@@ -14,8 +14,8 @@
     },
     "locality": {
         "country": "Germany",
-        "province": "TH",
-        "Kreis": "J"
+        "province": "BY",
+        "Kreis": "R"
     },
     "capture_mode": {
         "minutes_after_sunset": 10,
@@ -24,7 +24,7 @@
         "flash": 0.25,
         "interval": 2,
         "dusk_treshold": 90,
-        "error_code": 8,
+        "error_code": "0",
         "gamma_correction": true,
         "trigger_for_wb": true,
         "adjust_ContrastShape": true,
@@ -85,9 +85,9 @@
         "brightness_reference": 175
     },
     "GPS": {
-        "latitude": 53.8844,
+        "latitude": 49.070313,
         "Pol": "N",
-        "longitude": 11.116082,
+        "longitude": 12.189662,
         "Block": "E"
     },
     "software": {
@@ -100,7 +100,7 @@
         "Heizung": false
     },
     "wlan": {
-        "ssid": "SNXXXXXX",
+        "ssid": "ARNI-SN010064",
         "password": "lepmon12"
     }
 }

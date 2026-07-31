@@ -8,8 +8,8 @@ def clear_fram(mode, log_mode = "log"):
         print("❗ Manuelle Eingabe der Start- und Endbytes")
         #start = int(input("❗ Startbyte (0x0100 - 0x0BFF): 0x"),16)
         #end = int(input("❗ Endbyte (0x0100 - 0x0BFF): 0x"),16)
-        start = 0x0690
-        end = 0x069F
+        start = 0x0130
+        end = 0x013F
         #log_schreiben(f"Manuelle RAM Bereinigung: Startbyte 0x{start:02X}, Endbyte 0x{end:02X}", log_mode)
     elif mode == "setup":
         start = 0x0118

@@ -112,6 +112,7 @@ def _read_hardware_version():
             ARNI_Gen = "Unknown"
     if ARNI_Gen == "Unknown":
         print(f"ARNI_Gen konnte nicht ermittelt werden. Es muss manuell eingestellt werden.")
+    print(f"Ermittelte ARNI_Gen: {ARNI_Gen}")
 
     return ARNI_Gen
 
