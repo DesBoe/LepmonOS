@@ -21,8 +21,18 @@ def get_serial_list():
         sn = f"SN01{str(i).zfill(4)}"
         sn_list.append((sn, "CSS_Gen_1"))
     
-    # SN 137 bis ...
-    for i in range(137, 190):
+    # SN 137 bis 164
+    for i in range(137, 165):
+        sn = f"SN01{str(i).zfill(4)}"
+        sn_list.append((sn, "Pro_Gen_4"))
+
+    # SN 165 bis 166
+    for i in range(165, 167):
+        sn = f"SN01{str(i).zfill(4)}"
+        sn_list.append((sn, "CSS_Gen_1"))
+
+    # SN 167 bis ...
+    for i in range(167, 190):
         sn = f"SN01{str(i).zfill(4)}"
         sn_list.append((sn, "Pro_Gen_4"))
 

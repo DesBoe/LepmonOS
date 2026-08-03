@@ -136,6 +136,10 @@ def erstelle_ordner(log_mode, Cameramodel = "None"):
     zielverzeichnis, _ = get_usb_path(log_mode)
     jetzt_local, _, _ = Zeit_aktualisieren(log_mode)
     jetzt_local = datetime.strptime(jetzt_local, "%Y-%m-%d %H:%M:%S")
+        
+    if jetzt_local.strftime('%Y') < '2024':
+            jetzt_local = Zeit_überschrieben(jetzt_local, log_mode="log")
+
     aktueller_nachtordner = None
 
     # Alle Variablen auf Nullbytes prüfen und bereinigen
@@ -230,20 +234,23 @@ def delete_USB_content(log_mode):
         log_schreiben(f"Fehler beim Löschen des USB-Inhalts: {e}",log_mode=log_mode)
 
 
-def initialisiere_logfile(log_mode):
-  aktueller_nachtordner = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","general","current_folder")
-  #jetzt_local = datetime.now()
-  #lokale_Zeit = jetzt_local.strftime("%H:%M:%S")
-  jetzt_local, lokale_Zeit,_ = Zeit_aktualisieren(log_mode)
+def initialisiere_logfile(log_mode, ignore_time = False):
+    aktueller_nachtordner = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","general","current_folder")
+    #jetzt_local = datetime.now()
+    #lokale_Zeit = jetzt_local.strftime("%H:%M:%S")
+    if ignore_time: # nur im Kamera test
+        pass
+    elif not ignore_time: #default
+        jetzt_local, lokale_Zeit,_ = Zeit_aktualisieren(log_mode)
+    log_dateipfad = "None"
   
-  ordnername = os.path.basename(aktueller_nachtordner)
-  log_dateiname = f"{ordnername}.log"
-  log_dateipfad = os.path.join(aktueller_nachtordner, log_dateiname)
+    ordnername = os.path.basename(aktueller_nachtordner)
+    log_dateiname = f"{ordnername}.log"
+    log_dateipfad = os.path.join(aktueller_nachtordner, log_dateiname)
 
-  if log_mode == "Diagnose":
-      log_dateipfad = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","general","current_log") 
-  
-  try:  
+    if log_mode == "Diagnose":
+        log_dateipfad = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","general","current_log") 
+    try:  
         if not os.path.exists(aktueller_nachtordner):
             time.sleep(1)
             #erstelle_ordner(log_mode)
@@ -258,10 +265,11 @@ def initialisiere_logfile(log_mode):
         if os.path.exists(log_dateipfad):
             print(f"Logdatei existiert bereits: {log_dateipfad}")
 
-  except Exception as e:
+    except Exception as e:
         lokale_Zeit = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"{lokale_Zeit}; Fehler beim Erstellen des Logfiles: {e}")
-        return None
+    
+    return log_dateipfad
 
 def get_disk_space(log_mode):
     path, status = get_usb_path(log_mode)
@@ -455,7 +463,6 @@ def set_sn_manually():
             turn_off_led("blau")
             return sn, gen, fram_success
         
-
 
 if __name__ == "__main__":
     print("Hilfsfunktionen für den Service\nIm Terminal mit sudo python3 service.py ausführen\n")

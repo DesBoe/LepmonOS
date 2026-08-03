@@ -292,6 +292,7 @@ def open_trap_hmi(log_mode, start_step = 0):
                 
                 menu_exit = menu_options(log_mode, set_new_location_code, lang, start_step = start_step)
                 Menu_open = True
+                write_fram_bytes(0x05FF, b'\x01') # Kontrollbit für HMI geöffnet setzen
                 if read_fram_bytes(0x052F, 1) == b'\x01': # Erzwingen durch Update zurückgesetzt                        
                     write_fram_bytes(0x052F, b'\x00')
                 if read_fram_bytes(0x078F, 1) == b'\x01':
@@ -313,6 +314,7 @@ def open_trap_hmi(log_mode, start_step = 0):
             time.sleep(.05)
                        
     if not Menu_open:
+        write_fram_bytes(0x05FF, b'\x00') # Kontrollbit für HMI geschlossen setzen
         log_schreiben("##################################", log_mode=log_mode)
         log_schreiben("##################################", log_mode=log_mode)
         log_schreiben("ARNI nicht mit lokalem User Interface parametrisiert", log_mode=log_mode)

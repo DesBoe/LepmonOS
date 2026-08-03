@@ -12,6 +12,10 @@ import unicodedata
 
 lang = get_language()
 
+log_path = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_log")
+base, _ = os.path.splitext(log_path)
+CHECKLIST_PATH = f"{base}_MD5.txt"
+
 
 try:
     from fram_direct import *
@@ -167,11 +171,13 @@ def error_message(error_number, error_details, log_mode):
             show_message(f"err_{error_number}",lang = lang)
         except Exception as e:
             print(f"Fehler in der Anzeige {e}")
+            pass
 
         if not error_number == 10:
             try:
                 log_schreiben(f"Fehler {error_number}: {logging_text}: {error_details}", log_mode=log_mode)
             except Exception as e:
+                print(e)
                 pass   
         
         try:
@@ -204,6 +210,20 @@ def checksum(dateipfad, log_mode, algorithm="md5"):
   try:
     if not os.path.exists(dateipfad): 
         raise FileNotFoundError(f"Datei nicht gefunden: {dateipfad}")
+    
+    if not dateipfad.isascii():
+        normalized = unicodedata.normalize('NFKD', dateipfad).encode('ascii', errors='ignore').decode('ascii').strip()
+        if normalized and os.path.splitext(normalized)[1]:
+            log_schreiben(f"Warnung: Dateipfad enthielt non-ASCII-Zeichen, bereinigt: {dateipfad!r} → {normalized!r}", log_mode=log_mode)                
+            dateipfad = normalized
+        else:
+            log_schreiben(f"Warnung: Dateipfad enthält ungültige Zeichen (non-ASCII): {dateipfad!r}", log_mode=log_mode)
+            raise ValueError(f"Ungültiger Dateipfad (enthält non-ASCII-Zeichen): {dateipfad!r}")
+
+    if not os.path.exists(dateipfad):
+        log_schreiben(f"Warnung: Datei nicht gefunden: {dateipfad}. Prüfsumme wird nicht berechnet.", log_mode=log_mode)    
+        raise FileNotFoundError(f"Datei nicht gefunden: {dateipfad}")
+
     hash_func = hashlib.new(algorithm) 
     
     with open(dateipfad, "rb") as file:
@@ -227,11 +247,7 @@ def checksum(dateipfad, log_mode, algorithm="md5"):
  
 def checklist(dateipfad, log_mode, algorithm="md5"):
     try:
-        log_path = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_log")
-        base, _ = os.path.splitext(log_path)
-        checklist_path = f"{base}_MD5.txt"
-        
-        if os.path.abspath(dateipfad) == os.path.abspath(checklist_path):
+        if os.path.abspath(dateipfad) == os.path.abspath(CHECKLIST_PATH):
             return
         
         if not dateipfad.isascii():
@@ -243,9 +259,9 @@ def checklist(dateipfad, log_mode, algorithm="md5"):
                         log_schreiben(f"Warnung: Dateipfad enthält ungültige Zeichen (non-ASCII): {dateipfad!r}", log_mode=log_mode)
                         raise ValueError(f"Ungültiger Dateipfad (enthält non-ASCII-Zeichen): {dateipfad!r}")
 
-                        #TODO Peter und Christian müssen entscheiden, wie es in so einem Fall weiter gehen soll
 
         if not os.path.exists(dateipfad):
+            log_schreiben(f"Warnung: Datei nicht gefunden: {dateipfad}. Prüfsumme wird nicht berechnet.", log_mode=log_mode)
             raise FileNotFoundError(f"Datei nicht gefunden: {dateipfad}")
 
         # Checksumme berechnen
@@ -258,8 +274,8 @@ def checklist(dateipfad, log_mode, algorithm="md5"):
         entry = f"{checksum_value} {base_name}\n"
 
         # Prüfe, ob checklist.txt existiert, sonst anlegen
-        if not os.path.exists(checklist_path):
-            with open(checklist_path, "w", encoding="utf-8") as f:
+        if not os.path.exists(CHECKLIST_PATH):
+            with open(CHECKLIST_PATH, "w", encoding="utf-8") as f:
                 f.write(entry)
             return
 
@@ -271,7 +287,7 @@ def checklist(dateipfad, log_mode, algorithm="md5"):
         import re
         _valid_line = re.compile(r'^[0-9a-fA-F]+\s+\S+\s*$')
 
-        with open(checklist_path, "r", encoding="utf-8", errors="replace") as f:
+        with open(CHECKLIST_PATH, "r", encoding="utf-8", errors="replace") as f:
             raw_lines = f.readlines()
 
         # Korrumpierte Zeilen herausfiltern (enthalten Ersetzungszeichen oder passen nicht zum Format)
@@ -292,13 +308,81 @@ def checklist(dateipfad, log_mode, algorithm="md5"):
         else:
             lines.append(entry)
 
-        with open(checklist_path, "w", encoding="utf-8") as f:
+        with open(CHECKLIST_PATH, "w", encoding="utf-8") as f:
             f.writelines(lines)
 
     except Exception as e:
         error_message(11, e, log_mode)
         print(f"Fehler beim Berechnen der Checkliste: {e}")
         pass 
+
+
+
+
+def checklist_review(folder_path, log_mode, algorithm="md5", checklist_path=CHECKLIST_PATH):
+    """
+    Prüft, ob alle Dateien in einem Ordner in der Checkliste vorkommen.
+    Dateien, die auf _MD5.txt enden, werden ignoriert.
+    Fehlende Einträge werden inklusive Prüfsumme ergänzt.
+    """
+    try:
+        if not folder_path:
+            log_schreiben("folder_path darf nicht leer sein", log_mode=log_mode)
+
+        if not os.path.isdir(folder_path):
+           log_schreiben(f"Ordner nicht gefunden: {folder_path}", log_mode=log_mode)
+
+        folder_files = []
+        for file_name in os.listdir(folder_path):
+            full_path = os.path.join(folder_path, file_name)
+            if os.path.isfile(full_path) and not file_name.endswith("_MD5.txt"):
+                folder_files.append(full_path)
+
+        listed_files = set()
+
+        if os.path.exists(checklist_path):
+            import re
+            valid_line = re.compile(r'^[0-9a-fA-F]+\s+\S+\s*$')
+
+            with open(checklist_path, "r", encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    cleaned = line.rstrip("\n")
+                    if not cleaned or '\ufffd' in cleaned or not valid_line.match(cleaned):
+                        continue
+                    parts = cleaned.split()
+                    if parts:
+                        listed_files.add(parts[-1])
+
+        missing_files = []
+        for file_path in folder_files:
+            base_name = os.path.basename(file_path)
+            if base_name not in listed_files:
+                missing_files.append(file_path)
+
+        for file_path in missing_files:
+            checklist(file_path, log_mode, algorithm=algorithm)
+
+        log_schreiben(
+            f"Checklist-Review abgeschlossen: {len(folder_files)} Dateien geprüft, {len(missing_files)} ergänzt.",
+            log_mode=log_mode
+        )
+        return missing_files
+
+    except Exception as e:
+        error_message(11, e, log_mode)
+        print(f"Fehler bei checklist_review: {e}")
+        return []
+
+
+
+
+
+
+
+
+
+
+
  
 if __name__ == "__main__":
     print("logging Werkzeuge")

@@ -6,7 +6,6 @@ When unset (or not "1"), every module behaves exactly as it does today.
 import os
 
 DEV_MODE = os.environ.get("LEPMON_DEV_MODE", "").strip() == "1"
-DEV_MODE = True
 _warned = set()
 
 

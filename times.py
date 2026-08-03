@@ -11,6 +11,7 @@ import board
 import adafruit_ds3231
 from dev_mode import DEV_MODE, note_mock
 from mock_hardware import MockRTC
+from fram_operations import *
 
 
 
@@ -33,13 +34,54 @@ def Zeit_aktualisieren(log_mode="log"):
         rtc_status = 1
         t = rtc.datetime
         dt = datetime(t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec)
+
         jetzt_local = dt.strftime("%Y-%m-%d %H:%M:%S")
         lokale_Zeit = dt.strftime("%H:%M:%S")
     except Exception as e:
         error_message(8,e, log_mode)
         jetzt_local = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         lokale_Zeit = datetime.now().strftime("%H:%M:%S")
+        pass
     return jetzt_local, lokale_Zeit, rtc_status
+
+
+def Zeit_überschrieben(now, log_mode="log"):
+    """
+    diese Funktion wird aufgerufen, wenn die RTC Zeit vor 2024 liegt.
+    Sie überschreibt das Datum mit der Firmwareversion und einem individuellen Jahr, das in den letzten 3 Ziffern des Jahres hochgezählt wird, um die Bilder zu zählen, die während des RTC-Ausfalls aufgenommen werden.
+    """
+    log_schreiben("RTC Zeit liegt vor 2024. Kontrolliere Fehlercode 17.", log_mode=log_mode)
+    log_schreiben("Erweitere Datum um Firmwareversion und zähle in letzten 3 Ziffern des Jahres die Bilder hoch, die in diesm Ausfall wärend des Fehlers aufgenommen werden.", log_mode=log_mode)
+    _, firmware_version = get_firmware_version()
+    try:
+        individual_year = int(ram_counter(0x0670))
+    except Exception as e:
+        log_schreiben(f"Fehler beim Lesen des individuellen Jahres: {e}", log_mode=log_mode)
+        individual_year = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "images_count_RTC_failure"))
+        individual_year += 1
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "images_count_RTC_failure", str(individual_year))
+    if isinstance(firmware_version, tuple) and len(firmware_version) == 3:
+        major, minor, patch = firmware_version 
+        try:         
+            now_year = int(now.strftime('%Y')) + (1000 * int(major)) + individual_year
+            now_mon = int(minor)
+            now_mday = int(patch)
+            now = now.replace(year=now_year, month=now_mon, day=now_mday)
+            log_schreiben(f"RTC Fallback aktiv: Firmware {firmware_version} -> Datum auf {now.strftime('%Y-%m-%d')} gesetzt.", log_mode=log_mode)
+
+        except ValueError as e:
+            log_schreiben(f"RTC Fallback ungültig: Firmware-Tuple {firmware_version} ergibt kein valides Datum ({e}).",log_mode=log_mode)
+    else:
+        log_schreiben(f"RTC Fallback übersprungen: Ungültiges Firmware-Tuple {firmware_version!r}.", log_mode=log_mode)
+
+    return now
+
+
+
+
+
+
+
 
 def berechne_zeitzone(latitude,longitude):
     tf = TimezoneFinder()

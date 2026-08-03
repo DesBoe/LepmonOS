@@ -21,8 +21,12 @@ from hardware import get_hardware_version, get_device_info
 from dev_mode import DEV_MODE, note_mock
 from mock_hardware import generate_mock_frame
 
+from flatfield import load_flatfield, apply_flatfield
+
 lang = get_language()
 
+# Kamera GPIO Pin
+camera = LED(5)
 
 def _av_camera_present():
     """Cheap presence check - lists cameras without opening/configuring one."""
@@ -33,7 +37,63 @@ def _av_camera_present():
         return False
 
 
-def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1):
+HARDWARE_VERSION = get_hardware_version()
+
+# check for corrections that should be applied to the image based on the configuration file and load corresponding values or use default
+gamma_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "gamma_correction")
+if gamma_correction:
+    gamma = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "gamma_value")
+else:
+    gamma = 1
+
+adjust_ContrastShape = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "adjust_ContrastShape")
+if adjust_ContrastShape:
+    ContrastShape = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "ContrastShape") 
+else:
+    ContrastShape = 4 # default value. This value was used before introduction of the ContrastShape parameter in the configuration file.
+
+# --- Flatfield-Korrektur ---------------------------------------------------
+# Laedt einmalig das 16-bit-TIF-Flatfield und korrigiert jeden aufgenommenen
+# Frame, bevor er gespeichert wird. Schlaegt etwas fehl, wird der Frame
+# unveraendert durchgereicht (die naechtliche Aufnahme darf nie scheitern).
+flatfield_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "flatfield_correction")
+if flatfield_correction:
+    if HARDWARE_VERSION in ["Pro_Gen_1", "Pro_Gen_2"]:
+        FLATFIELD_TIF = "/home/Ento/LepmonOS/flatfield_divisor_16bit_Pro_Gen_1_2.tif"
+    elif HARDWARE_VERSION in ["Pro_Gen_3"]:
+        FLATFIELD_TIF = "/home/Ento/LepmonOS/flatfield_divisor_16bit_Pro_Gen_3.tif"
+    elif HARDWARE_VERSION in ["Pro_Gen_4"]:
+        FLATFIELD_TIF = "/home/Ento/LepmonOS/flatfield_divisor_16bit_Pro_Gen_4.tif"
+    elif HARDWARE_VERSION in ["CSS_Gen_1"]:
+        FLATFIELD_TIF = "/home/Ento/LepmonOS/flatfield_divisor_16bit_CSS_Gen_1.tif"
+    #TODO ADD files
+    
+    def _load_flat(log_mode="manual"):
+        # log_mode defaults to "manual" (console-only): this runs at module
+        # import time, before erstelle_ordner()/initialisiere_logfile() has
+        # necessarily created a session log file, so log_mode="log" here would
+        # retry against a possibly-missing path and could trigger a forced
+        # reboot (see log_schreiben) on every import.
+        try:
+            flat = load_flatfield(FLATFIELD_TIF)
+            if flat is None:
+                log_schreiben(f"Flatfield nicht ladbar, Korrektur deaktiviert: {FLATFIELD_TIF}", log_mode=log_mode)
+            else:
+                log_schreiben(f"Flatfield geladen ({flat.shape[1]}x{flat.shape[0]}), Korrektur aktiv.", log_mode=log_mode)
+            return flat
+        except Exception as e:
+            log_schreiben(f"Fehler beim Laden des Flatfields: {e}", log_mode=log_mode)
+            return None
+
+    _FLAT = _load_flat()
+elif not flatfield_correction:
+    _FLAT = None
+    log_schreiben("Flatfield Korrektur deaktiviert.", log_mode="manual")
+
+
+
+
+def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4):
     cams = None
     cam_Initiliase_tries = 0
     power_vis = "---"
@@ -65,8 +125,7 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1):
 
                 with cams[0] as cam:
                     print(f"Verwende gefundene Kamera:{cam}")
-                    settings_file = "/home/Ento/LepmonOS/Kamera_Einstellungen_VimbaX.xml".format(cam.get_id()) # VimbaX uses an other format compared to Vimba
-                    # BGR8 is included in the new version of the setings file
+                    settings_file = "/home/Ento/LepmonOS/Kamera_Einstellungen_VimbaX.xml".format(cam.get_id()) 
 
                     try:
                         cam.load_settings(settings_file, PersistType.All)
@@ -92,6 +151,12 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1):
                         print(f"Gamma in Kamera Einstellungen geändert:{cam.Gamma.get()}")
                     except Exception as e:
                         log_schreiben(f"Fehler beim Setzen von Gamma: {e}", log_mode=log_mode)
+
+                    try:
+                        cam.ContrastShape.set(ContrastShape)
+                        print(f"ContrastShape in Kamera Einstellungen geändert:{cam.ContrastShape.get()}")
+                    except Exception as e:
+                        log_schreiben(f"Fehler beim Setzen von ContrastShape: {e}", log_mode=log_mode)
 
                     try:
                         print(f"Pixelformat der Kamera: {cam.get_pixel_format()}")
@@ -126,6 +191,20 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1):
                     try:
                         frame = cam.get_frame(timeout_ms=5000).as_opencv_image()
                         print("frame erfolgreich aufgenommen")
+                        # --- Flatfield-Korrektur (greift nur bei gueltigem Flat
+                        #     und passender Groesse; sonst unveraendertes Original) ---
+                        if _FLAT is not None and frame is not None:
+                            print("wende Flatfiled Korrektur an...")
+                            if frame.shape[:2] == _FLAT.shape[:2]:
+                                frame = apply_flatfield(frame, _FLAT)
+                                print("Flatfield-Korrektur angewandt")
+                            else:
+                                log_schreiben(
+                                    f"Flatfield-Groesse {_FLAT.shape[:2]} != Frame "
+                                    f"{frame.shape[:2]} -> Korrektur uebersprungen.",
+                                    log_mode=log_mode)
+
+
                     except Exception as e:
                         log_schreiben(f"Fehler bei der Frame Aufnahme:{e}", log_mode=log_mode)
 
@@ -183,13 +262,7 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
     HARDWARE_VERSION = get_hardware_version()
 
     avg_brightness, good_exposure = "---", False
-    image_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "gamma_correction")
-    if image_correction:
-        gamma = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "gamma_value")
-    else:
-        gamma = 1
 
-    camera = LED(5)
     camera.on()
 
     if cam_mode == "display": 
@@ -202,20 +275,30 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
 
     if cam_mode != "kamera_test":
         project_name, province, Kreis_code, sensor_id = get_Lepmon_code(log_mode)
-        now = datetime.now()
+        now = datetime.now() 
+        if now.strftime('%Y') < '2024':
+            now = Zeit_überschrieben(log_mode="log")
+
         code = (
             f"{project_name}{sensor_id}_{province}_{Kreis_code}_"
             f"{now.strftime('%Y')}-{now.strftime('%m')}-{now.strftime('%d')}_T_{now.strftime('%H%M')}"
         )
         image_file = f"{code}.{file_extension}"
         dateipfad = os.path.join(ordnerpfad, image_file)
-
+    
     if cam_mode == "kamera_test":
         if not os.path.exists(ordnerpfad):
-            ordnerpfad = erstelle_ordner(log_mode, "AV__Alvium_1800_U-2050")
+            ordnerpfad = erstelle_ordner("kamera_test", "AV__Alvium_1800_U-2050")
             print(f"Ordner '{ordnerpfad}' wurde erstellt.")
+        log_dateipfad = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_log")
+        print(f"gelesener Logdateipfad: {log_dateipfad}")
+        if not os.path.exists(log_dateipfad):
+            print(f"Logdatei existiert nicht, erstelle neue Logdatei\nfalls ein Problem mit der Echteituhr oder dem I2C Bus besteht, das Argument 'ignore_time' auf True setzen, um die Logdatei zu erstellen.")
+            log_dateipfad= initialisiere_logfile(log_mode, ignore_time = False)
+            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_log", log_dateipfad)
+            print(f"Logdatei innerhalb der Camera_AV Funktion neu estellt: {log_dateipfad}")
 
-        image_file = f"AV__Alvium_1800_U-2050_{Exposure}_{Gain}.jpg"
+        image_file = f"AV__Alvium_1800_U-2050_{Exposure}_{Gain}__{round(ContrastShape,1)}.jpg"
         dateipfad = os.path.join(ordnerpfad, image_file)
         print(f"Kamera Test Bild wird gespeichert in: {dateipfad}")
         time.sleep(2)
@@ -323,7 +406,7 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
             now_dt = datetime.strptime(now, "%H:%M:%S")
             write_timestamp(0x07E0)
             show_message("blank", lang=lang)
-            frame, Status_Kamera, power_vis = get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma)
+            frame, Status_Kamera, power_vis = get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma, ContrastShape)
 
             if frame is not None:
                 Kamera_Fehlerserie = 0
@@ -386,20 +469,7 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
 
 
 if __name__ == "__main__":
-    import sys
-
-    which = (sys.argv[1] if len(sys.argv) > 1 else "av").lower()
-
-    if which in ("imx", "imx183"):
-        print("Nehme ein Bild mit der IMX183 Kamera auf")
-        gain, exposure = 9, 140
-        snap_image("jpg", "display", 0, "log", float(exposure), float(gain))
-    else:
-        print("Nehme ein Bild mit der AV Kamera auf")
-        exposure = int(
-            get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "initial_exposure")
-        )
-        gain = int(
-            get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "initial_gain_10")
-        ) / 10
-        snap_image_AV("jpg", "kamera_test", 0, "manual", exposure, gain)
+    print("Nehme ein Bild mit der AV Kamera auf")
+    exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "initial_exposure"))
+    gain =     int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "initial_gain_10")) / 10
+    snap_image_AV("jpg", "kamera_test", 0, "manual", exposure, gain)

@@ -7,16 +7,17 @@ from GPIO_Setup import *
 from OLED_panel import *
 from Lights import *
 import time
-from service import get_usb_path
+from service import *
 from fram_direct import *
 from logging_utils import log_schreiben
-
-from Camera_AV import *
-from Camera_RPI import * 
 from hardware import get_device_info
+
 from times import Zeit_aktualisieren
+
 from sensor_data import read_sensor_data
+
 from fram_direct import *
+
 from LepmonOS_Service_fram_delete import clear_fram
 from configparser import ConfigParser
 from LepmonOS_Service_fram_tabelle import get_Fram_table, write_fram_table_to_log
@@ -24,13 +25,15 @@ from LepmonOS_Service_fram_configurator import write_config_to_fram
 from RTC_new_time import set_hwc
 from RTC_get_time_online import get_internet_time
 from datetime import datetime, timedelta
+from json_read_write import get_value_from_section, write_value_to_section
 
 print("Check Serielnumber in line 28")
-sn = "SN010064"
+sn = "SN010044"
 
 print("\nStarte Diagnose. Schritt 1-10 frei einstellbar in Zeile 32 (1-OLED,2-LEDs,3-Sensoren,4-Uhr,5-RAM,6-RAM_löschen,7-RAM_Konfiguration,8-Knöpfe,9-Kamera,10-set_sample_times)\n")
 
 selected_tests = {
+        
         0 : "Seriennummer",
         1: "OLED",
         2: "LEDs",
@@ -40,7 +43,9 @@ selected_tests = {
         6: "RAM_löschen",
         7: "RAM_Konfiguration",
         8: "Knöpfe",
+        
         9: "Kamera",
+        
         10: "set_sample_times"
     }
 
@@ -114,6 +119,9 @@ def update_sensor_data(code,lokale_Zeit, log_mode):
 
 
 def nehme_bild_auf(camera, log_mode, Kamera_Fehlerserie, sn):
+    from Camera_AV import snap_image_AV
+    from Camera_RPI import snap_image_rpi
+    from image_quality_check import check_image
     Status_Kamera = 0
     photo_sanity_check = False
     if camera == "RPI_Module_3":
@@ -310,6 +318,7 @@ if __name__ == "__main__":
     Kamera_Fehlerserie = 0 
     log_mode = "log"
     ARNI_version, backplane_version, lieferdatum_an_PMJ = get_config()
+    print("Configuration aus .ini Datei gelesen")
     zeile1, zeile2, zeile3, zeile4, zeile5, zeile6 = "", "", "", "", "", ""
 
 

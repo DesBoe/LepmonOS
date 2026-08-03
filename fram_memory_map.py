@@ -257,10 +257,15 @@ FRAM_MEMORY_MAP = {
         "description": "Development + Kontrollbit",
         "type": "Setup_Prozess"
     }, 
-    (0x0590, 0x05FF): {
-        "size": 112,
+    (0x0590, 0x05EF): {
+        "size": 96,
         "description": "FREE",
         "type": "Label"
+    }, 
+    (0x05F0, 0x05FF): {
+        "size": 112,
+        "description": "Trap_HMI_open + controlbit",
+        "type": "RPI"
     },  
     (0x0600, 0x060F): {
         "size": 16,
@@ -295,10 +300,15 @@ FRAM_MEMORY_MAP = {
         "description": "images_count",
         "type": "RPI"
     },
-    (0x0660, 0x067F): {
-        "size": 32,
-        "description": "FREE",
+    (0x0660, 0x066F): {
+        "size": 16,
+        "description": "Counter for images with manipulated year(>4000) when RTC error",
         "type": "Label"
+    },
+    (0x0670, 0x067F): {
+        "size": 16,
+        "description": "Counter for images with manipulated year(>4000) when RTC error",
+        "type": "RPI"
     },
     (0x0680, 0x068F): {
         "size": 16,

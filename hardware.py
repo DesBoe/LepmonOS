@@ -103,6 +103,7 @@ def _read_hardware_version():
     if ARNI_Gen == "Unknown":
         try:
             ARNI_Gen = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "ARNI_Gen").strip()
+            print(f"Aus Json geladen: {ARNI_Gen}")
             if ARNI_Gen not in geraete_bibliothek:
                 print(f"Fehler beim Lesen der Generation aus der JSON: ARNI_Gen '{ARNI_Gen}' nicht in Gerätebibliothek gefunden.")
                 ARNI_Gen = "Unknown"
@@ -111,6 +112,7 @@ def _read_hardware_version():
             ARNI_Gen = "Unknown"
     if ARNI_Gen == "Unknown":
         print(f"ARNI_Gen konnte nicht ermittelt werden. Es muss manuell eingestellt werden.")
+    print(f"Ermittelte ARNI_Gen: {ARNI_Gen}")
 
     return ARNI_Gen
 

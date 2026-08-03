@@ -135,7 +135,7 @@ def capturing(log_mode):
     # Bildzahl
     try:
 
-        _, lokale_Zeit,_ = Zeit_aktualisieren(log_mode) # Warte bis zur nächsten vollen Minute für präzise Schätzung der erwarteten Bilder
+        _, lokale_Zeit,_ = Zeit_aktualisieren(log_mode) # Warte bis zur nächsten vollen Minute für präzise Schätzung der erwarteten Bilder 
         
         now = datetime.now()
         seconds_to_next_minute = 60 - now.second
@@ -177,9 +177,10 @@ def capturing(log_mode):
             ordner = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
             Dateiname = os.path.basename(ordner)
             zieldatei = os.path.join(ordner, f"{Dateiname}_Kameraeinstellungen.xml")
-            shutil.copy("/home/Ento/LepmonOS/Kamera_Einstellungen_VimbaX.xml", zieldatei)
-            checklist(zieldatei, log_mode, algorithm="md5")
-            print("Kameraeinstellungen kopiert")
+            if not os.path.exists(zieldatei):
+                shutil.copy("/home/Ento/LepmonOS/Kamera_Einstellungen_VimbaX.xml", zieldatei)
+                checklist(zieldatei, log_mode, algorithm="md5")
+                print("Kameraeinstellungen kopiert")
         except Exception as e:
             log_schreiben(f"Fehler beim Kopieren der Kameraeinstellungen: {e}", log_mode=log_mode)
         
@@ -321,10 +322,13 @@ def capturing(log_mode):
 
                 sensors["Status_Kamera"] = Status_Kamera
                 sensors["Exposure"] = Exposure
-                sensors["Gain"] = f"{gain:.1f}"
+                try:
+                    sensors["Gain"] = f"{float(gain):.1f}"
+                except (TypeError, ValueError):
+                    sensors["Gain"] = "---"
                 try:
                     print(avg_brightness)
-                    sensors["Brightness"] = f"{avg_brightness:.1f}"
+                    sensors["Brightness"] = f"{float(avg_brightness):.1f}"
                 except Exception as e:
                     log_schreiben(f"Fehler bei der Abspeichern der durchschnittlichen Helligkeit: {e}", log_mode = log_mode)
                     sensors["Brightness"] = "---"   
@@ -342,7 +346,10 @@ def capturing(log_mode):
                 
                 sensors["Status_Visible_LED"] = Status_LED 
                 if not power_on == "---":
-                    sensors["Power_Visible_LED"] = f"{power_on:.2f}" 
+                    try:
+                        sensors["Power_Visible_LED"] = f"{float(power_on):.2f}"
+                    except (TypeError, ValueError):
+                        sensors["Power_Visible_LED"] = "---"
                 elif power_on == "---":
                     sensors["Power_Visible_LED"] = "---"                    
                 if UV_active:
@@ -426,6 +433,15 @@ def capturing(log_mode):
                 
             except Exception as e:
                 log_schreiben(f"Verbrauchter Speicher und gezählte Bilder nicht gemessen: {e}",log_mode)
+                pass
+
+            # Kontrolle der Checkliste für die Bilder und CSV Datei
+            try:
+                ordner = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
+                log_schreiben(f"Kontrolliere Checkliste für Dateien im Ordner: {ordner}", log_mode)
+                checklist_review(ordner, algorithm="md5")
+            except Exception as e:
+                log_schreiben(f"Fehler bei der Kontrolle der Checkliste: {e}", log_mode)
                 pass
             log_schreiben("##################################", log_mode)
             log_schreiben("##################################", log_mode)

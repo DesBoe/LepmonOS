@@ -2,8 +2,10 @@ from json_read_write import get_value_from_section
 import RPi.GPIO as GPIO
 import time
 from hardware import get_hardware_version
-from OLED_panel import *
-
+try:
+    from OLED_panel import *
+except Exception as e:
+    print(f"OLED Panel konnte nicht initialisiert werden: {e}")
 LepiLed_pin = 26
 Blitz_PMW = 350
 HARDWARE_VERSION = get_hardware_version() 

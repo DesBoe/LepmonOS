@@ -15,17 +15,19 @@ try:
 except Exception as e:
     print(f"Error loading font: {e}")
 
+oled = None
+
 # OLED-Setup
 oled = None
 try:
     Display = i2c(port=1, address=0x3C)
     oled = sh1106(Display)
-except Exception:
+except Exception as e:
     oled = None
     if DEV_MODE:
         note_mock("OLED display (sh1106)")
     else:
-        print("Fehler beim Initialisieren des OLED-Displays.")
+        print(f"Fehler beim Initialisieren des OLED-Displays: {e}")
         for _ in range(3):
             turn_on_led("rot")
             time.sleep(0.25)
@@ -48,14 +50,14 @@ def display_text(line1, line2, line3, sleeptime =0):
             draw.text((0, 5), line1, font=oled_font, fill="white")
             draw.text((0, 25), line2, font=oled_font, fill="white")
             draw.text((0, 45), line3, font=oled_font, fill="white")
-        time.sleep(sleeptime) 
+        time.sleep(sleeptime)
     except Exception as e:
-        print(f"Error displaying text on OLED: {e}")  
+        print(f"Error displaying text on OLED: {e}")
         for _ in range(3):
             turn_on_led("rot")
             time.sleep(0.25)
             turn_off_led("rot")
-            time.sleep(0.25)      
+            time.sleep(0.25)
 
 
 def display_text_and_image(line1, line2, line3, image_path,sleeptime =0):
@@ -95,20 +97,26 @@ def display_image_3_2(image_path,sleeptime =0):
         print(f"[OLED] (image: {image_path})")
         time.sleep(sleeptime)
         return
+    turn_on_led("blau")
+    time.sleep(0.125)
     try:
+        turn_on_led("gelb")
         logo = Image.open(image_path).convert("1", dither=Image.NONE).resize((128, 64))
         with canvas(oled) as draw:
             # Hintergrund löschen
             draw.rectangle(oled.bounding_box, outline="black", fill="black")
             draw.bitmap((oled.width - 128, 0), logo, fill=1)
+            turn_off_led("gelb")
     
     except Exception as e:
-        print(f"Error displaying text on OLED: {e}")        
+        print(f"Error displaying text on OLED: {e}")  
+        turn_off_led("gelb")      
         for _ in range(3):
             turn_on_led("rot")
-            time.sleep(0.25)
+            time.sleep(0.125)
             turn_off_led("rot")
-            time.sleep(0.25)   
+            time.sleep(0.125)   
+        turn_off_led("blau")
     print(f"\nDisplay image: {image_path}\n")        
     time.sleep(sleeptime)
 
@@ -164,9 +172,11 @@ def show_message(code: str, lang: str = "de", **values):
 
     while len(lines) < 3:
         lines.append("")
-
-    display_text(lines[0], lines[1], lines[2], sleeptime)
-    
+    try:
+        display_text(lines[0], lines[1], lines[2], sleeptime)
+    except Exception as e:
+        print(f"Text nicht angezeigt:{e}")
+        return
     
     
 def show_message_with_arrows(code: str, lang: str = "de", x_position=None, **values):

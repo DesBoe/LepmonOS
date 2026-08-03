@@ -2,6 +2,8 @@ import time
 from fram_operations import*
 from datetime import datetime
 from hardware import *
+from json_read_write import get_value_from_section
+from fram_direct import *
 
 HARDWARE_VERSION = get_hardware_version()
 
@@ -106,6 +108,19 @@ def gap_day():
         difference = round((now - activity_time).total_seconds(), 0)
         print(f"Letzter Aktivitätszeitstempel: {activity_time}, jetzt:{now}, Unterschied in Sekunden: {difference}")
         
+        # Bei ARNIS CSS_Gen_1 und Pro_Gen_4, die solar betrieben werden und bei denen bei der letzten Arktivität das HMI offen war, legen keinen neuen Ordner an, da hier Strom gespart wurde
+        power = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","powermode","supply")
+        HARDWARE_VERSION = get_hardware_version()
+        hmi_controlbit = read_fram_bytes(0x052F, 1) == b'\x01'
+
+        if power == "solar" and HARDWARE_VERSION in ["CSS_Gen_1", "Pro_Gen_4"] and hmi_controlbit:
+            print("ARNI ist solarbetrieben, HMI war offen, daher wird kein neuer Ordner angelegt.")
+            write_fram_bytes(0x052F, b'\x00')  # Reset HMI control bit
+
+            return True
+
+
+
         # Überprüfe, ob der Unterschied mehr als 6 h beträgt
         return difference <= 60*60*6  # 6h
         # return True --> weniger als 6h es wird kein neuer Ordner erstellt
