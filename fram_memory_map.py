@@ -155,7 +155,7 @@ FRAM_MEMORY_MAP = {
     },
     (0x03B0, 0x03BF): {
         "size": 16,
-        "description": "Power_supply_mode",
+        "description": "Power_supply_mode + controllbit",
         "type": "RPI"
     },
 #### Lepmon Code Standort Daten ####

@@ -95,6 +95,7 @@ def gap_day():
     Überprüft, ob der Aktivitätszeitstempel im FRAM weniger als 6h alt ist.
     Gibt True zurück, wenn der Zeitstempel kürzer ist, sonst False.
     """
+    solar_message = False
     try:
         # Lese den Aktivitätszeitstempel aus dem FRAM
         activity_timestamp_bytes = read_fram_bytes(0x07E0, 19)
@@ -111,13 +112,13 @@ def gap_day():
         # Bei ARNIS CSS_Gen_1 und Pro_Gen_4, die solar betrieben werden und bei denen bei der letzten Arktivität das HMI offen war, legen keinen neuen Ordner an, da hier Strom gespart wurde
         power = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","powermode","supply")
         HARDWARE_VERSION = get_hardware_version()
-        hmi_controlbit = read_fram_bytes(0x052F, 1) == b'\x01'
+        solar_controlbit = read_fram_bytes(0x03BF, 1) == b'\x01'
 
-        if power == "solar" and HARDWARE_VERSION in ["CSS_Gen_1", "Pro_Gen_4"] and hmi_controlbit:
+        if power == "Solar" and HARDWARE_VERSION in ["CSS_Gen_1", "Pro_Gen_4"] and solar_controlbit:
             print("ARNI ist solarbetrieben, HMI war offen, daher wird kein neuer Ordner angelegt.")
-            write_fram_bytes(0x052F, b'\x00')  # Reset HMI control bit
+            write_fram_bytes(0x03BF, b'\x00')  # Reset Solar_control bit
 
-            return True
+            return True, solar_message
 
 
 
@@ -129,9 +130,10 @@ def gap_day():
         print(f"Fehler beim Überprüfen des Aktivitätszeitstempels: {e}")
         if HARDWARE_VERSION in ["Pro_Gen_1", "Pro_Gen_2"]:
             print("Da es sich um einen ARNI ohne verbauten FRAM handelt, wird angenommen, dass kein Tag vergangen ist.")
-            return True
+            solar_message = True
+            return True, solar_message
         else:
-            return False
+            return False, solar_message
 
 if __name__ == "__main__":
     print("Laufzeitwerkzeuge")

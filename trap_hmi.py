@@ -32,6 +32,7 @@ from capturing_state import (
     is_stop_focus_requested,
     clear_stop_focus_request,
 )
+from Experiments import *
 
 HARDWARE_VERSION = get_hardware_version()
 
@@ -193,11 +194,7 @@ def run_web_focus_session(log_mode, lang):
         log_schreiben("Web-Fokussierhilfe beendet", log_mode=log_mode)
         log_schreiben("------------------", log_mode=log_mode)
 
-def timedelta_to_hms(td):
-    total_seconds = int(td.total_seconds())
-    hours, remainder = divmod(total_seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    return f"{hours:02}:{minutes:02}:{seconds:02}"
+
 
 def display_sensor_status_with_text(sensor_data, sensor_status, log_mode):
     """
@@ -265,16 +262,18 @@ def open_trap_hmi(log_mode, start_step = 0):
 
     #HARDWARE_VERSION = get_hardware_version()
     if HARDWARE_VERSION == "Pro_Gen_1":
-        show_message("hmi_01", lang=lang)
+        message_code = "hmi_01"
         print("Eingabe Menü mit der Taste Enter ganz links unten öffnen")
     
     elif HARDWARE_VERSION in ["Pro_Gen_2","Pro_Gen_3", "Pro_Gen_4",
                       "CSL_Gen_1", "CSS_Gen_1"]:
-        show_message("hmi_02", lang=lang)            
+        message_code = "hmi_02"
         print("Eingabe Menü mit der Taste Enter ganz rechts unten öffnen")
         
     menu_start_time = time.time()
     while not menu_exit:
+        jetzt_local,_,_ = Zeit_aktualisieren()
+        show_message(message_code, lang=lang, Zeitstempel = jetzt_local)
         if time.time() - menu_start_time > hmi_timeout:
             print("HMI timeout erreicht. leite über zu wait")
             break
@@ -283,7 +282,8 @@ def open_trap_hmi(log_mode, start_step = 0):
             or set_new_location_code 
             #or read_fram_bytes(0x078F, 1) == b'\x01' # erzwinge erneutes Menü öffnen nach fehlerhaftem Fokussieren
             or read_fram_bytes(0x052F, 1) == b'\x01' # erzwinge erneutes Menü öffnen nach Update
-            or log_mode == "manual"):
+            or log_mode == "manual"
+            ):
             write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "trigger_for_wb", True)
 
                 
@@ -295,7 +295,7 @@ def open_trap_hmi(log_mode, start_step = 0):
                 if read_fram_bytes(0x052F, 1) == b'\x01': # Erzwingen durch Update zurückgesetzt                        
                     write_fram_bytes(0x052F, b'\x00')
                 if read_fram_bytes(0x078F, 1) == b'\x01':
-                    write_fram_bytes(0x078F, b'\x00') # Erzwingen durch fehlerhaftem Fokussieren zurückgesetzt     
+                    write_fram_bytes(0x078F, b'\x00') # Erzwingen durch fehlerhaftes Fokussieren zurückgesetzt     
                 show_message("blank", lang=lang)
                      
                 break
@@ -484,6 +484,7 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                 try:
                                     write_fram(0x03B0, b"\x00" * 16)
                                     write_fram(0x03B0, powermode)
+                                    write_fram(0x03BF, b"\x01")
                                 except:
                                     pass
                                 log_schreiben("Stromversorgung auf Solar gesetzt", log_mode=log_mode)
@@ -908,14 +909,8 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                             except Exception as e:
                                 print(f"Fehler beim Anzeigen der Dämmerungszeiten: {e}")
 
-                            # Experiment für Boundingboxen mit Delay, wenn ARNI im entsprechenden Experiment eingesetzt wird
-                            sn = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")
-                            if sn in ["SN010010", "SN010011"]:
-                                jetzt_local, _, _= Zeit_aktualisieren(log_mode=log_mode)
-                                Delay, Box_Experiment_Run, Round = get_experiment_delay(sn, jetzt_local)
-                                anzeige = timedelta_to_hms(Delay)
-                                display_text(f"{str(Box_Experiment_Run)[15:]}",f"Runde: {Round}",f"Delay: {anzeige}", 3)
-
+                            # Experimente anzeigen
+                            display_experiments(log_mode)
 
                             
                             if Neustart:
@@ -947,7 +942,7 @@ if __name__ == "__main__":
     print("#################")
     print("Hinweis: Die Tasteneingaben 'Oben', 'Unten', 'Links' und 'Rechts' können durch eintippen dieser Worte im Terminal simuliert werden.")
     print("#################")
-    open_trap_hmi(log_mode="manual", start_step=0)
+    open_trap_hmi(log_mode="manual", start_step=1)
     
     # MENÜ Punkte:      start_step:
     #hidden             0

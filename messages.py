@@ -12,7 +12,7 @@ import time
 #######################################################################
 
 
-MESSAGE_REGISTER = {
+MESSAGE_REGISTER = { 
     ### Dev ###
     "dev_1": {
         "sleep": 1,
@@ -31,15 +31,15 @@ MESSAGE_REGISTER = {
     ### hmi ### 
     "hmi_01": {
         "sleep": 0,
-        "de": ("Menü öffnen", "bitte Enter drücken", "(linke Taste)"),
-        "en": ("Menu open", "please press Enter", "(left button)"),
-        "es": ("Abrir menú", "por favor presione Enter", "(botón izquierdo)")
+        "de": ("öffne Menü mit", "Enter (linke Taste)", "{Zeitstempel}"),
+        "en": ("open menu with", "Enter (left button)", "{Zeitstempel}"),
+        "es": ("abre el menú con", "Enter (botón izquierdo)", "{Zeitstempel}"),
     },
     "hmi_02": {
         "sleep": 0,
-        "de": ("Menü öffnen", "bitte Enter drücken", "(rechte Taste)"),
-        "en": ("Menu open", "please press Enter", "(right button)"),
-        "es": ("Abrir menú", "por favor presione Enter", "(botón derecho)")
+        "de": ("öffne Menü mit", "Enter (rechte Taste)", "{Zeitstempel}"),
+        "en": ("open menu with", "Enter (right button)", "{Zeitstempel}"),
+        "es": ("abre el menú con", "Enter (botón derecho)", "{Zeitstempel}"),
     },
     "hmi_03": {
         "sleep": 0,
@@ -796,7 +796,13 @@ MESSAGE_REGISTER = {
         "de": ("ARNI startet", "neu in", "{time} Sekunden"),
         "en": ("ARNI restarts", "in", "{time} seconds"),
         "es": ("ARNI se reinicia", "en", "{time} segundos")
-    },        
+    },     
+    "end_2": {
+        "sleep": 3,
+        "de": ("Spare Strom", "im Solarmodus", "Start: {Zeit}"),
+        "en": ("Saving power", "in solar mode", "Start: {Zeit}"),
+        "es": ("Ahorro de energía", "en modo solar", "Inicio: {Zeit}")
+    },      
 
     ### error ###
     "err_1": {

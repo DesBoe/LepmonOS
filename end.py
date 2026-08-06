@@ -27,7 +27,7 @@ GPIO.setup(Power_control_GPIO, GPIO.OUT, initial=GPIO.HIGH)
 from hardware import get_hardware_version  
 HARDWARE_VERSION = get_hardware_version()
 
-def trap_shutdown(i,log_mode,execution="full"):
+def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
     ''' 
     modes:
     - full: Shutdown - Neustart mit Attiny erst am nächsten Tag, wenn experimentiert wird
@@ -133,8 +133,10 @@ def trap_shutdown(i,log_mode,execution="full"):
 
     for sec in range(i_int, 0, -1):
         show_message("end_1", lang=get_language(), time=sec)
-    display_text_and_image("Neustart", "restart", "reiniciar", "/home/Ento/LepmonOS/startsequenz/end.png", 0)
-        
+    if anzeige == "Neustart":
+        display_text_and_image("Neustart", "restart", "reiniciar", "/home/Ento/LepmonOS/startsequenz/end.png", 0)
+    elif anzeige == "SolareingabeHMI15Min":    
+        show_message("end_2", lang=get_language(), Zeit = next_experiment_start_time.strftime('%H:%M:%S'))
     
     on_shutdown()
     time.sleep(2)

@@ -1,11 +1,11 @@
 {
     "general": {
-        "ARNI_Gen": "Pro_Gen_3",
-        "serielnumber": "SN010063",
+        "ARNI_Gen": "CSS_Gen_1",
+        "serielnumber": "SN010115",
         "project_name": "Lepmon#",
-        "usb_drive": "/media/Ento/INTENSO10",
-        "current_folder": "/media/Ento/INTENSO10/Lepmon#SN010063_Manueller_TestRun_4001-03-02_T_0039",
-        "current_log": "/media/Ento/INTENSO10/Lepmon#SN010063_Manueller_TestRun_4001-03-02_T_0039/Lepmon#SN010063_Manueller_TestRun_4001-03-02_T_0039.log",
+        "usb_drive": "/media/Ento/DABA-AEE91",
+        "current_folder": "/media/Ento/DABA-AEE91/Lepmon#SN010115_BE_B_2026-08-27_T_175027",
+        "current_log": "/media/Ento/DABA-AEE91/Lepmon#SN010115_BE_B_2026-08-27_T_175027/Lepmon#SN010115_BE_B_2026-08-27_T_175027.log",
         "language": "de",
         "expected_images": 803,
         "Control_Night": true,
@@ -24,9 +24,9 @@
         "flash": 0.25,
         "interval": 2,
         "dusk_treshold": 90,
-        "error_code": 17,
+        "error_code": "0",
         "gamma_correction": true,
-        "trigger_for_wb": false,
+        "trigger_for_wb": true,
         "adjust_ContrastShape": true,
         "flatfield_correction": false
     },
@@ -96,7 +96,7 @@
         "images_count_RTC_failure": "0"
     },
     "powermode": {
-        "supply": "Netz",
+        "supply": "Solar",
         "Heizung": false
     },
     "wlan": {
@@ -107,13 +107,15 @@
         "Enable_Delay": false,
         "Test-ARNI-1": "SN010010",
         "Test-ARNI-2": "SN010011",
-        "Test-ARNI-3": "SN010063"
+        "Test-ARNI-3": "SN010063",
+        "Test-ARNI-4": "SN010115"
     },
     "Experiment_Interval": {
         "Enable_Interval": true,
         "Test-ARNI-1": "SN010010",
         "Test-ARNI-2": "SN010011",
         "Test-ARNI-3": "SN010063",
+        "Test-ARNI-4": "SN010115",
         "interval_for_experiment": 0.5,
         "Skip_Sanity_Check": true
     }

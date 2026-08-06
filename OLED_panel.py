@@ -18,7 +18,7 @@ except Exception as e:
 
 
 def indicate_display_error(e=""):
-    #print(f"Error displaying text on OLED: {e}")
+    print(f"Error displaying text on OLED: {e}")
     turn_on_led("rot")
     for _ in range(3):
         turn_on_led("gelb")        
@@ -175,9 +175,13 @@ def show_message_with_arrows(code: str, lang: str = "de", x_position=None, **val
     
 if __name__ == "__main__":
     print("Zeige Testnachricht auf OLED")
+    '''
     display_text("Hallo Nutzer*in", "Dies ist eine Test-", "nachricht auf OLED", sleeptime=3)     
     time.sleep(1)    
     display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_U2C.png",sleeptime = 4)
     time.sleep(1)    
     display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_K2W.png",sleeptime = 4)  
+    '''
+    show_message("hmi_01", Zeitstempel = "2026-01-01 17:00:32")
+    time.sleep(5)
     print("Ende des Tests")

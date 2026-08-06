@@ -203,8 +203,8 @@ def start_up(log_mode):
     ############################################################################################################################################################################################################
     # CONTROLBIt - Check vergangene Zeit 
     if control_bit:
-        print("Überprüfe ob 6h seit letztem Fang vergangen ist. Wenn ja, wird Kontrollbit zurückgesetzt, um neuen Ordner zu erstellen")
-        control_bit = gap_day()
+        print("Überprüfe ob 6h seit letztem Fang vergangen sind. Wenn ja, wird Kontrollbit zurückgesetzt, um neuen Ordner zu erstellen")
+        control_bit, solar_message = gap_day()
 
 
     ############################################################################################################################################################################################################
@@ -230,21 +230,35 @@ def start_up(log_mode):
     ############################################################################################################################################################################################################
     # Starte Logfile mit Laufinformationen
     display_text_and_image("Wel-","come", "", "/home/Ento/LepmonOS/startsequenz/Logo_4_9.png",4)   
-    if control_bit:
-        print("letzer Fang nicht ordnungsgemäß beendet, benutze alten Ordner")
-        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder", ordner_path)
+    if not solar_message:
+        if control_bit:
+            print("letzer Fang nicht ordnungsgemäß beendet, benutze alten Ordner")
+            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder", ordner_path)
         
-        initialisiere_logfile(log_mode)
-        log_schreiben("#######################################################################################", log_mode=log_mode)
-        log_schreiben("### Letzter Durchlauf nicht ordnungsgemäß beendet. Fahre mit dem alten Ordner fort ###", log_mode=log_mode)
-        log_schreiben("#######################################################################################", log_mode=log_mode)
+            initialisiere_logfile(log_mode)
+            log_schreiben("#######################################################################################", log_mode=log_mode)
+            log_schreiben("### Letzter Durchlauf nicht ordnungsgemäß beendet. Fahre mit dem alten Ordner fort ###", log_mode=log_mode)
+            log_schreiben("#######################################################################################", log_mode=log_mode)
+            log_schreiben("==============================================", log_mode=log_mode)
+            log_schreiben(f"Run- Informationen", log_mode=log_mode)
+            log_schreiben("----------------------------------------------", log_mode=log_mode)
+            log_schreiben(f"{'Letzter Durchlauf':<22} | {'nicht ordnungsgemäß beendet. Fahre mit dem alten Ordner fort:'}", log_mode=log_mode)
+            log_schreiben(f"{'Alter Ordner':<22} | {ordner_from_config}", log_mode=log_mode)
+            log_schreiben(f"{'Neuer Ordner':<22} | {ordner_path}", log_mode=log_mode)
+
+    if solar_message:
+        print("letzer Durchlauf durch Solareingabe im HMI und Wait länger als 15 Minuten beendet, benutze alten Ordner")
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder", ordner_path) # ggf auskommentieren, falls ungewöhnliches Verhalten
+
+        log_schreiben("#########################################################################################################################################", log_mode=log_mode)
+        log_schreiben("### Letzter Durchlauf ordnungsgemäß durch Solareingabe im HMI und Wait länger als 15 Minuten beendet. Fahre mit dem alten Ordner fort ###", log_mode=log_mode)
+        log_schreiben("#########################################################################################################################################", log_mode=log_mode)
         log_schreiben("==============================================", log_mode=log_mode)
         log_schreiben(f"Run- Informationen", log_mode=log_mode)
         log_schreiben("----------------------------------------------", log_mode=log_mode)
-        log_schreiben(f"{'Letzter Durchlauf':<22} | {'nicht ordnungsgemäß beendet. Fahre mit dem alten Ordner fort:'}", log_mode=log_mode)
+        log_schreiben(f"{'Letzter Durchlauf':<22} | {'ordnungsgemäß beendet. Fahre mit dem alten Ordner fort:'}", log_mode=log_mode)
         log_schreiben(f"{'Alter Ordner':<22} | {ordner_from_config}", log_mode=log_mode)
         log_schreiben(f"{'Neuer Ordner':<22} | {ordner_path}", log_mode=log_mode)
-
         
     ############################################################################################################################################################################################################
     # Gerätedaten   

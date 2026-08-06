@@ -7,6 +7,7 @@ try:
     import pandas as pd
 except Exception as e:
     print(e)
+from OLED_panel import *
 
 CONFIG_PATH = "/home/Ento/LepmonOS/Lepmon_config.json"
 Enable_Delay = get_value_from_section(CONFIG_PATH, "Experiment_Delay", "Enable_Delay")
@@ -99,8 +100,10 @@ def get_experiment_delay(sn, timestamp):
     """
 
     try:
-        df = load_experiment_table("/home/Ento/LepmonOS/Box_Experiment_Delays.csv")
-    except:
+        df = load_experiment_table("/home/Ento/LepmonOS/Experiment_Box_Delays.csv")
+                                    
+    except Exception as e:
+        print(f"Fehler beim Laden der Experimenttabelle vom Raspberry: {e}")
         try:
             df = load_experiment_table("/Volumes/Dennis_OTG/LEPMON/Raspberry_Pi/LepmonOS/Experiment_Box_Delays.csv")
         except Exception as e:
@@ -126,6 +129,7 @@ def get_experiment_delay(sn, timestamp):
     Delay= row["Delay_timedelta"]
     Box_Experiment_Run = row["Box_Experiment_Run"]
     Round = row["Round"]
+    print(f" ermittelte Delay Experiment Werte: {Delay}, {Box_Experiment_Run}, {Round}")
 
     return Delay, Box_Experiment_Run, Round
 
@@ -144,7 +148,6 @@ def apply_delay(experiment_start_time, log_mode):
 def get_interval(log_mode):
     interval = 2
     sn = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","general","serielnumber")  
-    sn = "SN010010"
     if sn in ARNIs_Interval_Experiment and Enable_Interval:
         interval = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Experiment_Interval", "interval_for_experiment")
         print(f"Interval für Experiment wird angewendet: {interval} Min auf ARNI {sn}")
@@ -155,8 +158,29 @@ def get_interval(log_mode):
     return interval
 
     
-          
-     
+
+def timedelta_to_hms(td):
+    total_seconds = int(td.total_seconds())
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02}:{minutes:02}:{seconds:02}"
+
+
+def display_experiments(log_mode):
+    sn = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")
+    if sn in ARNIs_Interval_Experiment and Enable_Interval:
+        if sn in ["SN010010", "SN010011"]:
+            jetzt_local, _, _= Zeit_aktualisieren(log_mode=log_mode)
+            Delay, Box_Experiment_Run, Round = get_experiment_delay(sn, jetzt_local)
+            anzeige = timedelta_to_hms(Delay)
+        else:
+            Box_Experiment_Run, Round, anzeige = "AAA", "BBB", "CCC"
+        display_text(f"{Box_Experiment_Run}",f"Runde: {Round}",f"Delay: {anzeige}", 3)
+    if sn in ARNIs_Interval_Experiment and Enable_Interval:
+        interval = get_interval(log_mode)
+        display_text(f"ARNI {sn}","Interval Experiment",f"{interval} min", 3)
+
+
 
 
 
@@ -169,9 +193,11 @@ if __name__ == "__main__":
     print("----------")
     write_experiment_overview_in_start_up(sn, zeit, log_mode)
     print("----------")
-    apply_delay(zeit)
+    apply_delay(log_mode, zeit)
     print("----------")
     get_interval(log_mode)
+    print("----------")
+    display_experiments(log_mode)
 
 
 
