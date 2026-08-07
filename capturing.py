@@ -35,6 +35,8 @@ from capturing_state import (
 )
 from thumbnail_utils import write_thumbnail_for
 
+HARDWARE_VERSION = get_hardware_version()
+
 def capturing(log_mode):
     überleiten_zu_shutdown = False
 
@@ -301,7 +303,7 @@ def capturing(log_mode):
                 except Exception as e:
                     print(f"Thumbnail generation failed for {current_image}: {e}")
             
-            if trigger_for_wb and Status_Kamera == 1 and lokale_Zeit >= time_for_wb.strftime('%H:%M:%S'):
+            if trigger_for_wb and Status_Kamera == 1 and lokale_Zeit >= time_for_wb.strftime('%H:%M:%S') and HARDWARE_VERSION not in ["CSS_Gen_1",]:
                 log_schreiben("Trigger für Weißabgleich aktiviert und Zeit für WB Anpassung erreicht. Starte Weißabgleichsanpassung...", log_mode)
                 try:
                     red_ratio, blue_ratio = get_wb(current_image, log_mode=log_mode, show=False)

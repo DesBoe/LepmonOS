@@ -12,9 +12,8 @@ import unicodedata
 
 lang = get_language()
 
-log_path = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_log")
-base, _ = os.path.splitext(log_path)
-CHECKLIST_PATH = f"{base}_MD5.txt"
+
+
 
 
 try:
@@ -42,7 +41,7 @@ def log_schreiben(text, log_mode):
             print(f"WARNUNG: Logfile muss neu erstellt werden, weil Pfad nicht existiert: {log_dateipfad}")
             time.sleep(5)
             from service import initialisiere_logfile
-            initialisiere_logfile(log_mode)
+            log_dateipfad = initialisiere_logfile(log_mode)
 
         for attempt in range(30):
             try:
@@ -246,6 +245,9 @@ def checksum(dateipfad, log_mode, algorithm="md5"):
     pass
  
 def checklist(dateipfad, log_mode, algorithm="md5"):
+    log_path = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_log")
+    base, _ = os.path.splitext(log_path)
+    CHECKLIST_PATH = f"{base}_MD5.txt"
     try:
         if os.path.abspath(dateipfad) == os.path.abspath(CHECKLIST_PATH):
             return
@@ -319,7 +321,7 @@ def checklist(dateipfad, log_mode, algorithm="md5"):
 
 
 
-def checklist_review(folder_path, log_mode, algorithm="md5", checklist_path=CHECKLIST_PATH):
+def checklist_review(folder_path, log_mode, algorithm="md5", checklist_path=""):
     """
     Prüft, ob alle Dateien in einem Ordner in der Checkliste vorkommen.
     Dateien, die auf _MD5.txt enden, werden ignoriert.

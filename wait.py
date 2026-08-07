@@ -7,9 +7,10 @@ from language import get_language
 from usb_controller import reset_all_usb_ports
 from runtime import write_timestamp
 from Box_Experiment_Times import *
-from hardware import get_hardware_generation
+from hardware import get_hardware_version
 from json_read_write import get_value_from_section
 from end import trap_shutdown
+from GPIO_Setup import turn_on_led, turn_off_led
 
 HARDWARE_VERSION = get_hardware_version()
 power = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","powermode","supply")
@@ -58,14 +59,22 @@ def wait(log_mode):
         log_schreiben(f"{'Warte auf Beginn':<22} | ja, in {countdown_time}", log_mode=log_mode)
         log_schreiben("==============================================", log_mode=log_mode)
         
-        for _ in range(60):
+        for _ in range(30):
+            if countdown <= 0:
+                break
+            turn_on_led("blau")
             hours, remainder = divmod(int(countdown), 3600)  # Stunden berechnen
             minutes, seconds = divmod(remainder, 60)  # Minuten und Sekunden berechnen
             show_message("wait_1", lang=lang, hours = f"{hours:02d}", minutes = f"{minutes:02d}", seconds = f"{seconds:02d}")
             countdown -= 1
-            if countdown == 0:
-                break
+            turn_off_led("blau")
+            hours, remainder = divmod(int(countdown), 3600)  # Stunden berechnen
+            minutes, seconds = divmod(remainder, 60)  # Minuten und Sekunden berechnen
+            show_message("wait_1", lang=lang, hours = f"{hours:02d}", minutes = f"{minutes:02d}", seconds = f"{seconds:02d}")
+            countdown -= 1
 
+
+        turn_off_led("blau)")
         show_message("blank", lang= lang)
         
         if  countdown > 60: 

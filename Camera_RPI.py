@@ -17,13 +17,65 @@ from OLED_panel import *
 import cv2
 from Lights import dim_up, dim_down
 from runtime import write_timestamp
-from hardware import get_device_info
+from hardware import get_hardware_version, get_device_info
 from sensor_data import get_power
 import numpy as np
 import gc
 from gamma_korr import gamma_correction
 from dev_mode import DEV_MODE, note_mock
 from mock_hardware import generate_mock_frame
+
+from flatfield import load_flatfield, apply_flatfield
+
+HARDWARE_VERSION = get_hardware_version()
+
+flatfield_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "flatfield_correction")
+if flatfield_correction:
+    if HARDWARE_VERSION in ["CSS_Gen_1"]:
+        FLATFIELD_TIF = "/home/Ento/LepmonOS/flatfield_masks/flatfield_divisor_16bit_CSS_Gen_1.tif"
+
+    def _load_flat(log_mode="manual"):
+        # log_mode defaults to "manual" (console-only): this runs at module
+        # import time, before erstelle_ordner()/initialisiere_logfile() has
+        # necessarily created a session log file, so log_mode="log" here would
+        # retry against a possibly-missing path and could trigger a forced
+        # reboot (see log_schreiben) on every import.
+        try:
+            flat = load_flatfield(FLATFIELD_TIF)
+            if flat is None:
+                log_schreiben(f"Flatfield nicht ladbar, Korrektur deaktiviert: {FLATFIELD_TIF}", log_mode=log_mode)
+            else:
+                log_schreiben(f"Flatfield geladen ({flat.shape[1]}x{flat.shape[0]}), Korrektur aktiv.", log_mode=log_mode)
+            return flat
+        except Exception as e:
+            log_schreiben(f"Fehler beim Laden des Flatfields: {e}", log_mode=log_mode)
+            return None
+
+
+
+    _FLAT = _load_flat()
+elif not flatfield_correction:
+    _FLAT = None
+    log_schreiben("Flatfield Korrektur deaktiviert.", log_mode="manual")
+
+def apply_flat(frame,log_mode="manual"):
+    # --- Flatfield-Korrektur (greift nur bei gueltigem Flat
+    #     und passender Groesse; sonst unveraendertes Original) ---
+    print(f"wende Flatfield an:{_FLAT}")
+    if _FLAT is not None:
+        print("wende Flatfiled Korrektur an...")
+        if frame.shape[:2] == _FLAT.shape[:2]:
+            frame = apply_flatfield(frame, _FLAT)
+            print("Flatfield-Korrektur angewandt")
+        elif _FLAT is None:
+            log_schreiben(
+                f"Flatfield-Groesse {_FLAT.shape[:2]} != Frame "
+                f"{frame.shape[:2]} -> Korrektur uebersprungen.",
+                log_mode=log_mode)
+    return frame
+
+
+
 
 def dict_to_xml(tag, d):
     elem = ET.Element(tag)
@@ -126,69 +178,6 @@ def get_frame_RPI(expected_camera, cam_mode,log_mode, Exposure, Gain, compressio
                     print(f"Prüfe Kamera Verbindung und Stromversorgung. Versuch {cam_Initiliase_tries}")
 
 
-    '''
-    if expected_camera == "RPI_HQ": # imx477
-        print(f"Konfiguriere {expected_camera}...")
-        #picam2.options["quality"] = compression_quality
-    
-
-        while cam_Initiliase_tries <= 90:
-            time.sleep(0.1)
-            print(cam_Initiliase_tries)
-            picam2 = None
-            picam2 = Picamera2()
-            camera_config = picam2.create_still_configuration(main={"size": (4056, 3040)})
-            picam2.configure(camera_config)
-            try:
-                picam2.start()
-                picam2.set_controls({"AnalogueGain": Gain, 
-                                "ExposureTime": Exposure * 1000, 
-                                "AwbEnable": False, 
-                                #"AwbMode": controls.AwbModeEnum.Auto,
-                                "ColourGains": (3.3, 1.5)
-                                })
-                time.sleep(.5)
-                if cam_mode != "focus":
-                    dim_up()
-                    _, _, _, power_vis, _ = get_power()
-
-                frame = picam2.capture_array("main") 
-
-                if cam_mode != "focus":
-                    dim_down()
-                    
-                try:
-                    print("Konvertiere Frame der RPI_HQ Kamera von BGR zu RGB...")
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                except Exception as e:
-                    print(f"Fehler beim Konvertieren des Frames der RPI_HQ Kamera: {e}")
-                metadata = picam2.capture_metadata()
-                #print("Alle Metadaten:", metadata)
-                #ExposureTime = metadata["ExposureTime"]
-                #AnalogueGain = metadata["AnalogueGain"] 
-                #awb_gains = metadata.get("AwbGains")
-                colour_gains = metadata.get("ColourGains")
-                #colour_temp = metadata.get("ColourTemperature")
-                red_gain = colour_gains[0]
-                blue_gain = colour_gains[1] 
-                #print(f"red_gain: {red_gain}, blue_gain: {blue_gain}")                
-                print("Metadaten gelesen") 
-                Kamera_RPI_Status = 1  
-                break
-                
-            except Exception as e:
-                cam_Initiliase_tries +=1
-                picam2.stop()
-                picam2.close() 
-                if cam_Initiliase_tries > 5:
-                    show_message("err_1a",lang=lang,tries = cam_Initiliase_tries)
-                    print(f"Fehler beim Abrufen des Frames: {e}")  
-                    error_details = str(e)
-    '''
-            
-
-            
-
 
     picam2.stop()
     picam2.close() # shutdown camera
@@ -258,8 +247,9 @@ def snap_image_rpi(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, expec
         dateipfad = os.path.join(ordnerpfad, image_file)
     
     if cam_mode == "kamera_test":
+        print(f"Ordner:{ordnerpfad}")
         if not os.path.exists(ordnerpfad):
-            erstelle_ordner(log_mode, expected_camera)
+            ordnerpfad = erstelle_ordner(log_mode, expected_camera)
             print(f"Ordner '{ordnerpfad}' wurde erstellt.") 
         if expected_camera == "RPI_Module_3": #imx708  
             image_file = f"{expected_camera}_{Exposure}_{Gain}_{focus}.jpg"
@@ -267,10 +257,11 @@ def snap_image_rpi(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, expec
             image_file = f"{expected_camera}_{Exposure}_{Gain}.jpg"
         dateipfad = os.path.join(ordnerpfad, image_file)
         print(f"Kamera Test Bild wird gespeichert in: {dateipfad}")
+        
 
     if cam_mode == "Diagnose":
         dateipfad = f"{ordnerpfad}/Lepmon_Diagnose_{sn}_Testbild.jpg"
-        print(f"Kamera Test Bild wird gespeichert in: {dateipfad}")
+        print(f"Kamera Diagnose Bild wird gespeichert in: {dateipfad}")
 
 
 
@@ -345,6 +336,8 @@ def snap_image_rpi(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, expec
             log_schreiben(f"Fehler beim Drehen des Frames um 180 Grad: {e}", log_mode=log_mode)
         time.sleep(.5)
 
+        frame = apply_flat(frame, log_mode)
+
         try:
             cv2.imwrite(dateipfad, frame)
             print(f"Bild erfolgreich gespeichert!\nPfad: {dateipfad}")
@@ -394,19 +387,23 @@ def snap_image_rpi(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, expec
 
             frame,Kamera_RPI_Status, power_vis, metadata, red_gain, blue_gain = get_frame_RPI(expected_camera, cam_mode,log_mode, Exposure, Gain, compression_quality, focus)
 
-            if image_correction:
-                print("Wende Gamma Korrektur an für Belichtungsoptimierung...")
-                frame = gamma_correction(frame, gamma=gamma)
-                print("Gamma Korrektur angewendet")
-            try:
-                print("Drehe Frame um 180 Grad...") 
-                frame = cv2.rotate(frame, cv2.ROTATE_180)
-            except Exception as e:
-                print(f"Fehler beim Drehen des Frames um 180 Grad: {e}")
-                log_schreiben(f"Fehler beim Drehen des Frames um 180 Grad: {e}", log_mode=log_mode)
-            time.sleep(.5)
-
             if frame is not None:
+                if image_correction:
+                    print("Wende Gamma Korrektur an für Belichtungsoptimierung...")
+                    frame = gamma_correction(frame, gamma=gamma)
+
+                try:
+                    print("Drehe Frame um 180 Grad...") 
+                    frame = cv2.rotate(frame, cv2.ROTATE_180)
+                except Exception as e:
+                    print(f"Fehler beim Drehen des Frames um 180 Grad: {e}")
+                    log_schreiben(f"Fehler beim Drehen des Frames um 180 Grad: {e}", log_mode=log_mode)
+                time.sleep(.5)
+
+                frame = apply_flat(frame, log_mode)
+
+
+            
                 Kamera_Fehlerserie = 0
                 try:
                     cv2.imwrite(dateipfad, frame)
@@ -449,7 +446,7 @@ def snap_image_rpi(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, expec
     try:
         xml_dateiname = os.path.basename(ordnerpfad)
         xml_zieldatei = os.path.join(ordnerpfad, f"{xml_dateiname}_Kameraeinstellungen.xml")
-        if not os.path.exists(xml_zieldatei) and metadata is not None and not cam_mode in ["Diagnose", "display"]:
+        if not os.path.exists(xml_zieldatei) and metadata is not None and not cam_mode in ["Diagnose", "display", "kamera_test"]:
             metadata_xml = dict_to_xml("metadata", metadata)
             tree = ET.ElementTree(metadata_xml)
             tree.write(xml_zieldatei, encoding="utf-8", xml_declaration=True)

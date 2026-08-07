@@ -48,6 +48,7 @@ def _format_float(value, decimals=2, fallback="---"):
     try:
         return f"{float(value):.{decimals}f}"
     except (TypeError, ValueError):
+        print("invalid value for formatting, returning fallback.")
         return fallback
 
 

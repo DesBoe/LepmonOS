@@ -9,15 +9,10 @@ from Lights import *
 import time
 from service import *
 from fram_direct import *
-from logging_utils import log_schreiben
 from hardware import get_device_info
-
 from times import Zeit_aktualisieren
-
 from sensor_data import read_sensor_data
-
 from fram_direct import *
-
 from LepmonOS_Service_fram_delete import clear_fram
 from configparser import ConfigParser
 from LepmonOS_Service_fram_tabelle import get_Fram_table, write_fram_table_to_log
@@ -26,9 +21,11 @@ from RTC_new_time import set_hwc
 from RTC_get_time_online import get_internet_time
 from datetime import datetime, timedelta
 from json_read_write import get_value_from_section, write_value_to_section
+from logging_utils import log_schreiben
+
 
 print("Check Serielnumber in line 28")
-sn = "SN010044"
+sn = "SN010165"
 
 print("\nStarte Diagnose. Schritt 1-10 frei einstellbar in Zeile 32 (1-OLED,2-LEDs,3-Sensoren,4-Uhr,5-RAM,6-RAM_löschen,7-RAM_Konfiguration,8-Knöpfe,9-Kamera,10-set_sample_times)\n")
 
@@ -43,9 +40,7 @@ selected_tests = {
         6: "RAM_löschen",
         7: "RAM_Konfiguration",
         8: "Knöpfe",
-        
-        9: "Kamera",
-        
+        9: "Kamera", 
         10: "set_sample_times"
     }
 

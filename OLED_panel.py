@@ -15,6 +15,18 @@ try:
 except Exception as e:
     print(f"Error loading font: {e}")
 
+
+def indicate_display_error(e=""):
+    print(f"Error displaying text on OLED: {e}")
+    turn_on_led("rot")
+    for _ in range(3):
+        turn_on_led("gelb")        
+        time.sleep(.25)
+        turn_off_led("gelb")
+        time.sleep(.25)
+    turn_off_led("rot") 
+
+
 oled = None
 
 # OLED-Setup
@@ -27,23 +39,16 @@ except Exception as e:
     if DEV_MODE:
         note_mock("OLED display (sh1106)")
     else:
-        print(f"Fehler beim Initialisieren des OLED-Displays: {e}")
-        for _ in range(3):
-            turn_on_led("rot")
-            time.sleep(0.25)
-            turn_off_led("rot")
-            time.sleep(0.25)
+        indicate_display_error(e)
 
 HARDWARE_VERSION = get_hardware_version()
 if HARDWARE_VERSION == "Pro_Gen_1" and oled is not None:
     oled.rotate = 2
-    
+
+
 
 def display_text(line1, line2, line3, sleeptime =0):
-    if oled is None:
-        print(f"[OLED] {line1} | {line2} | {line3}")
-        time.sleep(sleeptime)
-        return
+
     try:
         with canvas(oled) as draw:
             draw.rectangle(oled.bounding_box, outline="black", fill="black")
@@ -52,22 +57,15 @@ def display_text(line1, line2, line3, sleeptime =0):
             draw.text((0, 45), line3, font=oled_font, fill="white")
         time.sleep(sleeptime)
     except Exception as e:
-        print(f"Error displaying text on OLED: {e}")
-        for _ in range(3):
-            turn_on_led("rot")
-            time.sleep(0.25)
-            turn_off_led("rot")
-            time.sleep(0.25)
+        indicate_display_error(e)
 
 
 def display_text_and_image(line1, line2, line3, image_path,sleeptime =0):
     """
     Zeigt links drei Zeilen Text und rechts ein Bild (64x64 px) auf dem OLED an.
     """
-    if oled is None:
-        print(f"[OLED] {line1} | {line2} | {line3} (image: {image_path})")
-        time.sleep(sleeptime)
-        return
+    print(f"\nDisplay image: {image_path}\n")  
+
     try:
         logo = Image.open(image_path).convert("1").resize((64, 64))
         with canvas(oled) as draw:
@@ -77,48 +75,30 @@ def display_text_and_image(line1, line2, line3, image_path,sleeptime =0):
             draw.text((3, 5), line1, font=oled_font, fill="white")
             draw.text((3, 25), line2, font=oled_font, fill="white")
             draw.text((3, 45), line3, font=oled_font, fill="white")
+            time.sleep(sleeptime)
     
     except Exception as e:
-        print(f"Error displaying text on OLED: {e}")        
-        for _ in range(3):
-            turn_on_led("rot")
-            time.sleep(0.25)
-            turn_off_led("rot")
-            time.sleep(0.25)
-    print(f"\nDisplay image: {image_path}\n")        
-    time.sleep(sleeptime)
+        indicate_display_error(e)      
 
+          
 
 def display_image_3_2(image_path,sleeptime =0):
     """
     Zeigt ein Bild (128x64 px) auf dem OLED an.
     """
-    if oled is None:
-        print(f"[OLED] (image: {image_path})")
-        time.sleep(sleeptime)
-        return
-    turn_on_led("blau")
-    time.sleep(0.125)
+    print(f"\nDisplay image: {image_path}\n")   
     try:
-        turn_on_led("gelb")
         logo = Image.open(image_path).convert("1", dither=Image.NONE).resize((128, 64))
         with canvas(oled) as draw:
             # Hintergrund löschen
             draw.rectangle(oled.bounding_box, outline="black", fill="black")
             draw.bitmap((oled.width - 128, 0), logo, fill=1)
-            turn_off_led("gelb")
+            time.sleep(sleeptime)
     
     except Exception as e:
-        print(f"Error displaying text on OLED: {e}")  
-        turn_off_led("gelb")      
-        for _ in range(3):
-            turn_on_led("rot")
-            time.sleep(0.125)
-            turn_off_led("rot")
-            time.sleep(0.125)   
-        turn_off_led("blau")
-    print(f"\nDisplay image: {image_path}\n")        
-    time.sleep(sleeptime)
+        indicate_display_error(e)
+         
+    
 
     
 def display_text_with_arrows(line1, line2, line3=None, x_position=None, sleeptime=0):
@@ -142,11 +122,6 @@ def display_text_with_arrows(line1, line2, line3=None, x_position=None, sleeptim
         time.sleep(sleeptime)    
     except Exception as e:
         print(f"Error displaying text on OLED: {e}")
-        for _ in range(3):
-            turn_on_led("rot")
-            time.sleep(0.25)
-            turn_off_led("rot")
-            time.sleep(0.25) 
             
             
             
@@ -172,11 +147,7 @@ def show_message(code: str, lang: str = "de", **values):
 
     while len(lines) < 3:
         lines.append("")
-    try:
-        display_text(lines[0], lines[1], lines[2], sleeptime)
-    except Exception as e:
-        print(f"Text nicht angezeigt:{e}")
-        return
+    display_text(lines[0], lines[1], lines[2], sleeptime)
     
     
 def show_message_with_arrows(code: str, lang: str = "de", x_position=None, **values):
@@ -204,6 +175,9 @@ def show_message_with_arrows(code: str, lang: str = "de", x_position=None, **val
     
 if __name__ == "__main__":
     print("Zeige Testnachricht auf OLED")
-    display_text("Hallo Nutzer*in", "Dies ist eine Test-", "nachricht auf OLED", sleeptime=3)         
+    display_text("Hallo Nutzer*in", "Dies ist eine Test-", "nachricht auf OLED", sleeptime=3)     
+    time.sleep(1)    
     display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_U2C.png",sleeptime = 4)
+    time.sleep(1)    
     display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_K2W.png",sleeptime = 4)  
+    print("Ende des Tests")

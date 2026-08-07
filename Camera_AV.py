@@ -59,13 +59,11 @@ else:
 flatfield_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "flatfield_correction")
 if flatfield_correction:
     if HARDWARE_VERSION in ["Pro_Gen_1", "Pro_Gen_2"]:
-        FLATFIELD_TIF = "/home/Ento/LepmonOS/flatfield_divisor_16bit_Pro_Gen_1_2.tif"
+        FLATFIELD_TIF = "/home/Ento/LepmonOS/flatfield_masks/flatfield_divisor_16bit_Pro_Gen_1_2.tif"
     elif HARDWARE_VERSION in ["Pro_Gen_3"]:
         FLATFIELD_TIF = "/home/Ento/LepmonOS/flatfield_divisor_16bit_Pro_Gen_3.tif"
     elif HARDWARE_VERSION in ["Pro_Gen_4"]:
-        FLATFIELD_TIF = "/home/Ento/LepmonOS/flatfield_divisor_16bit_Pro_Gen_4.tif"
-    elif HARDWARE_VERSION in ["CSS_Gen_1"]:
-        FLATFIELD_TIF = "/home/Ento/LepmonOS/flatfield_divisor_16bit_CSS_Gen_1.tif"
+        FLATFIELD_TIF = "/home/Ento/LepmonOS/flatfield_masks/flatfield_divisor_16bit_Pro_Gen_4.tif"
     #TODO ADD files
     
     def _load_flat(log_mode="manual"):
@@ -306,7 +304,7 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
     if cam_mode == "Diagnose":
         image_file = f"{ordnerpfad}/Lepmon_Diagnose_{sn}_Testbild.jpg"
         dateipfad = image_file
-        print(f"Kamera Test Bild wird gespeichert in: {dateipfad}")
+        print(f"Kamera Diagnose Bild wird gespeichert in: {dateipfad}")
 
     if cam_mode != "Diagnose":
         time.sleep(4)
