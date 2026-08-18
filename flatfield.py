@@ -20,7 +20,10 @@ Voraussetzung fuer die einfache Division ohne Schrauben-Registrierung:
 """
 
 import os
+from pathlib import Path
 import numpy as np
+from serial_list import get_generation_by_serial
+import re
 
 try:
     import cv2
@@ -202,6 +205,69 @@ class FlatfieldCorrector:
             return frame_bgr
         return apply_flatfield(frame_bgr, self.flat)
 
+# ----------------------------------------------------------------------
+# Hilfsfunktionen für Anwendung auf bereits aufgenommene und gespeicherte Bilder
+PROJECT_ROOT = Path(__file__).resolve().parent
+LEGACY_ROOT = Path("/home/Ento/LepmonOS")
+
+
+def project_path(*parts):
+    """Pfad relativ zum aktuellen Projektordner, mit Raspberry-Fallback."""
+    candidate = PROJECT_ROOT.joinpath(*parts)
+    if candidate.exists():
+        return str(candidate)
+
+    legacy = LEGACY_ROOT.joinpath(*parts)
+    if legacy.exists():
+        return str(legacy)
+
+    return str(candidate)
+
+
+def get_ARNI_Gen_by_filename(filename):
+    """
+    Extrahiert die Seriennummer aus dem Dateinamen und gibt die Generation zurück.
+    Erwartetes Format:"Lepmon#SN010059_BW_FR_2026-08-04_T_0253.jpg"
+    """
+    generation = "Pro_Gen_3"  # Standardwert, falls keine Seriennummer gefunden wird
+    match = re.search(r'SN\d{6}', filename)
+    if match:
+        serial_number = match.group(0)
+        generation = get_generation_by_serial(serial_number)
+        if generation not in {"Pro_Gen_1", "Pro_Gen_2", "Pro_Gen_3", "Pro_Gen_4", "CSS_Gen_1"}:
+            generation = "Pro_Gen_3"
+    else:
+        print("Seriennummer nicht gefunden")
+
+    return generation
+
+
+def load_correction_mask(filename):
+    HARDWARE_VERSION = get_ARNI_Gen_by_filename(filename)
+    try:
+        if HARDWARE_VERSION in ["Pro_Gen_1", "Pro_Gen_2"]:
+            FLATFIELD_TIF = project_path("flatfield_masks", "flatfield_divisor_16bit_Pro_Gen_1_2.tif")
+        elif HARDWARE_VERSION in ["Pro_Gen_3"]:
+            FLATFIELD_TIF = project_path("flatfield_masks", "flatfield_divisor_16bit_Pro_Gen_3.tif")
+        elif HARDWARE_VERSION in ["Pro_Gen_4"]:
+            FLATFIELD_TIF = project_path("flatfield_masks", "flatfield_divisor_16bit_Pro_Gen_4.tif")
+        elif HARDWARE_VERSION in ["CSS_Gen_1"]:
+            FLATFIELD_TIF = project_path("flatfield_masks", "flatfield_divisor_16bit_CSS_Gen_1.tif")
+        else:
+            FLATFIELD_TIF = project_path("flatfield_masks", "flatfield_divisor_16bit_Pro_Gen_1_2.tif")
+
+        flatfield = load_flatfield(FLATFIELD_TIF)
+        if flatfield is None:
+                print(f"Konnte Flatfield nicht laden: {FLATFIELD_TIF}")
+                sys.exit(1)
+    except Exception as e:
+        print(f"Fehler beim Laden der Korrekturmaske: {e}")
+        exit(1)
+
+    return flatfield
+
+#
+# ----------------------------------------------------------------------
 
 # ----------------------------------------------------------------------
 # 3) CLI: Weissbild -> Flatfield-Datei erzeugen
@@ -211,6 +277,7 @@ class FlatfieldCorrector:
 if __name__ == "__main__":
     import sys
 
+    # Verwendung von Andreas für Ersterstellung eines Flatfields aus einem Weissbild
     if len(sys.argv) >= 4 and sys.argv[1] == "build":
         white_path, out_path = sys.argv[2], sys.argv[3]
         white = cv2.imread(white_path, cv2.IMREAD_COLOR)
@@ -221,6 +288,43 @@ if __name__ == "__main__":
         save_flatfield(flat, out_path)
         print(f"Flatfield erzeugt: {out_path}  (shape {flat.shape}, "
               f"min {flat.min():.3f}, max {flat.max():.3f})")
+
+    # Verwendung für Korrektur eines einzelnen Bildes mit einem Flatfield
+    elif len(sys.argv) == 1 or sys.argv[1] == "correct":
+        step = "input"
+        while step == "input":
+            raw_filename = input("Pfad zum Bild eingeben: ")
+            filename = raw_filename.strip().strip("'\"")
+            filename = os.path.expanduser(filename)
+
+            if os.path.isfile(filename):
+                step = "load_flatfield"
+            else:
+                print(f"Datei nicht gefunden: {raw_filename!r}, verwende Pfad kopieren, wegen # im Dateinamen.")
+                print(f"Normalisierter Pfad: {filename}")
+
+        if step == "load_flatfield":
+            flatfield = load_correction_mask(filename)
+            step = "load_image"
+
+        if step == "load_image":
+            image = cv2.imread(filename, cv2.IMREAD_COLOR)
+            if image is None:
+                print(f"Konnte Bild nicht laden: {filename}")
+                sys.exit(1)
+            step = "apply_correction"
+
+        if step == "apply_correction":
+            corrected_image = apply_flatfield(image, flatfield)
+            step = "save_corrected_image"
+
+        if step == "save_corrected_image":
+            base, ext = os.path.splitext(filename)
+            corrected_filename = f"{base}_corrected{ext}"
+            cv2.imwrite(corrected_filename, corrected_image)
+            print(f"Korrigiertes Bild gespeichert: {corrected_filename}")
+
+
     else:
         print("Verwendung:")
         print("  python flatfield.py build <weissbild> <flatfield.npy|.png|.tif>")
