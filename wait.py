@@ -17,7 +17,7 @@ power = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","powermo
 
 
 
-def wait(log_mode):
+def wait(log_mode, skip = False):
     lang = get_language()
     write_timestamp(0x07E0)
     
@@ -53,11 +53,17 @@ def wait(log_mode):
 
         return heater, waiter
 
+    
     else:
         countdown = (experiment_start_time - lokale_Zeit).total_seconds()
         countdown_time = experiment_start_time - lokale_Zeit
         log_schreiben(f"{'Warte auf Beginn':<22} | ja, in {countdown_time}", log_mode=log_mode)
         log_schreiben("==============================================", log_mode=log_mode)
+
+        if skip:
+            log_schreiben("Warten übersprungen", log_mode=log_mode)
+            log_schreiben("==============================================", log_mode=log_mode)
+            return heater, waiter
         
         for _ in range(30):
             if countdown <= 0:
@@ -105,4 +111,4 @@ def wait(log_mode):
         return heater, waiter  
     
 if __name__ == "__main__":
-    wait(log_mode="manual")
+    wait(log_mode="manual", skip=False)

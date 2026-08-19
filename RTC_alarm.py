@@ -51,13 +51,13 @@ def reset_alarms(log_mode):
         power_loss_since_last_write = rtc.lost_power
         jetzt_local, _, _= Zeit_aktualisieren(log_mode=log_mode)
         jetzt = datetime.strptime(jetzt_local, "%Y-%m-%d %H:%M:%S")
-        if power_loss_since_last_write:
-            log_schreiben(f"RTC Kontrollbit zeigt Störung der RTC seit dem letzten Schreiben an: {power_loss_since_last_write}", log_mode=log_mode)
-            if jetzt_local < datetime(2026, 1, 1):
-                log_schreiben(f"Die aktuelle Zeit {jetzt_local} liegt vor dem Jahr 2026. Dies deutet auf einen Stromverlust der RTC bei der Störung hin.", log_mode=log_mode)
-                log_schreiben(f"WARNUNG: Knopfzellen Batterie der RTC muss kontrolliert werden. Die Uhrzeit wird beim nächsten Start von ARNI, nachdem die Stromversorgung unterbrochen war.", log_mode=log_mode)
-                e = "check RTC battery"
-                error_message(17, e, log_mode)
+        log_schreiben(f"RTC Kontrollbit zeigt Störung der RTC seit dem letzten Schreiben an: {power_loss_since_last_write}", log_mode=log_mode)
+        if power_loss_since_last_write and jetzt < datetime(2026, 1, 1):
+            log_schreiben(f"Die aktuelle Zeit {jetzt_local} liegt vor dem Jahr 2026. Dies deutet auf einen Stromverlust der RTC bei der Störung hin.", log_mode=log_mode)
+            log_schreiben(f"WARNUNG: Knopfzellen Batterie der RTC muss kontrolliert werden. Die Uhrzeit wird beim nächsten Start von ARNI, nachdem die Stromversorgung unterbrochen war.", log_mode=log_mode)
+            e = "check RTC battery"
+            error_message(17, e, log_mode) 
+
     except Exception as e:
         error_message(8, e, log_mode)
         log_schreiben(f"Fehler beim Überprüfen des Stromverlusts der RTC: {e}", log_mode=log_mode)
@@ -91,6 +91,12 @@ def set_alarm(power_on, power_off, log_mode):
 
 
 if __name__ == "__main__":
+
+    print("Teste Auf Fehler 17")
+    reset_alarms(log_mode="manual")
+
+    print("----------------------------------------------")
+    print("Teste Alarm 1 und Alarm 2")
     rtc = adafruit_ds3231.DS3231(board.I2C())
     now_str, _ ,_= Zeit_aktualisieren(log_mode="manual")  
     now = datetime.strptime(now_str, "%Y-%m-%d %H:%M:%S")  

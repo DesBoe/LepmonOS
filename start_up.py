@@ -80,6 +80,9 @@ def start_up(log_mode):
             print(f"Fehler beim manuellen Setzen der SN: {e}")
             print("Fahre fort, obwohl die SN nicht manuell gesetzt werden konnte. Bitte überprüfen Sie die Verbindung zum RAM und die Funktionalität der Tasten.")
     turn_off_led("heizung")
+
+
+    
     RPI_time(log_mode)
 
     if HARDWARE_VERSION == "CSS_Gen_1":

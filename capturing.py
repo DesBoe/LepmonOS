@@ -65,16 +65,17 @@ def capturing(log_mode):
 
 
     print("starte Capturing")  
+    print("Setze Uhrzeit des Raspberry Pi auf Zeit der RTC")
+    RPI_time(log_mode)
 
     # Signal that capturing is starting
     set_capturing_active(True)
     clear_stop_request()
 
-
-    heater,Warteschleife = wait(log_mode)
-    #log_schreiben("##################################", log_mode)
-    #log_schreiben("##################################", log_mode)
-    #log_schreiben("Beginne Daten und Bildaufnahme",log_mode)
+    if log_mode == "manual":
+        heater, Warteschleife = wait(log_mode, skip=True)
+    else:
+        heater, Warteschleife = wait(log_mode)
 
     log_schreiben("==============================================", log_mode=log_mode)
     log_schreiben("Daten und Bildaufnahme:", log_mode=log_mode)
@@ -370,7 +371,12 @@ def capturing(log_mode):
                 checklist(current_image,log_mode, algorithm="md5")
 
                 last_image = datetime.strptime(lokale_Zeit, "%H:%M:%S")
-                next_image = (last_image + timedelta(minutes=interval)).replace(second=0, microsecond=0)
+                if interval >= 1:
+                    next_image = (last_image + timedelta(minutes=interval)).replace(second=0, microsecond=0)
+                elif interval < 1:
+                    next_image = (last_image + timedelta(minutes=interval)).replace(microsecond=0)
+                print(f"nächster Aufnahmezeitpunkt: {next_image.strftime('%H:%M:%S')}")
+                
                 _, lokale_Zeit,_ = Zeit_aktualisieren(log_mode)
                 lokale_Zeit = datetime.strptime(lokale_Zeit, "%H:%M:%S")
                 time_to_next_image = (next_image - lokale_Zeit).total_seconds()

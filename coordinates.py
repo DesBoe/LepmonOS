@@ -236,6 +236,7 @@ def set_coordinates(log_mode):
                 log_schreiben(f"neue Koordinaten wurden gespeichert", log_mode=log_mode)
                 print("saved GPS coordinates in configuration file and FRAM")
                 show_message("gps_8",lang = lang)
+                invalidate_coordinates_cache()
 
             break          
         else:

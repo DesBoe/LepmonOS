@@ -77,12 +77,6 @@ def Zeit_überschrieben(now, log_mode="log"):
     return now
 
 
-
-
-
-
-
-
 def berechne_zeitzone(latitude,longitude):
     tf = TimezoneFinder()
     
@@ -134,14 +128,15 @@ def get_sun(log_mode="log"):
         sunrise_local = today.replace(hour=23, minute=45, second=0, microsecond=0)
         sunset_local = today.replace(hour=0, minute=15, second=0, microsecond=0)
 
-
         return sunset_local, sunrise_local, tz
+
     except ephem.NeverUpError:
         log_schreiben("Hinweis: Sonne geht heute nicht auf (Polarnacht).", log_mode=log_mode)
         log_schreiben("Setze Sonnenaufgang auf 00:15:00 und Sonnenuntergang auf 23:45:00 für die Berechnung der Experimentzeiten.", log_mode=log_mode)
         today = datetime.now(tz)
         sunrise_local = today.replace(hour=0, minute=15, second=0, microsecond=0)
         sunset_local = today.replace(hour=23, minute=45, second=0, microsecond=0)
+
         return sunset_local, sunrise_local, tz
     
     
@@ -151,17 +146,13 @@ def get_moon(log_mode="log"):
         latitude, longitude, _, _, _, _ = get_coordinates()
     except Exception as e:
         error_message(11, e, log_mode)
+
         return None, None, None, None
 
     Zeitzone = berechne_zeitzone(latitude, longitude)
     observer = ephem.Observer()
     observer.lat = str(latitude)
     observer.lon = str(longitude)
-
-
-
-
-
 
     # Lokale Zeit in UTC umwandeln
     jetzt_local_utc = jetzt_local.astimezone(pytz.utc)
@@ -177,12 +168,7 @@ def get_moon(log_mode="log"):
         log_schreiben(f"Monduntergang nicht bestimmbar: {e}", log_mode=log_mode)
         moonset = None
     
-
-
-
     if moonrise and moonset and (moonset - moonrise).total_seconds() / 3600 > 13:
-
-
 
         try:
             moonset = ephem.localtime(observer.previous_setting(ephem.Moon(), start=jetzt_local_utc))
@@ -196,7 +182,6 @@ def get_moon(log_mode="log"):
             log_schreiben("Hinweis: Mond geht heute nicht auf (Mondpolarnacht).", log_mode=log_mode)
             moonrise = None
             moonset = None
-    
     try:
 
         moon = ephem.Moon(jetzt_local_utc)
@@ -215,7 +200,6 @@ def get_moon(log_mode="log"):
     return moonrise, moonset, moon_phase, max_altitude
 
 
-
 def get_experiment_times(log_mode="log"):
     minutes_to_sunrise = timedelta(minutes=int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "minutes_to_sunrise")))
     minutes_after_sunset = timedelta(minutes=int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "minutes_after_sunset")))  
@@ -232,7 +216,6 @@ def get_experiment_times(log_mode="log"):
     experiment_end_time = experiment_end_time.replace(tzinfo=None)
     experiment_end_time = experiment_end_time.strftime("%H:%M:%S")
 
-    
     return experiment_start_time, experiment_end_time, minutes_after_sunset, minutes_to_sunrise
 
 

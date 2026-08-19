@@ -1,6 +1,10 @@
 import json
 from fram_direct import read_fram
 
+# Cache for Coordinates
+# note that there is a function which returns a global variable to be none. This triggers a reread of the cached coordinates (after a user reentered them)
+_coordinates_cache = None
+
 
 def get_value_from_section(file_path, section_name, key_name):
     try:
@@ -25,7 +29,18 @@ def get_value_from_section(file_path, section_name, key_name):
     except Exception as e:
         return f"Fehler: {e}"
 
-def get_coordinates():
+
+def invalidate_coordinates_cache():
+    """Erzwingt beim nächsten Aufruf von get_coordinates() ein erneutes Einlesen (z.B. nach Änderung über trap_hmi/coordinates)."""
+    global _coordinates_cache
+    print("Globaler Koordinaten Cache zurückgesetzt. Koordinaten werden beim nächsten Aufruf erneut gelesen.")
+    _coordinates_cache = None
+
+def get_coordinates(force_reload=False):
+    global _coordinates_cache
+    if _coordinates_cache is not None and not force_reload:
+        return _coordinates_cache
+    print("lese Koordinaten in get_coordinates aus")
     try:
         try:
             lat_raw = read_fram(0x03C0, 16)
@@ -96,7 +111,8 @@ def get_coordinates():
     except ValueError as e:
         print(f"Fehler bei der Umwandlung der Koordinaten: {e}")
 
-    return latitude, longitude, Pol, Block, latitude_ohne_Vorzeichen, longitude_ohne_Vorzeichen
+    _coordinates_cache = (latitude, longitude, Pol, Block, latitude_ohne_Vorzeichen, longitude_ohne_Vorzeichen)
+    return _coordinates_cache
 
 
 def write_value_to_section(file_path, section_name, key_name, value):

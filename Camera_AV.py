@@ -108,13 +108,25 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4)
             power_vis = "---"
         return frame, 1, power_vis
 
-    while cams is None:
-        if cam_mode == "display" and cam_Initiliase_tries == 0:
-            show_message("cam_1", lang=lang)
-
+    if cam_mode == "display":
+        show_message("cam_1", lang=lang)
+    while not _av_camera_present():
         cam_Initiliase_tries += 1
         time.sleep(0.1)
+        if cam_Initiliase_tries > 100:
+            print(f"Kamera nach {cam_Initiliase_tries} Versuchen nicht initalisiert")
+            log_schreiben(f"Kamera nach {cam_Initiliase_tries} Versuchen nicht initalisiert", log_mode=log_mode)
+            show_message("cam_3", lang=lang)
+            time.sleep(5)
+            if error_details == "":
+                error_details = f"Kamera nach {cam_Initiliase_tries} Versuchen nicht initalisiert"
+    
+            error_message(1, error_details, log_mode)
+            log_schreiben(f"Fehler beim Abrufen des Frames: {error_details}",log_mode=log_mode)
+            print("Prüfe Kamera Verbindung und Stromversorgung")
+            break
 
+    if _av_camera_present():
         try:
             with VmbSystem.get_instance() as vmb:
                 cams = vmb.get_all_cameras()
@@ -227,18 +239,7 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4)
                 print(f"Prüfe Kamera Verbindung und Stromversorgung. Versuch {cam_Initiliase_tries}")
                 error_details = str(e)
 
-        if cam_Initiliase_tries > 90:
-            print(f"Kamera nach {cam_Initiliase_tries} Versuchen nicht initalisiert")
-            log_schreiben(f"Kamera nach {cam_Initiliase_tries} Versuchen nicht initalisiert", log_mode=log_mode)
-            show_message("cam_3", lang=lang)
-            time.sleep(5)
-            if error_details == "":
-                error_details = f"Kamera nach {cam_Initiliase_tries} Versuchen nicht initalisiert"
-    
-            error_message(1, error_details, log_mode)
-            log_schreiben(f"Fehler beim Abrufen des Frames: {error_details}",log_mode=log_mode)
-            print("Prüfe Kamera Verbindung und Stromversorgung")
-            break
+
 
     return frame, Kamera_Status, power_vis
 
@@ -299,23 +300,23 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
         image_file = f"AV__Alvium_1800_U-2050_{Exposure}_{Gain}__{round(ContrastShape,1)}.jpg"
         dateipfad = os.path.join(ordnerpfad, image_file)
         print(f"Kamera Test Bild wird gespeichert in: {dateipfad}")
-        time.sleep(2)
+        #time.sleep(2)
 
     if cam_mode == "Diagnose":
         image_file = f"{ordnerpfad}/Lepmon_Diagnose_{sn}_Testbild.jpg"
         dateipfad = image_file
         print(f"Kamera Diagnose Bild wird gespeichert in: {dateipfad}")
 
-    if cam_mode != "Diagnose":
-        time.sleep(4)
+    #if cam_mode != "Diagnose":
+    #    time.sleep(4)
 
     if cam_mode == "display":
         ordnerpfad, _ = get_usb_path(log_mode)
         dateipfad = os.path.join(ordnerpfad, "Testbild.jpg")
         log_schreiben(f"Dateipfad für Testbild: {dateipfad}", log_mode=log_mode)
 
-    if cam_mode == "log":
-        time.sleep(5)
+    #if cam_mode == "log":
+    #    time.sleep(5)
 
 
     # prüfen ob Ordnerpfad existiert, außer im display Modus, da hier nur ein Testbild gespeichert wird und der Ordner nicht zwingend vorhanden sein muss
