@@ -289,42 +289,67 @@ if __name__ == "__main__":
         print(f"Flatfield erzeugt: {out_path}  (shape {flat.shape}, "
               f"min {flat.min():.3f}, max {flat.max():.3f})")
 
-    # Verwendung für Korrektur eines einzelnen Bildes mit einem Flatfield
-    elif len(sys.argv) == 1 or sys.argv[1] == "correct":
+    # Verwendung für Korrektur eines einzelnen Bildes oder eines Ordners voller Bilder
+    elif len(sys.argv) == 1 or sys.argv[1] == "correct" or sys.argv[1] == "video":
+        mode = sys.argv[1] if len(sys.argv) > 1 else "correct"
+        IMG_EXTS = (".jpg", ".jpeg", ".png", ".tif", ".tiff")
+        imgs = []
         step = "input"
         while step == "input":
-            raw_filename = input("Pfad zum Bild eingeben: ")
-            filename = raw_filename.strip().strip("'\"")
-            filename = os.path.expanduser(filename)
-
-            if os.path.isfile(filename):
-                step = "load_flatfield"
+            if mode == "correct":
+                raw_path = input("Pfad zum Bild eingeben: ")
+                path = os.path.expanduser(raw_path.strip().strip("'\""))
+                if os.path.isfile(path):
+                    imgs = [path]
+                    step = "load_flatfield"
+                else:
+                    print(f"Datei nicht gefunden: {raw_path!r}, ggf. Pfad kopieren wegen # im Dateinamen.")
+                    print(f"Normalisierter Pfad: {path}")
             else:
-                print(f"Datei nicht gefunden: {raw_filename!r}, verwende Pfad kopieren, wegen # im Dateinamen.")
-                print(f"Normalisierter Pfad: {filename}")
+                raw_path = input("Pfad zum Bilderordner eingeben: ")
+                path = os.path.expanduser(raw_path.strip().strip("'\""))
+                if os.path.isdir(path):
+                    imgs = sorted(
+                        str(p) for p in Path(path).iterdir()
+                        if p.suffix.lower() in IMG_EXTS
+                    )
+                    if imgs:
+                        step = "load_flatfield"
+                    else:
+                        print(f"Keine Bilder gefunden in Ordner: {path}")
+                else:
+                    print(f"Ordner nicht gefunden: {raw_path!r}")
+                    print(f"Normalisierter Pfad: {path}")
 
         if step == "load_flatfield":
-            flatfield = load_correction_mask(filename)
-            step = "load_image"
+            step = "process"
 
-        if step == "load_image":
-            image = cv2.imread(filename, cv2.IMREAD_COLOR)
-            if image is None:
-                print(f"Konnte Bild nicht laden: {filename}")
-                sys.exit(1)
-            step = "apply_correction"
-
-        if step == "apply_correction":
-            corrected_image = apply_flatfield(image, flatfield)
-            step = "save_corrected_image"
-
-        if step == "save_corrected_image":
-            base, ext = os.path.splitext(filename)
-            corrected_filename = f"{base}_corrected{ext}"
-            cv2.imwrite(corrected_filename, corrected_image)
-            print(f"Korrigiertes Bild gespeichert: {corrected_filename}")
+        if step == "process":
+            for img_path in imgs:
+                if img_path.lower().endswith("_corrected.jpg") or img_path.lower().endswith("_corrected.png"):
+                    print(f"Ueberspringe bereits korrigiertes Bild: {img_path}")
+                    continue
+                if os.path.basename(img_path).startswith("._"):
+                    continue
+                flatfield = load_correction_mask(img_path)
+                image = cv2.imread(img_path, cv2.IMREAD_COLOR)
+                if image is None:
+                    print(f"Konnte Bild nicht laden: {img_path}")
+                    continue
+                corrected_image = apply_flatfield(image, flatfield)
+                base, ext = os.path.splitext(img_path)
+                corrected_filename = f"{base}_corrected{ext}"
+                cv2.imwrite(corrected_filename, corrected_image)
+                print(f"Korrigiertes Bild gespeichert: {corrected_filename}")
 
 
     else:
         print("Verwendung:")
-        print("  python flatfield.py build <weissbild> <flatfield.npy|.png|.tif>")
+        print("cd /.../LepmonOS")
+        print("#### Flatfield aus Weissbild erzeugen:")
+        print("     python3 flatfield.py build '/pathToImageCapturedByARNI.jpg' flatfield.tif\n")
+        print("#### Einzelbild korrigieren:")
+        print("     python3 flatfield.py correct\n")
+        print("#### Bilder für Video:")
+        print("     python3 flatfield.py video\n")
+
