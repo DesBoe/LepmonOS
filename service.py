@@ -137,7 +137,7 @@ def erstelle_ordner(log_mode, Cameramodel = "None"):
     jetzt_local, _, _ = Zeit_aktualisieren(log_mode)
     jetzt_local = datetime.strptime(jetzt_local, "%Y-%m-%d %H:%M:%S")
         
-    if jetzt_local.strftime('%Y') < '2024':
+    if jetzt_local.strftime('%Y') < '2026':
             jetzt_local = Zeit_überschrieben(jetzt_local, log_mode="log")
 
     aktueller_nachtordner = None

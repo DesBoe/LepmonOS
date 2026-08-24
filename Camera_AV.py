@@ -125,7 +125,7 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4)
             log_schreiben(f"Fehler beim Abrufen des Frames: {error_details}",log_mode=log_mode)
             print("Prüfe Kamera Verbindung und Stromversorgung")
             break
-
+    print(f"Kamera nach {cam_Initiliase_tries} Versuchen gefunden")
     if _av_camera_present():
         try:
             with VmbSystem.get_instance() as vmb:
@@ -244,7 +244,7 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4)
     return frame, Kamera_Status, power_vis
 
 
-def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposure, Gain=9, sn=""):
+def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposure, Gain=9, sn="", ContrastShape = ContrastShape):
     """
     Args:
         file_extension (str): Dateierweiterung des Bildes.
@@ -275,7 +275,7 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
     if cam_mode != "kamera_test":
         project_name, province, Kreis_code, sensor_id = get_Lepmon_code(log_mode)
         now = datetime.now() 
-        if now.strftime('%Y') < '2024':
+        if now.strftime('%Y') < '2026':
             now = Zeit_überschrieben(log_mode="log")
 
         code = (
@@ -450,7 +450,7 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
 
     print(f"Status Kamera: {Status_Kamera}, Fehlerserie: {Kamera_Fehlerserie}, Foto OK: {Bild_erfolgreich_gespeichert}")
     camera.off()
-    camera.close()
+    #camera.close()
 
     if HARDWARE_VERSION in ["Pro_Gen_1", "Pro_Gen_2"]:
             print("Stromverbrauch der Visible LED kann auf diesem ARNI-Modell nicht gemessen werden.")

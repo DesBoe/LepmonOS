@@ -5,6 +5,7 @@ except Exception as e:
      print(f"Fehler beim Importieren von fram_direct: {e}")  
 
 from hardware import *
+import re
      
      
 def ram_counter(ramadresse): 

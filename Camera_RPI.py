@@ -242,6 +242,8 @@ def snap_image_rpi(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, expec
     if cam_mode != "kamera_test":
         project_name,province, Kreis_code, sensor_id = get_Lepmon_code(log_mode)
         now = datetime.now()
+        if now.strftime('%Y') < '2026':
+            now = Zeit_überschrieben(log_mode="log")
         code = f"{project_name}{sensor_id}_{province}_{Kreis_code}_{now.strftime('%Y')}-{now.strftime('%m')}-{now.strftime('%d')}_T_{now.strftime('%H%M')}"
         image_file = f"{code}.{file_extension}"
         dateipfad = os.path.join(ordnerpfad, image_file)

@@ -295,6 +295,13 @@ if __name__ == "__main__":
     print(f"Power On Zeit:  {power_on}")
     print(f"Power Off Zeit: {power_off}")
     print("---------------------------------")
+    print("Teste Funktion zum Zeitüberschreiben bei RTC Fehler 17")
+    print("Dier RTC hat als Default 1.1.2000. Das Datum wird um die Firmware Version erweitert")
+    now = datetime.now()
+    now = Zeit_überschrieben(now, log_mode="log")
+    print(f"neue Zeit: {now}")
+    print("---------------------------------")
+
     Zeitumstellung, Änderung = zeitumstellung_info(jetzt_local,Zeitzone)
     if Zeitumstellung:
         print(f"Zeitumstellung heute Tag, Änderung: {Änderung}")

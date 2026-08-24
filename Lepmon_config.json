@@ -1,11 +1,11 @@
 {
     "general": {
-        "ARNI_Gen": "CSS_Gen_1",
-        "serielnumber": "SN010115",
+        "ARNI_Gen": "Pro_Gen_3",
+        "serielnumber": "SN010063",
         "project_name": "Lepmon#",
         "usb_drive": "/media/Ento/LEPMON",
-        "current_folder": "/media/Ento/LEPMON/Lepmon#SN010115_Manueller_TestRun_2026-08-06_T_1759",
-        "current_log": "/media/Ento/LEPMON/Lepmon#SN010115_Manueller_TestRun_2026-08-06_T_1759/Lepmon#SN010115_Manueller_TestRun_2026-08-06_T_1759.log",
+        "current_folder": "/media/Ento/INTENSO10/Belichtungsreihe_AV__Alvium_1800_U-2050__4033-03-02__18_38_11",
+        "current_log": "/media/Ento/INTENSO10/Belichtungsreihe_AV__Alvium_1800_U-2050__4033-03-02__18_38_11/Belichtungsreihe_AV__Alvium_1800_U-2050__4033-03-02__18_38_11.log",
         "language": "de",
         "expected_images": 235,
         "Control_Night": true,
@@ -24,7 +24,7 @@
         "flash": 0.25,
         "interval": 2,
         "dusk_treshold": 90,
-        "error_code": 8,
+        "error_code": 1,
         "gamma_correction": true,
         "trigger_for_wb": true,
         "adjust_ContrastShape": true,
@@ -75,7 +75,7 @@
         "focus_threshold": 225.0,
         "gamma_value": 0.65,
         "current_gain": 8.5,
-        "ContrastShape": 1.4,
+        "ContrastShape": 1.5,
         "balance_ratio_red": 2.2934872026677375,
         "balance_ratio_blue": 1.9616239415083943
     },

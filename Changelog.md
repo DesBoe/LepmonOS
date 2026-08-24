@@ -1,4 +1,16 @@
 # Changelog
+
+## [2.x.x] 2026-xx-xx
+### Geändert
+- AV Kamera initialisierung ohne festen sleelp Befehl, stattdessen für max 10s Suche nache Kamera zum initialisieren. Bei Fehler weiterhin Fehlercode 1
+
+### Hinzugefügt
+- Kontrolle für float Einträge in CSV Daten mit Fallback auf '---'
+
+### Behoben
+
+
+
 ## [2.3.2] 2026-05-21
 ### Geändert
 - Uhrzeit in Daignose bei Internetverbindung automatisch ermttelt und auf RTC geschrieben

@@ -3,6 +3,7 @@ import time
 import json
 import os
 from dev_mode import DEV_MODE, note_mock
+import random
 
 I2C_BUS = 1
 FRAM_ADDRESS = 0x50  # I2C-Adresse des FM24CL64B
@@ -231,6 +232,10 @@ def read_fram_bytes(address: int, length: int) -> bytes:
         print(f"Fehler beim Lesen von 0x{address:04X}: {e}")
         return None
 
+def write_fram_random():
+    zufallszahl = random.randint(100, 999)
+    zufallszahl_str = str(zufallszahl)
+    write_fram(0x0577, zufallszahl_str)
 
 if DEV_MODE:
     _seed_mock_store()
@@ -238,6 +243,7 @@ if DEV_MODE:
 if __name__ == "__main__":
     print ("teste RAM")
     check_fram_present()
+    write_fram_random()
     print("FRAM-Dump:")
 
     dump_fram(0x0000, 0x09EF)

@@ -12,6 +12,7 @@ from dev_mode import DEV_MODE, note_mock
 try:
     print("Loading Font from :", os.path.join(os.path.dirname(__file__), 'FreeSans.ttf'))
     oled_font = ImageFont.truetype(os.path.join(os.path.dirname(__file__), 'FreeSans.ttf'), 14)
+    print("Font loaded successfully.")
 except Exception as e:
     print(f"Error loading font: {e}")
 
@@ -27,7 +28,6 @@ def indicate_display_error(e=""):
     turn_off_led("rot") 
 
 
-oled = None
 
 # OLED-Setup
 oled = None

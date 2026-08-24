@@ -25,23 +25,23 @@ from logging_utils import log_schreiben
 
 
 print("Check Serielnumber in line 28")
-sn = "SN010165"
+sn = "SN010063"
 
 print("\nStarte Diagnose. Schritt 1-10 frei einstellbar in Zeile 32 (1-OLED,2-LEDs,3-Sensoren,4-Uhr,5-RAM,6-RAM_löschen,7-RAM_Konfiguration,8-Knöpfe,9-Kamera,10-set_sample_times)\n")
 
 selected_tests = {
         
-        0 : "Seriennummer",
-        1: "OLED",
-        2: "LEDs",
-        3: "Sensoren",
-        4: "Uhr",
+        #0 : "Seriennummer",
+        #1: "OLED",
+        #2: "LEDs",
+        #3: "Sensoren",
+        #4: "Uhr",
         5: "RAM",
         6: "RAM_löschen",
         7: "RAM_Konfiguration",
-        8: "Knöpfe",
-        9: "Kamera", 
-        10: "set_sample_times"
+        #8: "Knöpfe",
+        #9: "Kamera", 
+        #10: "set_sample_times"
     }
 
 
@@ -445,7 +445,12 @@ if __name__ == "__main__":
         log_schreiben("Teste Ram", log_mode)
         print("Teste Ram")
         zeile1 = "RAM Diagnose"
-        zeile2 = f"SN gelesen: {read_fram(0x0110, 8).strip()}"
+        try:
+            zeile2 = f"SN gelesen: {read_fram(0x0110, 8).strip()}"
+        except Exception as e:
+            log_schreiben(f"Fehler beim Lesen der Seriennummer aus dem RAM: {e}", log_mode)
+            print(f"Fehler beim Lesen der Seriennummer aus dem RAM: {e}")
+            zeile2 = "Fehler beim Lesen der SN"
         zeile3, zeile6 = "",""
 
         ram_test_liste = []

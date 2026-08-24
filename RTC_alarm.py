@@ -48,7 +48,7 @@ def reset_alarms(log_mode):
 
 
     try:
-        power_loss_since_last_write = rtc.lost_power
+        power_loss_since_last_write = True#rtc.lost_power
         jetzt_local, _, _= Zeit_aktualisieren(log_mode=log_mode)
         jetzt = datetime.strptime(jetzt_local, "%Y-%m-%d %H:%M:%S")
         log_schreiben(f"RTC Kontrollbit zeigt Störung der RTC seit dem letzten Schreiben an: {power_loss_since_last_write}", log_mode=log_mode)
@@ -57,6 +57,8 @@ def reset_alarms(log_mode):
             log_schreiben(f"WARNUNG: Knopfzellen Batterie der RTC muss kontrolliert werden. Die Uhrzeit wird beim nächsten Start von ARNI, nachdem die Stromversorgung unterbrochen war.", log_mode=log_mode)
             e = "check RTC battery"
             error_message(17, e, log_mode) 
+        elif power_loss_since_last_write and  jetzt > datetime(2026, 8, 20):
+            log_schreiben(f"Die aktuelle Zeit ist {jetzt_local}. Die Uhrzeit scheint bei der Störung der RTC nicht zurückgesetzt wurden sein", log_mode=log_mode)
 
     except Exception as e:
         error_message(8, e, log_mode)
@@ -110,7 +112,7 @@ if __name__ == "__main__":
     print("Zähle bis zum Alarm... der Alarm wird bei 60 erwartet")
 
     # conroll power state: 
-    power_loss_since_last_write = rtc.lost_power
+    power_loss_since_last_write = True#rtc.lost_power
     print(f"RTC hat seit dem letzten Schreiben Stromverlust erfahren: {power_loss_since_last_write}")
     i = 1
     while True:

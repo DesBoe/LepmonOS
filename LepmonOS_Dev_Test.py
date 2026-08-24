@@ -157,7 +157,7 @@ from json_read_write import *
 import time
 
 print("warte...")
-time.sleep(7*60*60)
+#time.sleep(7*60*60)
 
 log_mode = "log"
 cam_mode = "kamera_test"
@@ -175,3 +175,13 @@ if __name__ == "__main__":
     print("Test der ContrastShape Einstellung abgeschlossen.")
     print("############################################")
 
+
+### Cam on
+from gpiozero import LED
+import time
+
+camera = LED(5)
+camera.on
+time.sleep(60)
+camera.off
+print("ENDE")
