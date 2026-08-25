@@ -270,7 +270,7 @@ if __name__ == "__main__":
         # time string # 
         ################
                             #"JJJJMMTTHHMMSS"
-        date_time_list =     "20260806173200"  # händisches überschreiben möglich, dafür nächste Zeile auskommentieren
+        date_time_list =     "20260806223200"  # händisches überschreiben möglich, dafür nächste Zeile auskommentieren
         print("Versuche, die Uhrzeit aus dem Internet zu erhalten - kommentiere Zeile 263 aus für manuellen override")
         date_time_list = get_internet_time()
 

@@ -151,19 +151,20 @@ if __name__ == "__main__":
 ####
 # Schleife für Test der ContrastShape Einstellung
 ####
-
+'''
 from Camera_AV import *
 from json_read_write import *
 import time
 
 print("warte...")
-#time.sleep(7*60*60)
+time.sleep(4*60*60)
 
 log_mode = "log"
 cam_mode = "kamera_test"
 ContrastShape = 1
 write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "ContrastShape", ContrastShape)
 
+# Für diese Schleife muss die Funktion um ContrastShape in Camera_AV.py erweitert werden.
 if __name__ == "__main__":
     while 1<= ContrastShape <= 10:
         print(f"Teste ContrastShape: {ContrastShape}")
@@ -174,7 +175,7 @@ if __name__ == "__main__":
         time.sleep(2)
     print("Test der ContrastShape Einstellung abgeschlossen.")
     print("############################################")
-
+'''
 
 ### Cam on
 from gpiozero import LED

@@ -7,6 +7,7 @@ from logging_utils import *
 from fram_operations import read_fram
 from sensor_data import *
 from hardware import *
+from Experiments import get_interval
 
 def erstelle_und_aktualisiere_csv(sensor_data, log_mode):
     path = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
@@ -37,7 +38,7 @@ def erstelle_und_aktualisiere_csv(sensor_data, log_mode):
             experiment_start_time, experiment_end_time,_,_ = get_experiment_times(log_mode)
             print("Debug")           
             sensor_id = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")  
-            interval = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "interval")
+            interval = get_interval(log_mode)
 
             sensor = get_device_info("sensor")
             kamera = get_device_info("camera")

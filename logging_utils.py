@@ -328,6 +328,12 @@ def checklist_review(folder_path, log_mode, algorithm="md5", checklist_path=""):
     Fehlende Einträge werden inklusive Prüfsumme ergänzt.
     """
     try:
+        effective_checklist_path = checklist_path
+        if not effective_checklist_path:
+            log_path = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_log")
+            base, _ = os.path.splitext(log_path)
+            effective_checklist_path = f"{base}_MD5.txt"
+
         if not folder_path:
             log_schreiben("folder_path darf nicht leer sein", log_mode=log_mode)
 
@@ -341,12 +347,12 @@ def checklist_review(folder_path, log_mode, algorithm="md5", checklist_path=""):
                 folder_files.append(full_path)
 
         listed_files = set()
-
-        if os.path.exists(checklist_path):
+        print(f"Überprüfe Checkliste: {effective_checklist_path}")
+        if os.path.exists(effective_checklist_path):
             import re
             valid_line = re.compile(r'^[0-9a-fA-F]+\s+\S+\s*$')
 
-            with open(checklist_path, "r", encoding="utf-8", errors="replace") as f:
+            with open(effective_checklist_path, "r", encoding="utf-8", errors="replace") as f:
                 for line in f:
                     cleaned = line.rstrip("\n")
                     if not cleaned or '\ufffd' in cleaned or not valid_line.match(cleaned):
@@ -360,14 +366,23 @@ def checklist_review(folder_path, log_mode, algorithm="md5", checklist_path=""):
             base_name = os.path.basename(file_path)
             if base_name not in listed_files:
                 missing_files.append(file_path)
+        if missing_files:
+            missing_basenames = "\n".join(os.path.basename(f) for f in missing_files)
+            print(f"Fehlende Dateien in der Checkliste:\n{missing_basenames}")
+        else:
+            print("Fehlende Dateien in der Checkliste: keine")
 
         for file_path in missing_files:
             checklist(file_path, log_mode, algorithm=algorithm)
 
         log_schreiben(
             f"Checklist-Review abgeschlossen: {len(folder_files)} Dateien geprüft, {len(missing_files)} ergänzt.",
-            log_mode=log_mode
-        )
+            log_mode=log_mode)
+        if missing_files:
+            missing_basenames = "\n".join(os.path.basename(f) for f in missing_files)
+            log_schreiben(f"Fehlende Dateien ergänzt:\n{missing_basenames}", log_mode=log_mode)
+        else:
+            log_schreiben("Fehlende Dateien ergänzt: keine", log_mode=log_mode)
         return missing_files
 
     except Exception as e:
@@ -388,7 +403,10 @@ def checklist_review(folder_path, log_mode, algorithm="md5", checklist_path=""):
  
 if __name__ == "__main__":
     print("logging Werkzeuge")
-
-    checklist("Lepmon#SN010149/µ∫Ñª∏È∫∆7•«*1Àt” ¸ï67«ÊBmÜ$N≈Å§ìæ€ l$3¶", "manual", algorithm="md5")
-    
-    print_error_table()
+    print("---------------------------------")
+    #checklist("Lepmon#SN010149/µ∫Ñª∏È∫∆7•«*1Àt” ¸ï67«ÊBmÜ$N≈Å§ìæ€ l$3¶", "manual", algorithm="md5")
+    print("==============================================")
+    folder_path= "/media/Ento/INTENSO10/Lepmon#SN010063_Manueller_TestRun_2026-08-25_T_1519"
+    checklist_review(folder_path, "manual", algorithm="md5", checklist_path="")
+    print("==============================================")
+    #print_error_table()

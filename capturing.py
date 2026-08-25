@@ -24,6 +24,7 @@ from Daylightsaving import daylight_saving_check
 from service import *
 from hardware import *
 from find_white_balance import get_wb
+from Experiments import get_interval
 
 
 from capturing_state import (
@@ -42,9 +43,11 @@ def capturing(log_mode):
 
     gamma_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","image_quality","gamma_correction")
     dusk_treshold = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "dusk_treshold")
-    interval = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "interval")
-    camera = get_device_info('camera')
+    interval = get_interval(log_mode)
     trigger_for_wb = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "trigger_for_wb")
+
+    camera = get_device_info('camera') 
+    print(f"erwartete Kamera: {camera}")
 
     if camera == "RPI_Module_3":
         gamma_value = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","RPI_Module_3","gamma_value")
@@ -62,7 +65,8 @@ def capturing(log_mode):
         gamma_value = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","gamma_value")
         Exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_exposure"))
         gain = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","AV__Alvium_1800_U-2050","initial_gain_10"))/10
-
+    else:
+        log_schreiben(f"WARNUNG: gamma_value, Exposure und gain für {camera} nicht gefunden.", log_mode=log_mode)
 
     print("starte Capturing")  
     print("Setze Uhrzeit des Raspberry Pi auf Zeit der RTC")
@@ -397,8 +401,9 @@ def capturing(log_mode):
                         dioptrien_neu = set_focus_rpi_cam()
                         log_schreiben(f"Fokus RPI Module 3 geändert von {dioptrien_alt} auf {dioptrien_neu}", log_mode=log_mode)
                         time.sleep(5)
-                    remount_usb_drive(log_mode)
-                    usb_reset = True
+                    if log_mode == "log":
+                        remount_usb_drive(log_mode)
+                        usb_reset = True
                 
                 if 15 <= lokale_Zeit.minute < 30 and not usb_reset and lokale_Zeit.hour % 2 == 0:
                     usb_reset = False
@@ -447,7 +452,7 @@ def capturing(log_mode):
             try:
                 ordner = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
                 log_schreiben(f"Kontrolliere Checkliste für Dateien im Ordner: {ordner}", log_mode)
-                checklist_review(ordner, algorithm="md5")
+                checklist_review(ordner, log_mode, algorithm="md5")
             except Exception as e:
                 log_schreiben(f"Fehler bei der Kontrolle der Checkliste: {e}", log_mode)
                 pass

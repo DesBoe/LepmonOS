@@ -6,11 +6,11 @@ from logging_utils import log_schreiben
 from language import get_language
 from usb_controller import reset_all_usb_ports
 from runtime import write_timestamp
-from Box_Experiment_Times import *
 from hardware import get_hardware_version
 from json_read_write import get_value_from_section
 from end import trap_shutdown
 from GPIO_Setup import turn_on_led, turn_off_led
+from Experiments import apply_delay
 
 HARDWARE_VERSION = get_hardware_version()
 power = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","powermode","supply")
@@ -38,12 +38,7 @@ def wait(log_mode, skip = False):
     
 
     # Experiment für Boundingboxen mit Delay, wenn ARNI im entsprechenden Experiment eingesetzt wird
-    sn = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")
-    if sn in ["SN010010", "SN010011"]:
-        print(f"gelesene SN von Configdatei:{sn}")
-        jetzt_local, _, _= Zeit_aktualisieren(log_mode=log_mode)
-        Delay, Box_Experiment_Run, Round = get_experiment_delay(sn, jetzt_local)
-        experiment_start_time += Delay
+    experiment_start_time = apply_delay(experiment_start_time, log_mode)
 
 
     #if not (experiment_end_time > lokale_Zeit >= experiment_start_time):

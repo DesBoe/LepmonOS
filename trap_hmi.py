@@ -26,7 +26,6 @@ from json_read_write import get_value_from_section, write_value_to_section
 from language import *
 from runtime import write_timestamp
 from coordinates_region_check import find_country_and_region
-from Box_Experiment_Times import *
 from gpiozero import LED
 from capturing_state import (
     set_web_focus_active,

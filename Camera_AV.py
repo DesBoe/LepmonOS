@@ -20,13 +20,27 @@ import gc
 from hardware import get_hardware_version, get_device_info
 from dev_mode import DEV_MODE, note_mock
 from mock_hardware import generate_mock_frame
+from Experiments import get_interval
 
 from flatfield import load_flatfield, apply_flatfield
 
 lang = get_language()
 
+
+Skip_Sanity_Check = False
+# Danger Zone: Skip_Sanity_Check should only be used within enabled Experiment_Interval!
+# Check Lepmon_config.json for "Skip_Sanity_Check" in "Experiment_Interval" section.
+
+if get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Experiment_Interval", "Enable_Interval"):
+    Skip_Sanity_Check = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Experiment_Interval", "Skip_Sanity_Check")
+    print("ACHTUNG: Skip_Sanity_Check ist aktiviert. Bilder werden nicht auf Schwarze Pixel geprüft.")
+    
+
+
 # Kamera GPIO Pin
 camera = LED(5)
+
+
 
 def _av_camera_present():
     """Cheap presence check - lists cameras without opening/configuring one."""
@@ -64,7 +78,6 @@ if flatfield_correction:
         FLATFIELD_TIF = "/home/Ento/LepmonOS/flatfield_divisor_16bit_Pro_Gen_3.tif"
     elif HARDWARE_VERSION in ["Pro_Gen_4"]:
         FLATFIELD_TIF = "/home/Ento/LepmonOS/flatfield_masks/flatfield_divisor_16bit_Pro_Gen_4.tif"
-    #TODO ADD files
     
     def _load_flat(log_mode="manual"):
         # log_mode defaults to "manual" (console-only): this runs at module
@@ -86,7 +99,7 @@ if flatfield_correction:
     _FLAT = _load_flat()
 elif not flatfield_correction:
     _FLAT = None
-    log_schreiben("Flatfield Korrektur deaktiviert.", log_mode="manual")
+    log_schreiben("Flatfield Korrektur für AV Kamera deaktiviert.", log_mode="manual")
 
 
 
@@ -140,7 +153,7 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4)
                     try:
                         cam.load_settings(settings_file, PersistType.All)
                         print("Kameraeinstellungen erfolgreich geladen")
-                        time.sleep(5)
+                        time.sleep(.1)
                     except Exception as e:
                         log_schreiben(f"Fehler beim Laden der Kameraeinstellungen: {e}", log_mode=log_mode)
                     
@@ -244,7 +257,7 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4)
     return frame, Kamera_Status, power_vis
 
 
-def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposure, Gain=9, sn="", ContrastShape = ContrastShape):
+def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposure, Gain=9, sn=""):
     """
     Args:
         file_extension (str): Dateierweiterung des Bildes.
@@ -277,11 +290,15 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
         now = datetime.now() 
         if now.strftime('%Y') < '2026':
             now = Zeit_überschrieben(log_mode="log")
+        interval = get_interval(log_mode)
+        seconds = interval < 1
+        time_format = "%H%M%S" if seconds else "%H%M"
 
         code = (
             f"{project_name}{sensor_id}_{province}_{Kreis_code}_"
-            f"{now.strftime('%Y')}-{now.strftime('%m')}-{now.strftime('%d')}_T_{now.strftime('%H%M')}"
+            f"{now.strftime('%Y-%m-%d')}_T_{now.strftime(time_format)}"
         )
+
         image_file = f"{code}.{file_extension}"
         dateipfad = os.path.join(ordnerpfad, image_file)
     
@@ -421,18 +438,22 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
                     error_message(3, f"Bild konnte nicht gespeichert werden: {dateipfad}", log_mode)
                     Status_Kamera = 0
                     Kamera_Fehlerserie += 1
-            
-                try: 
-                    Bild_erfolgreich_gespeichert = check_image(dateipfad, log_mode = "log")
-                    if Bild_erfolgreich_gespeichert:
-                        print("Foto Sanity Check bestanden")
-                        break
-                    elif not Bild_erfolgreich_gespeichert:
-                        sanity_tries += 1
 
-                except Exception as e:
-                    print(f"Fehler bei der Bildprüfung: {e}")
-                    sanity_tries += 1
+                if Skip_Sanity_Check:
+                    Bild_erfolgreich_gespeichert = True
+                elif not Skip_Sanity_Check:
+                    time.sleep(0.5)
+                    try: 
+                        Bild_erfolgreich_gespeichert = check_image(dateipfad, log_mode = "log")
+                        if Bild_erfolgreich_gespeichert:
+                            print("Foto Sanity Check bestanden")
+                            break
+                        elif not Bild_erfolgreich_gespeichert:
+                            sanity_tries += 1
+
+                    except Exception as e:
+                        print(f"Fehler bei der Bildprüfung: {e}")
+                        sanity_tries += 1
                     
 
             elif frame is None:
@@ -443,7 +464,7 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
                 )
         avg_brightness = round(avg_brightness, 0)
 
-        time.sleep(0.5)
+        
 
         if sanity_tries>=4:
             log_schreiben(f"Foto hat Sanity Check nach {sanity_tries} Versuchen endgültig nicht bestanden.", log_mode=log_mode)

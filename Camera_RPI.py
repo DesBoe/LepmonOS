@@ -24,6 +24,7 @@ import gc
 from gamma_korr import gamma_correction
 from dev_mode import DEV_MODE, note_mock
 from mock_hardware import generate_mock_frame
+from Experiments import get_interval
 
 from flatfield import load_flatfield, apply_flatfield
 
@@ -56,7 +57,7 @@ if flatfield_correction:
     _FLAT = _load_flat()
 elif not flatfield_correction:
     _FLAT = None
-    log_schreiben("Flatfield Korrektur deaktiviert.", log_mode="manual")
+    log_schreiben("Flatfield Korrektur für RPI Kamera deaktiviert.", log_mode="manual")
 
 def apply_flat(frame,log_mode="manual"):
     # --- Flatfield-Korrektur (greift nur bei gueltigem Flat
@@ -244,7 +245,15 @@ def snap_image_rpi(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, expec
         now = datetime.now()
         if now.strftime('%Y') < '2026':
             now = Zeit_überschrieben(log_mode="log")
-        code = f"{project_name}{sensor_id}_{province}_{Kreis_code}_{now.strftime('%Y')}-{now.strftime('%m')}-{now.strftime('%d')}_T_{now.strftime('%H%M')}"
+        interval = get_interval(log_mode)
+        seconds = interval < 1
+        time_format = "%H%M%S" if seconds else "%H%M"
+
+        code = (
+            f"{project_name}{sensor_id}_{province}_{Kreis_code}_"
+            f"{now.strftime('%Y-%m-%d')}_T_{now.strftime(time_format)}"
+        )
+
         image_file = f"{code}.{file_extension}"
         dateipfad = os.path.join(ordnerpfad, image_file)
     

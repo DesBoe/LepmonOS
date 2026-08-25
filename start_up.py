@@ -20,10 +20,10 @@ import os
 from serial_number_manual import *
 from serial_list import *
 from datetime import datetime
-from Box_Experiment_Times import *
 from Lights import dim_down
 from end import trap_shutdown
 from SSID import *
+from Experiments import *
 
 
 def version_tuple(version_str):
@@ -101,8 +101,13 @@ def start_up(log_mode):
             os.system("sudo reboot")
 
     display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_U2C.png",sleeptime = 4)
-    display_text_and_image("Leitfaden","Guide","Guia","/home/Ento/LepmonOS/startsequenz/link_manual.png",4)
-  
+
+    if HARDWARE_VERSION in ["Pro_Gen_1", "Pro_Gen_2", "Pro_Gen_3", "Pro_Gen_4"]:
+        display_text_and_image("Leitfaden","Guide","Guia","/home/Ento/LepmonOS/startsequenz/link_manual.png",4)
+    elif HARDWARE_VERSION in ["CSS_Gen_1"]:
+        #Sobald Marburg die Anleitung online stellt, hier ergänzen
+        pass
+    
     sn = compare_fram_json(log_mode)
 
     print("Vergleiche gegebene Seriennummer mit der Geräteversion. Wenn sie nicht zusammenpassen, erzwinge manuelle SN Eingabe")
@@ -366,22 +371,9 @@ def start_up(log_mode):
 
 
     ############################################################################################################################################################################################################
-    # Experiment für Boundingboxen mit Delay, wenn ARNI im entsprechenden Experiment eingesetzt wird
-    if sn in ["SN010010", "SN010011"]:
-        jetzt_local, _, _= Zeit_aktualisieren(log_mode=log_mode)
-        Delay, Box_Experiment_Run, Round = get_experiment_delay(sn, jetzt_local)
-        Delay_str = str(Delay).split()[-1]
-        log_schreiben("==============================================", log_mode=log_mode)
-        log_schreiben(f"ARNI im Experiment für Boundingboxen mit Delay eingesetzt", log_mode=log_mode)
-        log_schreiben("----------------------------------------------", log_mode=log_mode)
-        log_schreiben(f"{'Verzögerung':<22} | {Delay_str}", log_mode=log_mode)
-        log_schreiben(f"{'Box Experiment Run':<22} | {Box_Experiment_Run}", log_mode=log_mode)
-        log_schreiben(f"{'Runde':<22} | {Round}", log_mode=log_mode)
-        log_schreiben("==============================================", log_mode=log_mode)
-        try:
-            log_schreiben(f"Start auf diesem ARNI: {experiment_start_time + Delay}", log_mode=log_mode)
-        except Exception as e:
-            log_schreiben(f"Fehler beim Berechnen der Startzeit mit Delay: {e}", log_mode=log_mode)
+    # check auf Teilnahme an Experimenten
+    write_experiment_overview_in_start_up(sn, experiment_start_time, log_mode)
+       
 
 
     ############################################################################################################################################################################################################
