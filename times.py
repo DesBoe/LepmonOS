@@ -13,7 +13,7 @@ from dev_mode import DEV_MODE, note_mock
 from mock_hardware import MockRTC
 from fram_operations import *
 
-
+individual_year = 0
 
 def Zeit_aktualisieren(log_mode="log"):
     rtc_status = 0
@@ -47,23 +47,28 @@ def Zeit_aktualisieren(log_mode="log"):
 
 def Zeit_überschrieben(now, log_mode="log"):
     """
-    diese Funktion wird aufgerufen, wenn die RTC Zeit vor 2024 liegt.
+    diese Funktion wird aufgerufen, wenn die RTC Zeit vor 2026 liegt.
     Sie überschreibt das Datum mit der Firmwareversion und einem individuellen Jahr, das in den letzten 3 Ziffern des Jahres hochgezählt wird, um die Bilder zu zählen, die während des RTC-Ausfalls aufgenommen werden.
     """
-    log_schreiben("RTC Zeit liegt vor 2024. Kontrolliere Fehlercode 17.", log_mode=log_mode)
+    log_schreiben("RTC Zeit liegt vor 2026. Kontrolliere Fehlercode 17.", log_mode=log_mode)
     log_schreiben("Erweitere Datum um Firmwareversion und zähle in letzten 3 Ziffern des Jahres die Bilder hoch, die in diesm Ausfall wärend des Fehlers aufgenommen werden.", log_mode=log_mode)
     _, firmware_version = get_firmware_version()
     try:
         individual_year = int(ram_counter(0x0670))
+        pass
     except Exception as e:
         log_schreiben(f"Fehler beim Lesen des individuellen Jahres: {e}", log_mode=log_mode)
         individual_year = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "images_count_RTC_failure"))
         individual_year += 1
         write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "images_count_RTC_failure", str(individual_year))
+    print(f"Individuelles Jahr: {individual_year} entspricht Anzahl der Bilder, die während des RTC-Ausfalls aufgenommen wurden.")
     if isinstance(firmware_version, tuple) and len(firmware_version) == 3:
         major, minor, patch = firmware_version 
-        try:         
-            now_year = int(now.strftime('%Y')) + (1000 * int(major)) + individual_year
+        try:   
+            if int(now.strftime('%Y')) < 2026:      
+                now_year = int(now.strftime('%Y')) + (1000 * int(major)) + individual_year
+            else:
+                now_year = int(now.strftime('%Y')) + individual_year
             now_mon = int(minor)
             now_mday = int(patch)
             now = now.replace(year=now_year, month=now_mon, day=now_mday)
@@ -296,10 +301,19 @@ if __name__ == "__main__":
     print(f"Power Off Zeit: {power_off}")
     print("---------------------------------")
     print("Teste Funktion zum Zeitüberschreiben bei RTC Fehler 17")
-    print("Dier RTC hat als Default 1.1.2000. Das Datum wird um die Firmware Version erweitert")
+    print("Der RTC hat als Default 1.1.2000. Das Datum wird um die Firmware Version erweitert")
     now = datetime.now()
-    now = Zeit_überschrieben(now, log_mode="log")
-    print(f"neue Zeit: {now}")
+    now = now.replace(year=2000, month=1, day=1)
+    print("Teste 5 Bilder")
+
+    for i in range(10004):
+        now = Zeit_überschrieben(now, log_mode="log")
+        time.sleep(.0005)
+        print(f"neue Zeit: {now}")
+    print("setze Config und Ram zurück")
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "images_count_RTC_failure", str(0))
+    write_fram_bytes(0x0670, b'\x00' * 4)
+
     print("---------------------------------")
 
     Zeitumstellung, Änderung = zeitumstellung_info(jetzt_local,Zeitzone)

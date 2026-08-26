@@ -124,8 +124,8 @@ def check_Lepmon_code():
         print("Stadt in Lepmon_config Datei aktualisiert")
    
 def get_firmware_version():
-    current_version = "1.1.1"
-    version_tuple = (1, 1, 1)
+    current_version = "2.3.3"
+    version_tuple = (2, 3, 3)
 
     try:
         current_version = read_fram(0x0520, 5)

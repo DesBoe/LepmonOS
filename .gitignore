@@ -24,7 +24,7 @@ venv/
 .env/
 
 # CSV-Dateien und Ergebnisse
-*.csv
+#*.csv
 execution_times.csv
 *_result/
 

@@ -411,6 +411,11 @@ def capturing(log_mode):
                 print(f"Warte bis zur nächsten Aufnahme: {time_to_next_image} Sekunden")
                 time.sleep(time_to_next_image)
 
+                überleiten_zu_shutdown = True
+                print("Erzwinge Einleitung vom Ende")
+                time.sleep(3)
+                print("...")
+
         else:
             überleiten_zu_shutdown = True
         

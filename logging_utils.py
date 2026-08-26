@@ -380,7 +380,7 @@ def checklist_review(folder_path, log_mode, algorithm="md5", checklist_path=""):
             log_mode=log_mode)
         if missing_files:
             missing_basenames = "\n".join(os.path.basename(f) for f in missing_files)
-            log_schreiben(f"Fehlende Dateien ergänzt:\n{missing_basenames}", log_mode=log_mode)
+            log_schreiben(f"Fehlende Dateien ergänzt:\n    {missing_basenames}", log_mode=log_mode)
         else:
             log_schreiben("Fehlende Dateien ergänzt: keine", log_mode=log_mode)
         return missing_files
