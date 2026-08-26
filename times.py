@@ -306,7 +306,7 @@ if __name__ == "__main__":
     now = now.replace(year=2000, month=1, day=1)
     print("Teste 5 Bilder")
 
-    for i in range(10004):
+    for i in range(1004):
         now = Zeit_überschrieben(now, log_mode="log")
         time.sleep(.0005)
         print(f"neue Zeit: {now}")
