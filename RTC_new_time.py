@@ -270,10 +270,10 @@ if __name__ == "__main__":
         # time string # 
         ################
                             #"JJJJMMTTHHMMSS"
-        #date_time_list =     "20260806123200"  # händisches überschreiben möglich, dafür nächste Zeile auskommentieren
+        date_time_list =     "20260806222000"  # händisches überschreiben möglich, dafür nächste Zeile auskommentieren
         #date_time_list =     "20000101000000"  #für Fehler 17
         print("Versuche, die Uhrzeit aus dem Internet zu erhalten - kommentiere Zeile 276 aus für manuellen override")
-        #date_time_list = get_internet_time()
+        date_time_list = get_internet_time()
 
         if len(date_time_list) != 14 or not date_time_list.isdigit():
             print("Fehler: Die Eingabe muss genau 14 Ziffern enthalten und nur Ziffern!")

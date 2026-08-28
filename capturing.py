@@ -37,6 +37,7 @@ from capturing_state import (
 from thumbnail_utils import write_thumbnail_for
 
 HARDWARE_VERSION = get_hardware_version()
+Enable_Interval = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Experiment_Interval", "Enable_Interval")
 
 def capturing(log_mode):
     überleiten_zu_shutdown = False
@@ -296,17 +297,27 @@ def capturing(log_mode):
                         print(f"Bild-Counter im Ram Modul erhöht: {aktuelles_Bild}")
 
                         # Update web UI with image count
-                        increment_image_count()
+                        # DB I moved this code away from the FRAM dependend counting. 
+                        # ARNIs Pro_Gen_1 + Pro_Gen_2 dont have the RAM modul and in case there is an interrupt, this is not affected.
                 except Exception as e:
                         print(f"Fehler beim Schreiben des Bild-Counters im Ram Modul: {e}")
 
                 # Precompute a small JPEG so the gallery doesn't have to
                 # re-decode a 16-bit raw on every request. write_thumbnail_for
                 # swallows errors — never block the capture loop.
-                try:
-                    write_thumbnail_for(current_image)
-                except Exception as e:
-                    print(f"Thumbnail generation failed for {current_image}: {e}")
+
+                # There is a Experimental mode of ARNI, which does not require this tracking. Hence I put it in a if statement.
+                if not Enable_Interval:
+                    try:
+                        increment_image_count()
+                    except Exception as e:
+                        log_schreiben(f"Fehler beim Erhöhen des Bildzählers mit increment Funktion: {e}", log_mode)
+                    try:
+                        write_thumbnail_for(current_image)
+                    except Exception as e:
+                        print(f"Thumbnail generation failed for {current_image}: {e}")
+                elif Enable_Interval:
+                    print("Überspringe increment_image_count und write_thumbnail_for")
             
             if trigger_for_wb and Status_Kamera == 1 and lokale_Zeit >= time_for_wb.strftime('%H:%M:%S') and HARDWARE_VERSION not in ["CSS_Gen_1",]:
                 log_schreiben("Trigger für Weißabgleich aktiviert und Zeit für WB Anpassung erreicht. Starte Weißabgleichsanpassung...", log_mode)
@@ -323,7 +334,7 @@ def capturing(log_mode):
 
             if not überleiten_zu_shutdown:
                         
-                time.sleep(1)        
+                time.sleep(0.01)        
                 sensors,_ = read_sensor_data(code, lokale_Zeit, log_mode)
                 
 
