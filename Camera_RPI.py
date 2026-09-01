@@ -29,6 +29,7 @@ from Experiments import get_interval
 from flatfield import load_flatfield, apply_flatfield
 
 HARDWARE_VERSION = get_hardware_version()
+Enable_Interval = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Experiment_Interval", "Enable_Interval")
 
 flatfield_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "flatfield_correction")
 if flatfield_correction:
@@ -245,9 +246,10 @@ def snap_image_rpi(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, expec
         now = datetime.now()
         if now.strftime('%Y') < '2026':
             now = Zeit_überschrieben(now, log_mode="log")
-        interval = get_interval(log_mode)
-        seconds = interval < 1
-        time_format = "%H%M%S" if seconds else "%H%M"
+        if Enable_Interval:
+            time_format = "%H%M%S"
+        else:
+            time_format = "%H%M"
 
         code = (
             f"{project_name}{sensor_id}_{province}_{Kreis_code}_"

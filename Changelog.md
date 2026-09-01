@@ -1,11 +1,15 @@
 # Changelog
 
-## [2.x.x] 2026-xx-xx
+## [2.3.3] 2026-09-01
 ### Geändert
 - AV Kamera initialisierung ohne festen sleelp Befehl, stattdessen für max 10s Suche nache Kamera zum initialisieren. Bei Fehler weiterhin Fehlercode 1
+- Config Datei mit Sektion für Experimente für Delay und Intervalle.
+- Maximale Exposure auf ARNI Pro 170 ms
 
 ### Hinzugefügt
 - Kontrolle für float Einträge in CSV Daten mit Fallback auf '---'
+- Fehler 17 kann nur ausgelöst werden, wenn Kontrollbit der RTC einen Stromverlust anzeigt und das Datum vor 2026 liegt. Die Daten werden dann mit dem Zeitstempel > 4000 (Jahr) versehen und im Datum um die Versionsnummer erweitert, um eineindeutige Bildnamen zu generieren.
+- Flatfield Korrektur möglich, aber deaktiviert.
 
 ### Behoben
 

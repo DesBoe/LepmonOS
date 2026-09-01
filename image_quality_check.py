@@ -11,6 +11,11 @@ from hardware import *
 from OLED_panel import *
 
 
+Enable_Interval = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Experiment_Interval", "Enable_Interval")
+
+
+
+
 ##################################
 ### beide Kameras###
 ##################################
@@ -177,7 +182,11 @@ def calculate_Exposure_and_gain(current_image, initial_exposure, initial_gain, c
         
     if img is not None:
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        avg_brightness = gray.mean()
+        if Enable_Interval:
+            avg_brightness = round(gray[::2, ::2].mean(), 2)
+            print("Verwende nur 1/4 der Pixel für Helligkeitsberechnung")
+        else:    
+            avg_brightness = gray.mean()
         avg_brightness = round(avg_brightness,2)
         print(f"Aktuelle durchschnittliche Helligkeit: {avg_brightness:.2f}")
         

@@ -17,13 +17,13 @@ import re
 from GPIO_Setup import *
 from usb_controller import find_usb_mount
 from dev_mode import DEV_MODE, note_mock
-from Experiments import get_interval
+
 
 
 lang = get_language()
 
 DEV_USB_MOCK_DIR = "/home/Ento/LepmonOS/dev_usb_mock"
-
+Enable_Interval = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Experiment_Interval", "Enable_Interval")
 
 
 
@@ -165,9 +165,10 @@ def erstelle_ordner(log_mode, Cameramodel = "None"):
 
     try:
         if log_mode == "log":
-            interval = get_interval(log_mode)
-            seconds = interval < 1
-            time_format = "%H%M%S" if seconds else "%H%M"
+            if Enable_Interval:
+                time_format = "%H%M%S"
+            else:
+                time_format = "%H%M"
 
             ordnername = f"{project_name_clean}{sn_clean}_{province_clean}_{Kreis_code_clean}_{jetzt_local.strftime('%Y')}-{jetzt_local.strftime('%m')}-{jetzt_local.strftime('%d')}_T_{jetzt_local.strftime(time_format)}"
             aktueller_nachtordner = os.path.join(zielverzeichnis, ordnername)

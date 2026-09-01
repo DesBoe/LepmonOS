@@ -31,6 +31,8 @@ Skip_Sanity_Check = False
 # Danger Zone: Skip_Sanity_Check should only be used within enabled Experiment_Interval!
 # Check Lepmon_config.json for "Skip_Sanity_Check" in "Experiment_Interval" section.
 
+Enable_Interval = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Experiment_Interval", "Enable_Interval")
+
 if get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Experiment_Interval", "Enable_Interval"):
     Skip_Sanity_Check = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Experiment_Interval", "Skip_Sanity_Check")
     print("ACHTUNG: Skip_Sanity_Check ist aktiviert. Bilder werden nicht auf Schwarze Pixel geprüft.")
@@ -39,7 +41,6 @@ if get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Experiment_
 
 # Kamera GPIO Pin
 camera = LED(5)
-
 
 
 def _av_camera_present():
@@ -138,9 +139,9 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4)
             log_schreiben(f"Fehler beim Abrufen des Frames: {error_details}",log_mode=log_mode)
             print("Prüfe Kamera Verbindung und Stromversorgung")
             break
-    print(f"Kamera nach {cam_Initiliase_tries} Versuchen gefunden")
-    if _av_camera_present():
-        try:
+    print(f"Kamera nach {cam_Initiliase_tries} Versuchen gefunden, Versuche frame aquisition")
+    #if _av_camera_present():
+    try:
             with VmbSystem.get_instance() as vmb:
                 cams = vmb.get_all_cameras()
                 if not cams:
@@ -151,6 +152,7 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4)
                     settings_file = "/home/Ento/LepmonOS/Kamera_Einstellungen_VimbaX.xml".format(cam.get_id()) 
 
                     try:
+                        print("lade Kameraeinstellungen")
                         cam.load_settings(settings_file, PersistType.All)
                         print("Kameraeinstellungen erfolgreich geladen")
                         time.sleep(.1)
@@ -242,7 +244,7 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4)
                     if cam_mode == "display":
                         show_message("cam_2", lang=lang)
 
-        except Exception as e:
+    except Exception as e:
             frame = None
             Kamera_Status = 0
             cams = None
@@ -290,9 +292,11 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
         now = datetime.now() 
         if now.strftime('%Y') < '2026':
             now = Zeit_überschrieben(now, log_mode="log")
-        interval = get_interval(log_mode)
-        seconds = interval < 1
-        time_format = "%H%M%S" if seconds else "%H%M"
+
+        if Enable_Interval:
+            time_format = "%H%M%S"
+        else:
+            time_format = "%H%M"
 
         code = (
             f"{project_name}{sensor_id}_{province}_{Kreis_code}_"

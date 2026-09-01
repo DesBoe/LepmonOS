@@ -58,6 +58,7 @@ def display_text(line1, line2, line3, sleeptime =0):
         time.sleep(sleeptime)
     except Exception as e:
         indicate_display_error(e)
+        print(f"desired message to display:\n   {line1}\n   {line2}\n   {line3}\n")
 
 
 def display_text_and_image(line1, line2, line3, image_path,sleeptime =0):
@@ -78,7 +79,8 @@ def display_text_and_image(line1, line2, line3, image_path,sleeptime =0):
             time.sleep(sleeptime)
     
     except Exception as e:
-        indicate_display_error(e)      
+        indicate_display_error(e)   
+        print(f"desired message to display:\n   {line1}\n   {line2}\n   {line3}\n")   
 
           
 
@@ -97,6 +99,7 @@ def display_image_3_2(image_path,sleeptime =0):
     
     except Exception as e:
         indicate_display_error(e)
+        
          
     
 
@@ -122,6 +125,7 @@ def display_text_with_arrows(line1, line2, line3=None, x_position=None, sleeptim
         time.sleep(sleeptime)    
     except Exception as e:
         print(f"Error displaying text on OLED: {e}")
+        print(f"desired message to display:\n   {line1}\n   {line2}\n   {line3}\n")
             
             
             

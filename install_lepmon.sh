@@ -743,6 +743,9 @@ echo "  sudo systemctl status  lepmon-main"
 echo "  sudo systemctl restart lepmon-main"
 echo "  sudo journalctl -u lepmon-main -f"
 echo ""
+echo "For more information and instructions, please refer to the manual:"
+echo "https://lepmon.de/en/arni-manual/"
+echo ""
 INFO
 chmod +x /usr/local/bin/lepmon-info
 

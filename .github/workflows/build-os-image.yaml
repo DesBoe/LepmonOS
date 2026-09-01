@@ -80,6 +80,7 @@ jobs:
         # DB packages via requirements
         #sudo mkdir -p /tmp/rpi-root/home/Ento/LepmonOS/packages
         sudo mkdir -p /tmp/rpi-root/home/Ento/LepmonOS/geo_ref_shapes
+        sudo mkdir -p /tmp/rpi-root/home/Ento/LepmonOS/flatfield_masks
         
         # Copy Python files, configs, requirements, docs
         # EXCLUDE development and service tools (LepmonOS_Dev_* and LepmonOS_Service_*)
@@ -100,10 +101,11 @@ jobs:
         
         if [ -d startsequenz ]; then sudo cp -r startsequenz /tmp/rpi-root/home/Ento/LepmonOS/; fi
         
-        # Copy packages and geo_ref_shapes
+        # Copy packages, geo_ref_shapes, flatfield files
         # DB packages via requirements
         #sudo cp -r packages/* /tmp/rpi-root/home/Ento/LepmonOS/packages/ 2>/dev/null || true
         sudo cp -r geo_ref_shapes/* /tmp/rpi-root/home/Ento/LepmonOS/geo_ref_shapes/ 2>/dev/null || true
+        sudo cp -r flatfield_masks/* /tmp/rpi-root/home/Ento/LepmonOS/flatfield_masks/ 2>/dev/null || true
 
     - name: Install in chroot
       run: |

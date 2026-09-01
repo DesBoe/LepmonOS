@@ -38,13 +38,13 @@ from thumbnail_utils import write_thumbnail_for
 
 HARDWARE_VERSION = get_hardware_version()
 Enable_Interval = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Experiment_Interval", "Enable_Interval")
+interval = get_interval()
+gamma_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","image_quality","gamma_correction")
 
 def capturing(log_mode):
     überleiten_zu_shutdown = False
 
-    gamma_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","image_quality","gamma_correction")
     dusk_treshold = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "dusk_treshold")
-    interval = get_interval(log_mode)
     trigger_for_wb = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "trigger_for_wb")
 
     camera = get_device_info('camera') 
@@ -256,18 +256,16 @@ def capturing(log_mode):
             
             print(f"Aufnahmezeitpunkt: {lokale_Zeit_string.strftime('%H:%M:%S')}")
             print(Exposure, gain)
-            time.sleep(5)
+            time.sleep(0.01)
 
 
+            # There is a Experimental mode of ARNI, which does not require this tracking. Hence I put it in a if statement.
+            if not Enable_Interval:   
+                if is_stop_requested():
+                    log_schreiben("Stop requested from web interface", log_mode)
+                    überleiten_zu_shutdown = True
+                    break
 
-            # photo sanity check in Camera_AV integriert, um bei Neuaufnahme keine neue Initialisierung zu durchlaufen.
-            #while not photo_sanity_check:# and not good_exposure:
-
-
-            if is_stop_requested():
-                log_schreiben("Stop requested from web interface", log_mode)
-                überleiten_zu_shutdown = True
-                break
             if camera == "AV__Alvium_1800_U-2050":
                 code, current_image, Status_Kamera, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, gain = snap_image_AV("jpg", "log", Kamera_Fehlerserie, log_mode, Exposure=Exposure, Gain=gain)
                 write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "current_exposure", Exposure)
@@ -279,11 +277,13 @@ def capturing(log_mode):
 
             elif camera not in ["AV__Alvium_1800_U-2050","RPI_Module_3","RPI_HQ"]:
                 log_schreiben(f"unbekannte Kamera gefunden:{camera}.", log_mode)
-            
-            update_capture_progress(
-                current_exposure=Exposure,
-                current_gain=gain,
-                last_image_path=current_image)
+
+            # There is a Experimental mode of ARNI, which does not require this tracking. Hence I put it in a if statement.
+            if not Enable_Interval:   
+                update_capture_progress(
+                    current_exposure=Exposure,
+                    current_gain=gain,
+                    last_image_path=current_image)
             
                  
             if Kamera_Fehlerserie >= 3:
@@ -391,7 +391,7 @@ def capturing(log_mode):
                 elif interval < 1:
                     next_image = (last_image + timedelta(minutes=interval)).replace(microsecond=0)
                 print(f"nächster Aufnahmezeitpunkt: {next_image.strftime('%H:%M:%S')}")
-                
+                show_message("blank", lang = lang)
                 _, lokale_Zeit,_ = Zeit_aktualisieren(log_mode)
                 lokale_Zeit = datetime.strptime(lokale_Zeit, "%H:%M:%S")
                 time_to_next_image = (next_image - lokale_Zeit).total_seconds()
@@ -402,7 +402,7 @@ def capturing(log_mode):
                 if time_to_next_image > interval * 60:
                     time_to_next_image = interval * 60
                 log_schreiben(f"Warten bis zur nächsten Aufnahme: {round(time_to_next_image,0)} Sekunden. Aktuelle Kamerafehlerserie: {Kamera_Fehlerserie}", log_mode)
-                show_message("blank", lang = lang)
+                
                 
                 if 0 <= lokale_Zeit.minute <= 15 and not usb_reset and lokale_Zeit.hour % 2 == 0:
                     sharp,_ = check_focus(current_image, camera, log_mode)

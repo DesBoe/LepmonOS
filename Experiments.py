@@ -145,7 +145,7 @@ def apply_delay(experiment_start_time, log_mode):
 
             return experiment_start_time
 
-def get_interval(log_mode):
+def get_interval():
     interval = 2
     sn = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","general","serielnumber")  
     if sn in ARNIs_Interval_Experiment and Enable_Interval:
