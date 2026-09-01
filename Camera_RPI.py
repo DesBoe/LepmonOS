@@ -24,7 +24,6 @@ import gc
 from gamma_korr import gamma_correction
 from dev_mode import DEV_MODE, note_mock
 from mock_hardware import generate_mock_frame
-from Experiments import get_interval
 
 from flatfield import load_flatfield, apply_flatfield
 

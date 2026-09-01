@@ -168,7 +168,7 @@ def timedelta_to_hms(td):
 
 def display_experiments(log_mode):
     sn = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")
-    if sn in ARNIs_Interval_Experiment and Enable_Interval:
+    if sn in ARNIs_Interval_Experiment and Enable_Delay:
         if sn in ["SN010010", "SN010011"]:
             jetzt_local, _, _= Zeit_aktualisieren(log_mode=log_mode)
             Delay, Box_Experiment_Run, Round = get_experiment_delay(sn, jetzt_local)
@@ -177,7 +177,7 @@ def display_experiments(log_mode):
             Box_Experiment_Run, Round, anzeige = "AAA", "BBB", "CCC"
         display_text(f"{Box_Experiment_Run}",f"Runde: {Round}",f"Delay: {anzeige}", 3)
     if sn in ARNIs_Interval_Experiment and Enable_Interval:
-        interval = get_interval(log_mode)
+        interval = get_interval()
         display_text(f"ARNI {sn}","Interval Experiment",f"{interval} min", 3)
 
 
@@ -195,7 +195,7 @@ if __name__ == "__main__":
     print("----------")
     apply_delay(log_mode, zeit)
     print("----------")
-    get_interval(log_mode)
+    get_interval()
     print("----------")
     display_experiments(log_mode)
 
