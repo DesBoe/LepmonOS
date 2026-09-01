@@ -4,7 +4,9 @@ declare -x DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/1000/bus"
 declare -x DESKTOP_SESSION="LXDE-pi-wayfire"
 declare -x DISPLAY=":0"
 declare -x GDMSESSION="LXDE-pi-wayfire"
-declare -x GENICAM_GENTL64_PATH=":/opt/Vimba_6_0/VimbaUSBTL/CTI/arm_64bit"
+export VIMBA_HOME=/opt/VimbaX
+export GENICAM_GENTL64_PATH=/opt/VimbaX/cti
+export LD_LIBRARY_PATH=/opt/VimbaX/api/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 declare -x GIO_LAUNCHED_DESKTOP_FILE="/usr/share/raspi-ui-overrides/applications/lxterminal.desktop"
 declare -x GIO_LAUNCHED_DESKTOP_FILE_PID="1732"
 declare -x GPG_AGENT_INFO="/run/user/1000/gnupg/S.gpg-agent:0:1"

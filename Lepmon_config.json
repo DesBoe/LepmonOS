@@ -3,9 +3,9 @@
         "ARNI_Gen": "CSS_Gen_1",
         "serielnumber": "SN010115",
         "project_name": "Lepmon#",
-        "usb_drive": "/media/Ento/DABA-AEE91",
-        "current_folder": "/media/Ento/INTENSO10/Lepmon#SN010063_Manueller_TestRun_2026-08-06_T_2338",
-        "current_log": "/media/Ento/INTENSO10/Lepmon#SN010063_Manueller_TestRun_2026-08-06_T_2338/Lepmon#SN010063_Manueller_TestRun_2026-08-06_T_2338.log",
+        "usb_drive": "",
+        "current_folder": "",
+        "current_log": "",
         "language": "de",
         "expected_images": 623,
         "Control_Night": true,
@@ -91,8 +91,8 @@
         "Block": "E"
     },
     "software": {
-        "version": "2.3.2",
-        "date": "2026-05-21",
+        "version": "2.3.3",
+        "date": "2026-09-01",
         "images_count_RTC_failure": "0"
     },
     "powermode": {

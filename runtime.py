@@ -93,9 +93,11 @@ def on_shutdown():
 def gap_day():
     """
     Überprüft, ob der Aktivitätszeitstempel im FRAM weniger als 6h alt ist.
-    Gibt True zurück, wenn der Zeitstempel kürzer ist, sonst False.
+    Gibt True zurück, wenn der Zeitunterschied weniger als 6h beträgt, andernfalls False.
+    Ausnahme: Wenn das Gerät solarbetrieben ist und die Hardware-Version CSS_Gen_1 oder Pro_Gen_4 ist und das HMI bei der letzten Aktivität offen war, wird kein neuer Ordner angelegt.
     """
     solar_message = False
+    control_bit = False
     try:
         # Lese den Aktivitätszeitstempel aus dem FRAM
         activity_timestamp_bytes = read_fram_bytes(0x07E0, 19)
@@ -117,23 +119,29 @@ def gap_day():
         if power == "Solar" and HARDWARE_VERSION in ["CSS_Gen_1", "Pro_Gen_4"] and solar_controlbit:
             print("ARNI ist solarbetrieben, HMI war offen, daher wird kein neuer Ordner angelegt.")
             write_fram_bytes(0x03BF, b'\x00')  # Reset Solar_control bit
+            control_bit = True
+            solar_message = True
+            return control_bit, solar_message
 
-            return True, solar_message
+        else:
+            print("Überprüfe den Zeitunterschied zum letzten Aktivitätszeitstempel auf Unterschiede von mehr als 6h.")
+            control_bit = difference <= 60*60*6  # Überprüfe, ob der Unterschied mehr als 6 h beträgt
+            # return True --> weniger als 6h es wird kein neuer Ordner erstellt
+            # return False --> mehr als 6h, es wird ein neuer Ordner erstellt
+            solar_message = False
 
-
-
-        # Überprüfe, ob der Unterschied mehr als 6 h beträgt
-        return difference <= 60*60*6  # 6h
-        # return True --> weniger als 6h es wird kein neuer Ordner erstellt
-        # return False --> mehr als 6h, es wird ein neuer Ordner erstellt
+ 
     except Exception as e:
         print(f"Fehler beim Überprüfen des Aktivitätszeitstempels: {e}")
         if HARDWARE_VERSION in ["Pro_Gen_1", "Pro_Gen_2"]:
-            print("Da es sich um einen ARNI ohne verbauten FRAM handelt, wird angenommen, dass kein Tag vergangen ist.")
-            solar_message = True
-            return True, solar_message
+            print("Da es sich um einen ARNI ohne verbauten FRAM handelt, wird angenommen, dass kein Tag vergangen ist, solar_message auf False gesetzt.")
+            control_bit = True
+            solar_message = False
         else:
-            return False, solar_message
+            control_bit = False
+            solar_message = False
+
+    return control_bit, solar_message
 
 if __name__ == "__main__":
     print("Laufzeitwerkzeuge")

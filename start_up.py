@@ -202,6 +202,7 @@ def start_up(log_mode):
 
     ############################################################################################################################################################################################################
     # CONTROLBIt - Check vergangene Zeit 
+    solar_message = False
     if control_bit:
         print("Überprüfe ob 6h seit letztem Fang vergangen sind. Wenn ja, wird Kontrollbit zurückgesetzt, um neuen Ordner zu erstellen")
         control_bit, solar_message = gap_day()

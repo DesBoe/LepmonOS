@@ -799,9 +799,9 @@ MESSAGE_REGISTER = {
     },     
     "end_2": {
         "sleep": 3,
-        "de": ("Spare Strom", "im Solarmodus", "Start: {Zeit}"),
-        "en": ("Saving power", "in solar mode", "Start: {Zeit}"),
-        "es": ("Ahorro de energía", "en modo solar", "Inicio: {Zeit}")
+        "de": ("Spare Strom", "im Solarmodus", "Start: 19:56:21"),
+        "en": ("Saving power", "in solar mode", "Start: 19:56:21"),
+        "es": ("Ahorro de energía", "en modo solar", "Inicio: 19:56:21")
     },      
 
     ### error ###

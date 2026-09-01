@@ -51,7 +51,23 @@ def _av_camera_present():
     except Exception:
         return False
 
+def av_camera_available(log_mode):
+    try:
+        with VmbSystem.get_instance() as vmb:
+            cameras = vmb.get_all_cameras()
+            if cameras:
+                print(f"Allied-Vision-Kamera gefunden: {cameras[0].get_id()}")
+                return True
 
+            print("Keine Allied-Vision-Kamera gefunden.")
+            return False
+
+    except Exception as error:
+        message = f"Vimba X konnte nicht gestartet werden: {error}"
+        print(message)
+        log_schreiben(message, log_mode=log_mode)
+        return False
+    
 HARDWARE_VERSION = get_hardware_version()
 
 # check for corrections that should be applied to the image based on the configuration file and load corresponding values or use default
@@ -124,7 +140,7 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4)
 
     if cam_mode == "display":
         show_message("cam_1", lang=lang)
-    while not _av_camera_present():
+    while not av_camera_available(log_mode):
         cam_Initiliase_tries += 1
         time.sleep(0.1)
         if cam_Initiliase_tries > 100:
