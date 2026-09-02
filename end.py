@@ -129,14 +129,17 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
         i_int = int(i)
     except Exception as e:
         print(f"Ungültiger Wert für i: {i} ({e})")
-        i_int = 5  
+        i_int = 5 
 
+    if anzeige == "SolareingabeHMI15Min":    
+        show_message("end_2", lang=get_language(), Zeit = next_experiment_start_time.strftime('%H:%M:%S'))
     for sec in range(i_int, 0, -1):
         show_message("end_1", lang=get_language(), time=sec)
     if anzeige == "Neustart":
         display_text_and_image("Neustart", "restart", "reiniciar", "/home/Ento/LepmonOS/startsequenz/end.png", 0)
-    elif anzeige == "SolareingabeHMI15Min":    
-        show_message("end_2", lang=get_language(), Zeit = next_experiment_start_time.strftime('%H:%M:%S'))
+    if anzeige == "SolareingabeHMI15Min":  
+        display_text_and_image("Solar", "Power", "Save", "/home/Ento/LepmonOS/startsequenz/end.png", 0)
+
     
     on_shutdown()
     time.sleep(2)

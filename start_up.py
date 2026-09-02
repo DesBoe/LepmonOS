@@ -393,7 +393,6 @@ def start_up(log_mode):
 
     ############################################################################################################################################################################################################
     # WLAN Name
-    log_schreiben("----------------------------------------------", log_mode=log_mode)
     log_schreiben("prüfe WLAN Name...", log_mode=log_mode)
     ssid = get_ap_ssid(log_mode="manual")
     password = get_ap_password(log_mode="manual")

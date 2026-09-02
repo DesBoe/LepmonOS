@@ -14,8 +14,8 @@
     },
     "locality": {
         "country": "Germany",
-        "province": "BE",
-        "Kreis": "B"
+        "province": "XX",
+        "Kreis": "YYY"
     },
     "capture_mode": {
         "minutes_after_sunset": 10,
@@ -27,7 +27,7 @@
         "error_code": 13,
         "gamma_correction": true,
         "trigger_for_wb": false,
-        "adjust_ContrastShape": true,
+        "adjust_ContrastShape": false,
         "flatfield_correction": false
     },
     "RPI_Module_3": {

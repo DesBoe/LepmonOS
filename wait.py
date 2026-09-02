@@ -59,7 +59,7 @@ def wait(log_mode, skip = False):
             log_schreiben("Warten übersprungen", log_mode=log_mode)
             log_schreiben("==============================================", log_mode=log_mode)
             return heater, waiter
-        '''
+        
         for _ in range(30):
             if countdown <= 0:
                 break
@@ -73,7 +73,7 @@ def wait(log_mode, skip = False):
             minutes, seconds = divmod(remainder, 60)  # Minuten und Sekunden berechnen
             show_message("wait_1", lang=lang, hours = f"{hours:02d}", minutes = f"{minutes:02d}", seconds = f"{seconds:02d}")
             countdown -= 1
-        '''
+
 
         turn_off_led("blau)")
         show_message("blank", lang= lang)
@@ -91,7 +91,7 @@ def wait(log_mode, skip = False):
             if HARDWARE_VERSION in ["CSS_Gen_1", "Pro_Gen_4"] and countdown > 15*60 and power == "Solar":
                 log_schreiben(f"Coundown > 15 Minuten, ARNI fährt mit ATTINY Kontrolle herunter, um Strom zu sparen", log_mode=log_mode)
                 try:
-                    trap_shutdown(i=60, log_mode=log_mode, execution="full", anzeige = "SolareingabeHMI15Min")
+                    trap_shutdown(i=10, log_mode=log_mode, execution="full", anzeige = "SolareingabeHMI15Min")
                 except Exception as e:
                     try:
                         log_schreiben(f"Fehler im Shutdown: {e}", "log")

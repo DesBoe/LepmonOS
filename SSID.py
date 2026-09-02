@@ -18,7 +18,13 @@ def is_valid_sn(sn: str) -> bool:
     Prüft, ob eine Seriennummer dem erwarteten Format entspricht.
     Format: SN + genau 6 Ziffern (z.B. SN012345)
     """
-    return bool(SN_PATTERN.match(sn.strip()))
+    project_name,province, Kreis_code, sn_read = get_Lepmon_code(log_mode="manual")
+
+    if not isinstance(sn, str) or not isinstance(sn_read, str):
+        return False
+
+    sn = sn.strip()
+    return bool(SN_PATTERN.match(sn)) and sn == sn_read.strip()
 
 def is_valid_ssid(ssid: str) -> bool:
     """

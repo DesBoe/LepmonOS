@@ -799,9 +799,9 @@ MESSAGE_REGISTER = {
     },     
     "end_2": {
         "sleep": 3,
-        "de": ("Spare Strom", "im Solarmodus", "Start: 19:56:21"),
-        "en": ("Saving power", "in solar mode", "Start: 19:56:21"),
-        "es": ("Ahorro de energía", "en modo solar", "Inicio: 19:56:21")
+        "de": ("Spare Strom", "im Solarmodus", "Start: {Zeit}"),
+        "en": ("Saving power", "in solar mode", "Start: {Zeit}"),
+        "es": ("Ahorro de energía", "en modo solar", "Inicio: {Zeit}")
     },      
 
     ### error ###
@@ -994,6 +994,9 @@ def show_message_register(start_key=None, lang="de", dummy_values=None):
             "zaehler": "1",
             "gesamtzahl": "10",
             "tries": "1",
+            "Zeit": "12:00",
+            "ssid": "TestSSID",
+            "password": "TestPassword",
         }
 
     for key in keys[start_idx:]:
