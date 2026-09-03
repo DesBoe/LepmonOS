@@ -40,9 +40,10 @@ HARDWARE_VERSION = get_hardware_version()
 Enable_Interval = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Experiment_Interval", "Enable_Interval")
 interval = get_interval()
 gamma_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","image_quality","gamma_correction")
-Do_write_Night_Control_Bit = True
+
 
 def capturing(log_mode):
+    Do_write_Night_Control_Bit = True
     überleiten_zu_shutdown = False
 
     dusk_treshold = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "dusk_treshold")
@@ -289,7 +290,8 @@ def capturing(log_mode):
             if Kamera_Fehlerserie >= 3:
                 error_message(2, "Starte ARNI neu", log_mode)
                 überleiten_zu_shutdown = True
-                Do_write_Night_Control_Bit = False
+                if not experiment_end_time <= lokale_Zeit <= experiment_start_time:
+                    Do_write_Night_Control_Bit = False
                 break
                 
             if Status_Kamera == 1:
