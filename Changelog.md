@@ -1,4 +1,13 @@
 # Changelog
+## [2.4.1] 202X-XX-XX
+### Geändert
+- Handling des Kamera_Fehlerserie Zählers und explizietes Triggern Fehler 2 nach mehrfach fehlgeschlagenem Kamerafehler
+
+### Hinzugefügt
+- Handling von Fehler VmbCError(<VmbError.RetriesExceeded: -39>) während die Kameraeinstellungen für die AV Kamera laden
+
+### Behoben
+
 
 ## [2.3.3] 2026-09-02
 ### Geändert
@@ -12,7 +21,6 @@
 - Flatfield Korrektur möglich, aber deaktiviert.
 - Umbenennung ARNI WLAN Netzwerk basierend auf SN
 
-### Behoben
 
 
 

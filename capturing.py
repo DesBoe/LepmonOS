@@ -40,6 +40,7 @@ HARDWARE_VERSION = get_hardware_version()
 Enable_Interval = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Experiment_Interval", "Enable_Interval")
 interval = get_interval()
 gamma_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","image_quality","gamma_correction")
+Do_write_Night_Control_Bit = True
 
 def capturing(log_mode):
     überleiten_zu_shutdown = False
@@ -254,8 +255,7 @@ def capturing(log_mode):
             experiment_start_string = datetime.strptime(experiment_start_time, "%H:%M:%S")
             lokale_Zeit_string = datetime.strptime(lokale_Zeit, "%H:%M:%S")
             
-            print(f"Aufnahmezeitpunkt: {lokale_Zeit_string.strftime('%H:%M:%S')}")
-            print(Exposure, gain)
+            print(f"Aufnahmezeitpunkt: {lokale_Zeit_string.strftime('%H:%M:%S')}; verwende Exposure: {Exposure} ms und Gain: {gain} ")
             time.sleep(0.01)
 
 
@@ -287,8 +287,9 @@ def capturing(log_mode):
             
                  
             if Kamera_Fehlerserie >= 3:
-                error_message(2, "", log_mode)
+                error_message(2, "Starte ARNI neu", log_mode)
                 überleiten_zu_shutdown = True
+                Do_write_Night_Control_Bit = False
                 break
                 
             if Status_Kamera == 1:
@@ -318,6 +319,11 @@ def capturing(log_mode):
                         print(f"Thumbnail generation failed for {current_image}: {e}")
                 elif Enable_Interval:
                     print("Überspringe increment_image_count und write_thumbnail_for")
+
+                # checklist
+                checklist(current_image,log_mode, algorithm="md5")
+            elif not Status_Kamera == 1:
+                log_schreiben("Bild nicht aufgenommen. Bildcounter nicht erhöht, Thumbnail nicht erstellt, Checksumme nicht berechnet", log_mode)
             
             if trigger_for_wb and Status_Kamera == 1 and lokale_Zeit >= time_for_wb.strftime('%H:%M:%S') and HARDWARE_VERSION not in ["CSS_Gen_1",]:
                 log_schreiben("Trigger für Weißabgleich aktiviert und Zeit für WB Anpassung erreicht. Starte Weißabgleichsanpassung...", log_mode)
@@ -345,7 +351,6 @@ def capturing(log_mode):
                 except (TypeError, ValueError):
                     sensors["Gain"] = "---"
                 try:
-                    print(avg_brightness)
                     sensors["Brightness"] = f"{float(avg_brightness):.1f}"
                 except Exception as e:
                     log_schreiben(f"Fehler bei der Abspeichern der durchschnittlichen Helligkeit: {e}", log_mode = log_mode)
@@ -382,8 +387,8 @@ def capturing(log_mode):
                     csv_path = erstelle_und_aktualisiere_csv(sensors, log_mode="log")
                 except Exception as e:
                     log_schreiben(f"Fehler beim Erstellen/Aktualisieren der CSV Datei: {e}", log_mode)
-                    
-                checklist(current_image,log_mode, algorithm="md5")
+
+
 
                 last_image = datetime.strptime(lokale_Zeit, "%H:%M:%S")
                 if interval >= 1:
@@ -440,16 +445,20 @@ def capturing(log_mode):
             log_schreiben("##################################",log_mode)
             log_schreiben("##################################",log_mode)
             _, _, free_space_gb_after_run, _, _ = get_disk_space(log_mode)
-            try:
-                    write_fram_bytes(0x07A0, b'\x00')
-                    write_fram_bytes(0x07C0, b'\x00')
-            except Exception as e:
-                    print(f"Fehler beim Schreiben in den FRAM: {e}")
-            try:
-                    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "Control_Night", False)
-                    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "Control_End", False)
-            except Exception as e:
-                    print(f"Fehler beim Schreiben in die Konfigurationsdatei: {e}")
+
+            if Do_write_Night_Control_Bit:
+                try:
+                        write_fram_bytes(0x07A0, b'\x00')
+                        write_fram_bytes(0x07C0, b'\x00')
+                except Exception as e:
+                        print(f"Fehler beim Schreiben in den FRAM: {e}")
+                try:
+                        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "Control_Night", False)
+                        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "Control_End", False)
+                except Exception as e:
+                        print(f"Fehler beim Schreiben in die Konfigurationsdatei: {e}")
+            elif not Do_write_Night_Control_Bit:
+                log_schreiben("Überspringe zurücksetzen des Nacht-Kontrollbits Aufgrund Fehler 2. ein neuer Lauf soll im gleichen Ordner angelegt werden", log_mode)
             try:
                 # Lese die 4 Bytes Float aus dem FRAM und rechne mit aktuellem Wert
                 free_space_before_run_bytes = read_fram_bytes(0x0390, 4)

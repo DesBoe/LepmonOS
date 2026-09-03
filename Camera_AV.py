@@ -50,15 +50,15 @@ def _av_camera_present():
     except Exception:
         return False
 
-def av_camera_available(log_mode):
+def av_camera_available(cam_Initiliase_tries, log_mode):
     try:
         with VmbSystem.get_instance() as vmb:
             cameras = vmb.get_all_cameras()
             if cameras:
                 print(f"Allied-Vision-Kamera gefunden: {cameras[0].get_id()}")
                 return True
-
-            print("Keine Allied-Vision-Kamera gefunden.")
+            if cam_Initiliase_tries > 10:    
+                print("Keine Allied-Vision-Kamera gefunden.")
             return False
 
     except Exception as error:
@@ -81,6 +81,9 @@ if adjust_ContrastShape:
     ContrastShape = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "ContrastShape") 
 else:
     ContrastShape = 4 # default value. This value was used before introduction of the ContrastShape parameter in the configuration file.
+
+
+
 
 # --- Flatfield-Korrektur ---------------------------------------------------
 # Laedt einmalig das 16-bit-TIF-Flatfield und korrigiert jeden aufgenommenen
@@ -119,6 +122,23 @@ elif not flatfield_correction:
 
 
 
+# ---Testschalter VmbError---------------------------------------------------
+# Testschalter: mit FORCE_LOAD_SETTINGS_ERROR=1 wird cam.load_settings() erzwungen. Aufruf im Terminal:
+#     
+# FORCE_LOAD_SETTINGS_ERROR=1 python Camera_AV.py
+# FORCE_LOAD_SETTINGS_ERROR=1 python capturing.py
+#    
+# # mit VmbError.RetriesExceeded fehlschlagen, um den Fehlerpfad zu pruefen.
+if os.environ.get("FORCE_LOAD_SETTINGS_ERROR") == "1":
+    def _forced_load_settings_error(*_args, **_kwargs):
+        raise RuntimeError("RetriesExceeded (simuliert)")
+    Camera.load_settings = _forced_load_settings_error
+    print("###############################################################################################")
+    print("#ACHTUNG: FORCE_LOAD_SETTINGS_ERROR aktiv - erzwinge Fehler beim Laden der Kameraeinstellungen#")
+    print("###############################################################################################")
+    time.sleep(2)
+
+
 
 def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4):
     cams = None
@@ -139,7 +159,7 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4)
 
     if cam_mode == "display":
         show_message("cam_1", lang=lang)
-    while not av_camera_available(log_mode):
+    while not av_camera_available(cam_Initiliase_tries, log_mode):
         cam_Initiliase_tries += 1
         time.sleep(0.1)
         if cam_Initiliase_tries > 100:
@@ -403,14 +423,12 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
             cv2.imwrite(dateipfad, frame)
             print(f"Bild erfolgreich gespeichert!\nPfad: {dateipfad}")
             Status_Kamera = 1
-            Kamera_Fehlerserie = 0
             log_schreiben(f"Bild gespeichert: {dateipfad}", log_mode=log_mode)
 
         except Exception as e:
                 print(f"Kamerafehler:{e}")
-                log_schreiben(f"Bild gespeichert: {dateipfad}", log_mode=log_mode)  
+                log_schreiben(f"Fehler beim Speichern des Bildes: {dateipfad}", log_mode=log_mode)  
                 Status_Kamera = 0
-                Kamera_Fehlerserie += 1
         try:
             _, _, _, power_cam, _ = get_power()
             if HARDWARE_VERSION in ["Pro_Gen_1", "Pro_Gen_2"]:
@@ -421,15 +439,18 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
             time.sleep(0.1)
         except Exception as e:
             power_on = "---"
-            log_schreiben(f"Fehler beim Messen des Stromverbrauchs der Visible LED: {e}", log_mode=log_mode)
+            log_schreiben(f"Fehler beim Messen des Stromverbrauchs der Visible LED: {e}. Power_Vis:{power_vis}, Power_cam:{power_cam}", log_mode=log_mode)
         try: 
             Bild_erfolgreich_gespeichert = check_image(dateipfad, log_mode = "log")
-            if Bild_erfolgreich_gespeichert:
-                print("Foto Sanity Check bestanden")
-            elif not Bild_erfolgreich_gespeichert:
-                print("Foto Sanity nicht Check bestanden")
         except Exception as e:
             log_schreiben(f"Fehler bei der Bildprüfung: {e}", log_mode=log_mode)
+        if Bild_erfolgreich_gespeichert:
+            print("Foto Sanity Check bestanden")
+            Kamera_Fehlerserie = 0
+        elif not Bild_erfolgreich_gespeichert:
+            print("Foto Sanity nicht Check bestanden")
+            Kamera_Fehlerserie += 1
+
 
 
     
@@ -466,19 +487,21 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
                     time.sleep(0.5)
                     try: 
                         Bild_erfolgreich_gespeichert = check_image(dateipfad, log_mode = "log")
-                        if Bild_erfolgreich_gespeichert:
-                            print("Foto Sanity Check bestanden")
-                            Kamera_Fehlerserie = 0
-                            break
-                        elif not Bild_erfolgreich_gespeichert:
-                            sanity_tries += 1
-                            log_schreiben(f"Foto Sanity Check im letzten Versuch Nr {sanity_tries} nicht bestanden, versuche erneut. Versuch {sanity_tries + 1}", log_mode=log_mode)
-
                     except Exception as e:
-                        sanity_tries += 1
                         log_schreiben(f"Fehler bei der Bildprüfung: {e}", log_mode=log_mode)
 
+                    if Bild_erfolgreich_gespeichert:
+                        print("Foto Sanity Check bestanden")
+                        Kamera_Fehlerserie = 0
+                        break
+                    elif not Bild_erfolgreich_gespeichert:
+                        sanity_tries += 1
+                        log_schreiben(f"Foto Sanity Check im letzten Versuch Nr {sanity_tries} nicht bestanden, versuche erneut. Versuch {sanity_tries + 1}", log_mode=log_mode)
+
+
+
             elif frame is None:
+                sanity_tries += 1
                 log_schreiben("Kein Frame zum Speichern vorhanden", log_mode)
         avg_brightness, Exposure, Gain, good_exposure = calculate_Exposure_and_gain(
                 frame, Exposure, Gain, "AV__Alvium_1800_U-2050", log_mode
@@ -502,7 +525,7 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
             power_on = round(power_vis - power_cam, 2)
             time.sleep(0.1)
         except Exception as e:
-            log_schreiben(f"Fehler beim Messen des Stromverbrauchs der Visible LED: {e}", log_mode=log_mode)
+            log_schreiben(f"Fehler beim Messen des Stromverbrauchs der Visible LED: {e}. Power_Vis:{power_vis} W, Power_cam:{power_cam} W", log_mode=log_mode)
 
     return code, dateipfad, Status_Kamera, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, Gain
 
@@ -514,3 +537,14 @@ if __name__ == "__main__":
     exposure = int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "initial_exposure"))
     gain =     int(get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "AV__Alvium_1800_U-2050", "initial_gain_10")) / 10
     snap_image_AV("jpg", "kamera_test", 0, "manual", exposure, gain)
+
+
+'''    if os.environ.get("FORCE_LOAD_SETTINGS_ERROR") == "1":
+        from unittest.mock import patch
+        from vmbpy import Camera as _Camera
+        print("ACHTUNG: FORCE_LOAD_SETTINGS_ERROR aktiv - erzwinge Fehler beim Laden der Kameraeinstellungen")
+        with patch.object(_Camera, "load_settings", side_effect=RuntimeError("RetriesExceeded (simuliert)")):
+            snap_image_AV("jpg", "kamera_test", 0, "manual", exposure, gain)
+    else:
+        snap_image_AV("jpg", "kamera_test", 0, "manual", exposure, gain)
+'''
