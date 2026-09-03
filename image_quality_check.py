@@ -40,9 +40,6 @@ def check_image(dateipfad, log_mode = "log"):
             if img.width != length or img.height != height:
                 raise ValueError(f"Falsche Bildgröße: erwartet {length}x{height} von {camera}, erhalten {img.width}x{img.height}")
             
-            
-            
-            
             img_gray = img.convert("L")
             pixels = img_gray.getdata()
             total_pixels = img_gray.width * img_gray.height
@@ -177,7 +174,7 @@ def calculate_Exposure_and_gain(current_image, initial_exposure, initial_gain, c
             img = current_image
 
     except Exception as e:
-        print(f"Fehler beim Laden den Bildes/Frames zur Analyse der Exposure und des Gains:{e}")
+        log_schreiben(f"Fehler beim Laden den Bildes/Frames zur Analyse der Exposure und des Gains:{e}", log_mode=log_mode)
         return avg_brightness, new_exposure, new_gain, good_exposure
         
     if img is not None:

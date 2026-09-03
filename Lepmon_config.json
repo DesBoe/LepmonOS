@@ -116,7 +116,7 @@
         "Test-ARNI-2": "SN010011",
         "Test-ARNI-3": "SN010063",
         "Test-ARNI-4": "SN010115",
-        "interval_for_experiment": 0.5,
+        "interval_for_experiment": 1,
         "Skip_Sanity_Check": true
     }
 }

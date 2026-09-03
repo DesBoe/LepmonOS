@@ -160,6 +160,7 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4)
             with VmbSystem.get_instance() as vmb:
                 cams = vmb.get_all_cameras()
                 if not cams:
+                    log_schreiben("Keine Kamera gefunden (vmbpy).", log_mode=log_mode)
                     raise RuntimeError("Keine Kamera gefunden (vmbpy).")
 
                 with cams[0] as cam:
@@ -173,6 +174,7 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4)
                         time.sleep(.1)
                     except Exception as e:
                         log_schreiben(f"Fehler beim Laden der Kameraeinstellungen: {e}", log_mode=log_mode)
+                        raise RuntimeError(f"Fehler beim Laden der Kameraeinstellungen: {e}")
                     
                     try:
                         cam.ExposureTime.set(Exposure * 1000)
@@ -444,12 +446,10 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
             frame, Status_Kamera, power_vis = get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma, ContrastShape)
 
             if frame is not None:
-                Kamera_Fehlerserie = 0
                 try:
                     cv2.imwrite(dateipfad, frame)
                     print(f"Bild erfolgreich gespeichert!\nPfad: {dateipfad}")
                     Status_Kamera = 1
-                    Kamera_Fehlerserie = 0
                     log_schreiben(f"Bild gespeichert: {dateipfad}", log_mode=log_mode)
 
                 except Exception as e:
@@ -457,36 +457,38 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
                     error_message(3, f"Bild konnte nicht gespeichert werden: {dateipfad}", log_mode)
                     Status_Kamera = 0
                     Kamera_Fehlerserie += 1
+                    raise RuntimeError(f"Bild konnte nicht gespeichert werden: {e}")
 
                 if Skip_Sanity_Check:
                     Bild_erfolgreich_gespeichert = True
+                    Kamera_Fehlerserie = 0
                 elif not Skip_Sanity_Check:
                     time.sleep(0.5)
                     try: 
                         Bild_erfolgreich_gespeichert = check_image(dateipfad, log_mode = "log")
                         if Bild_erfolgreich_gespeichert:
                             print("Foto Sanity Check bestanden")
+                            Kamera_Fehlerserie = 0
                             break
                         elif not Bild_erfolgreich_gespeichert:
                             sanity_tries += 1
+                            log_schreiben(f"Foto Sanity Check im letzten Versuch Nr {sanity_tries} nicht bestanden, versuche erneut. Versuch {sanity_tries + 1}", log_mode=log_mode)
 
                     except Exception as e:
-                        print(f"Fehler bei der Bildprüfung: {e}")
                         sanity_tries += 1
-                    
+                        log_schreiben(f"Fehler bei der Bildprüfung: {e}", log_mode=log_mode)
 
             elif frame is None:
-                Kamera_Fehlerserie += 1
                 log_schreiben("Kein Frame zum Speichern vorhanden", log_mode)
         avg_brightness, Exposure, Gain, good_exposure = calculate_Exposure_and_gain(
                 frame, Exposure, Gain, "AV__Alvium_1800_U-2050", log_mode
                 )
         avg_brightness = round(avg_brightness, 0)
 
-        
-
-        if sanity_tries>=4:
+        if sanity_tries>=3:
+            Kamera_Fehlerserie += 1
             log_schreiben(f"Foto hat Sanity Check nach {sanity_tries} Versuchen endgültig nicht bestanden.", log_mode=log_mode)
+            log_schreiben(f"erhöhe Kamera Fehlerserie auf {Kamera_Fehlerserie}", log_mode=log_mode)
 
     print(f"Status Kamera: {Status_Kamera}, Fehlerserie: {Kamera_Fehlerserie}, Foto OK: {Bild_erfolgreich_gespeichert}")
     camera.off()
