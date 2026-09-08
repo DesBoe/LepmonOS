@@ -1,5 +1,5 @@
 import faulthandler; faulthandler.enable()
-from Camera_AV import snap_image_AV
+from Camera_AV import snap_image_AV, camera as camera_pin
 from Camera_RPI import snap_image_rpi
 from GPIO_Setup import turn_on_led, turn_off_led, button_pressed
 from OLED_panel import *
@@ -125,8 +125,12 @@ def run_web_focus_session(log_mode, lang):
     url = f"http://{ip}:8080/"
     log_schreiben(f"Web focus URL: {url}", log_mode=log_mode)
 
-    camera_pin = LED(5)
-    camera_pin.on()
+    # Reuse the pin already claimed by Camera_AV — a second LED(5) here
+    # would raise GPIOPinInUse and abort the session before it starts.
+    try:
+        camera_pin.on()
+    except Exception as e:
+        print(f"Failed to turn on camera pin for web focus: {e}")
     turn_on_led("blau")
 
     clear_stop_focus_request()
@@ -149,8 +153,9 @@ def run_web_focus_session(log_mode, lang):
                     f"on phone",
                     f"{remaining}s",
                     qr_path,
-                    sleeptime=3,
+                    sleeptime=0,
                 )
+                time.sleep(3)
                 display_text(
                     f"Web link",
                     f"{ip}:8080  ",

@@ -124,7 +124,7 @@ def get_vimba_frame(exposure: int = DEFAULT_EXPOSURE, gain: float = DEFAULT_GAIN
                 # Most Allied Vision cameras default to Mono8 or BayerRG8
 
                 # Load settings if available
-                settings_file = '/home/Ento/LepmonOS/Kamera_Einstellungen.xml'
+                settings_file = '/home/Ento/LepmonOS/Kamera_Einstellungen_VimbaX.xml'
                 if os.path.exists(settings_file):
                     try:
                         cam.load_settings(settings_file, PersistType.All)
@@ -137,6 +137,12 @@ def get_vimba_frame(exposure: int = DEFAULT_EXPOSURE, gain: float = DEFAULT_GAIN
                     cam.Gain.set(gain)
                 except Exception as e:
                     logger.warning(f"Could not set exposure/gain: {e}")
+
+                #check pixelformats:
+                try:
+                    logger.info(f"Current PixelFormat: {cam.get_pixel_format()}")
+                except Exception as e:
+                    logger.warning(f"Could not query pixel formats: {e}")
 
                 # Capture frame
                 frame = cam.get_frame(timeout_ms=5000).as_opencv_image()
@@ -254,6 +260,58 @@ def frame_generator() -> Generator[bytes, None, None]:
 
     logger.info(f"Stream consumer connected. Total consumers: {stream_consumers}")
 
+    # Persistent camera handle for the lifetime of this streaming session —
+    # re-opening VmbSystem/the camera on every single frame (as get_vimba_frame
+    # does for snapshots) is far too slow for smooth MJPEG playback.
+    vmb = None
+    cam_cm = None
+    cam = None
+
+    def _close_camera():
+        nonlocal vmb, cam_cm, cam
+        if cam_cm is not None:
+            try:
+                cam_cm.__exit__(None, None, None)
+            except Exception as e:
+                logger.warning(f"Error closing camera: {e}")
+            cam_cm = None
+            cam = None
+        if vmb is not None:
+            try:
+                vmb.__exit__(None, None, None)
+            except Exception as e:
+                logger.warning(f"Error closing VmbSystem: {e}")
+            vmb = None
+
+    def _open_camera(exposure, gain):
+        nonlocal vmb, cam_cm, cam
+        from vmbpy import VmbSystem, PersistType
+
+        vmb = VmbSystem.get_instance()
+        vmb.__enter__()
+        cams = vmb.get_all_cameras()
+        if not cams:
+            vmb.__exit__(None, None, None)
+            vmb = None
+            return None
+
+        cam_cm = cams[0]
+        cam = cam_cm.__enter__()
+
+        settings_file = '/home/Ento/LepmonOS/Kamera_Einstellungen_VimbaX.xml'
+        if os.path.exists(settings_file):
+            try:
+                cam.load_settings(settings_file, PersistType.All)
+            except Exception as e:
+                logger.warning(f"Could not load camera settings: {e}")
+        try:
+            cam.ExposureTime.set(exposure * 1000)
+            cam.Gain.set(gain)
+        except Exception as e:
+            logger.warning(f"Could not set exposure/gain: {e}")
+
+        return cam
+
     try:
         # Use global camera settings
         exposure = camera_settings["exposure"]
@@ -264,6 +322,7 @@ def frame_generator() -> Generator[bytes, None, None]:
 
             # Timelapse wins — never compete with it.
             if state.is_capturing:
+                _close_camera()
                 status_frame = create_status_frame("Capturing in progress...")
                 _, jpeg = cv2.imencode('.jpg', status_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
                 yield (b'--frame\r\n'
@@ -273,17 +332,27 @@ def frame_generator() -> Generator[bytes, None, None]:
 
             # No web focus session — show a hint instead of grabbing the camera.
             if not state.web_focus_active:
+                _close_camera()
                 status_frame = create_status_frame("Open Web Focus on device menu")
                 _, jpeg = cv2.imencode('.jpg', status_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
                 time.sleep(1.0)
                 continue
-            
-            # Capture frame from camera
-            with camera_lock:
-                frame = get_vimba_frame(exposure, gain)
-            
+
+            # Capture frame from the persistent camera handle (opened once).
+            frame = None
+            try:
+                with camera_lock:
+                    if cam is None:
+                        _open_camera(exposure, gain)
+                    if cam is not None:
+                        frame = cam.get_frame(timeout_ms=5000).as_opencv_image()
+            except Exception as e:
+                logger.error(f"Error capturing stream frame: {e}")
+                _close_camera()
+                frame = _dev_mode_frame() if DEV_MODE else None
+
             if frame is not None:
                 # Downscale raw image first to reduce processing time
                 h, w = frame.shape[:2]
@@ -334,6 +403,7 @@ def frame_generator() -> Generator[bytes, None, None]:
     except GeneratorExit:
         logger.info("Stream consumer disconnected")
     finally:
+        _close_camera()
         with stream_consumers_lock:
             stream_consumers -= 1
             if stream_consumers <= 0:
@@ -438,8 +508,7 @@ async def custom_redoc():
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """Serve the main web interface."""
-    return templates.TemplateResponse("index.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "index.html", {
         "title": "Lepmon Camera Monitor"
     })
 
