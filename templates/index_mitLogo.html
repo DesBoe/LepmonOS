@@ -87,6 +87,7 @@
         }
         
         .stream-container {
+            position: relative;
             background: var(--bg-card);
             border-radius: 12px;
             overflow: hidden;
@@ -148,20 +149,42 @@
             object-fit: contain;
         }
 
-        .stream-display {
-            position: relative;
-        }
-
-        .stream-placeholder-message {
-            padding: 0 1rem 1rem;
-            background: #000;
-            color: var(--highlight);
-            font-weight: 600;
-            text-align: center;
-        }
-
-        .stream-placeholder-message.hidden {
+        .stream-placeholder {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
             display: none;
+            background-color: #0d0d12;
+            background-image: url('Lepmon_Logo_Circle.png');
+            background-repeat: no-repeat;
+            background-position: center 33%;
+            background-size: min(220px, 30%) auto;
+            padding: 2rem;
+            z-index: 1;
+        }
+
+        .stream-placeholder-inner {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            text-align: center;
+            color: rgba(234, 234, 234, 0.78);
+            padding: 2rem;
+            pointer-events: none;
+        }
+
+        .stream-placeholder-text {
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: rgba(234, 234, 234, 0.8);
+            max-width: 520px;
+            text-align: center;
+            margin-top: 6.5rem;
         }
         
         .stream-footer {
@@ -171,49 +194,6 @@
             color: var(--text-dim);
             display: flex;
             justify-content: space-between;
-        }
-
-        .sensor-section {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 2rem 2rem;
-        }
-
-        .sensor-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.875rem;
-        }
-
-        .sensor-table th,
-        .sensor-table td {
-            padding: 0.65rem 0.75rem;
-            border-bottom: 1px solid var(--accent);
-            text-align: left;
-        }
-
-        .sensor-table th {
-            color: var(--text-dim);
-            font-weight: 500;
-        }
-
-        .sensor-status-ok {
-            color: var(--success);
-        }
-
-        .sensor-status-error {
-            color: var(--highlight);
-        }
-
-        .sensor-group-row td {
-            background: rgba(15, 52, 96, 0.35);
-            color: var(--text);
-            font-weight: 600;
-        }
-
-        .sensor-value-name {
-            padding-left: 2rem !important;
-            color: var(--text-dim);
         }
         
         .sidebar {
@@ -520,9 +500,6 @@
                     <button class="btn btn-secondary" onclick="toggleStream()">
                         <span id="streamToggle">Stop Stream</span>
                     </button>
-                    <button id="dimmingToggle" class="btn btn-secondary" onclick="toggleDimming()">
-                        💡 Dim Up
-                    </button>
                     <button id="endFocusBtn" class="btn btn-primary" onclick="endFocusSession()" disabled>
                         ⏹ End Focus Session
                     </button>
@@ -540,20 +517,24 @@
                 📟 Open the <b>Web Focus</b> entry on the device's OLED menu to start streaming
             </div>
 
-            <div class="stream-display">
-                <img id="streamImage" class="stream-video" src="LEPMON_Logo_Circle.png" alt="Camera Stream" onload="hideStreamPlaceholderMessage()" onerror="showStreamPlaceholder()">
-                <p id="streamPlaceholderMessage" class="stream-placeholder-message">Camera not available. Enable Fokus menu on ARNI.</p>
+            <div id="streamPlaceholder" class="stream-placeholder" aria-hidden="true">
+                <div class="stream-placeholder-inner">
+                    <div class="stream-placeholder-text">
+                        📟 Open the <b>Web Focus</b> entry on ARNI's local menu to start streaming
+                    </div>
+                </div>
             </div>
+            <img id="streamImage" class="stream-video" src="/stream" alt="Camera Stream">
 
             <div class="stream-footer">
-                <span id="streamStatus">▶️ Stream active</span>
+                <span id="streamStatus">Stream active</span>
                 <span id="timestamp">--:--:--</span>
             </div>
         </div>
         
         <aside class="sidebar">
             <div class="card">
-                <h3>📊 Focus Analysis</h3>
+                <h3>Focus Analysis</h3>
                 <div class="stat-row">
                     <span class="stat-label">Focus Score</span>
                     <span id="focusScore" class="stat-value">--</span>
@@ -569,7 +550,7 @@
             </div>
             
             <div class="card">
-                <h3>📈 System Status</h3>
+                <h3>System Status</h3>
                 <div class="stat-row">
                     <span class="stat-label">Web Focus</span>
                     <span id="webFocusStatus" class="stat-value">--</span>
@@ -589,7 +570,7 @@
             </div>
             
             <div class="card">
-                <h3>🔧 Camera Info</h3>
+                <h3>Camera Info</h3>
                 <div class="stat-row">
                     <span class="stat-label">Camera</span>
                     <span id="cameraModel" class="stat-value">--</span>
@@ -601,7 +582,7 @@
             </div>
             
             <div class="card">
-                <h3>⚙️ Camera Settings</h3>
+                <h3>Camera Settings</h3>
                 <div class="stat-row">
                     <span class="stat-label">Exposure (ms)</span>
                     <input type="number" id="exposureInput" class="settings-input" 
@@ -625,7 +606,7 @@
             </div>
             
             <div class="card">
-                <h3>📖 Focus Instructions</h3>
+                <h3>Focus Instructions</h3>
                 <div class="instructions">
                     <h4>Focusing Procedure</h4>
                     <ul>
@@ -639,45 +620,12 @@
             </div>
         </aside>
     </main>
-
-    <section class="sensor-section">
-        <div class="gallery-card">
-            <div class="gallery-header">
-                <h3>📊 Sensor Monitoring</h3>
-                <span id="sensorTimestamp" class="stat-label">--</span>
-            </div>
-            <table class="sensor-table">
-                <thead>
-                    <tr>
-                        <th>Sensor</th>
-                        <th>Value</th>
-                    </tr>
-                </thead>
-                <tbody id="sensorTableBody">
-                    <tr><td class="sensor-value-name">🕒 Time</td><td>---</td></tr>
-                    <tr class="sensor-group-row"><td>💡 Ambient Light Sensor</td><td class="sensor-status-error">❌</td></tr>
-                    <tr><td class="sensor-value-name">Ambient Light</td><td>--- Lux</td></tr>
-                    <tr class="sensor-group-row"><td>🌡️ Inner Sensor</td><td class="sensor-status-error">❌</td></tr>
-                    <tr><td class="sensor-value-name">Inner Temperature</td><td>--- °C</td></tr>
-                    <tr class="sensor-group-row"><td>⚡ Power Sensor</td><td class="sensor-status-error">❌</td></tr>
-                    <tr><td class="sensor-value-name">Bus Voltage</td><td>--- V</td></tr>
-                    <tr><td class="sensor-value-name">Shunt Voltage</td><td>--- V</td></tr>
-                    <tr><td class="sensor-value-name">Current</td><td>--- mA</td></tr>
-                    <tr><td class="sensor-value-name">Power</td><td>--- mW</td></tr>
-                    <tr class="sensor-group-row"><td>🌦️ Environment Sensor</td><td class="sensor-status-error">❌</td></tr>
-                    <tr><td class="sensor-value-name">Temperature</td><td>--- °C</td></tr>
-                    <tr><td class="sensor-value-name">Air Pressure</td><td>--- hPa</td></tr>
-                    <tr><td class="sensor-value-name">Air Humidity</td><td>--- %</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </section>
     
     <!-- Captured Images Gallery -->
     <section class="gallery-section">
         <div class="gallery-card">
             <div class="gallery-header">
-                <h3>🖼️ Latest Captured Images</h3>
+                <h3>Latest Captured Images</h3>
                 <div>
                     <span id="usbStatus" class="usb-status usb-disconnected">USB: checking...</span>
                     <button class="btn btn-secondary" style="margin-left: 0.5rem;" onclick="loadGallery()">↻ Refresh</button>
@@ -696,79 +644,37 @@
     </div>
     
     <footer>
-        ARNI Diagnostics | Status Interfaces
+        Lepmon Insect Monitoring System | Allied Vision Camera Interface
     </footer>
     
     <script>
         let streamActive = true;
         const streamImage = document.getElementById('streamImage');
+        const streamPlaceholder = document.getElementById('streamPlaceholder');
 
-        function showStreamPlaceholder() {
-            streamImage.onerror = null;
-            streamImage.src = 'LEPMON_Logo_Circle.png';
-            document.getElementById('streamPlaceholderMessage').classList.remove('hidden');
-        }
-
-        function hideStreamPlaceholderMessage() {
-            if (streamImage.src.includes('/stream')) {
-                document.getElementById('streamPlaceholderMessage').classList.add('hidden');
-            }
-        }
-
-        function startStream() {
-            streamImage.onerror = showStreamPlaceholder;
-            streamImage.src = '/stream?' + new Date().getTime();
-            streamActive = true;
-            document.getElementById('streamToggle').textContent = 'Stop Stream';
-            document.getElementById('streamStatus').textContent = '▶️ Stream active';
+        function setStreamPlaceholderVisible(visible) {
+            streamPlaceholder.style.display = visible ? 'block' : 'none';
+            streamImage.style.display = visible ? 'none' : 'block';
         }
         
         function toggleStream() {
             const toggleBtn = document.getElementById('streamToggle');
             if (streamActive) {
-                streamImage.src = 'LEPMON_Logo_Circle.png';
-                streamActive = false;
-                document.getElementById('streamPlaceholderMessage').classList.remove('hidden');
+                streamImage.src = '';
                 toggleBtn.textContent = 'Start Stream';
-                document.getElementById('streamStatus').textContent = '⏸️ Stream paused';
+                document.getElementById('streamStatus').textContent = 'Stream paused';
+                setStreamPlaceholderVisible(true);
             } else {
-                startStream();
+                streamImage.src = '/stream?' + new Date().getTime();
+                toggleBtn.textContent = 'Stop Stream';
+                document.getElementById('streamStatus').textContent = 'Stream active';
+                setStreamPlaceholderVisible(false);
             }
+            streamActive = !streamActive;
         }
         
         function takeSnapshot() {
             window.open('/snapshot', '_blank');
-        }
-
-        function updateDimmingButton(data) {
-            const button = document.getElementById('dimmingToggle');
-            button.disabled = data.disabled;
-            button.textContent = data.disabled ? '💡 Dim Disabled' : (data.active ? '💡 Dim Down' : '💡 Dim Up');
-        }
-
-        function loadDimmingStatus() {
-            fetch('/api/dimming')
-                .then(response => response.json())
-                .then(updateDimmingButton)
-                .catch(err => console.error('Dimming status failed:', err));
-        }
-
-        function toggleDimming() {
-            const button = document.getElementById('dimmingToggle');
-            button.disabled = true;
-            fetch('/api/dimming/toggle', { method: 'POST' })
-                .then(response => response.json().then(data => ({ response, data })))
-                .then(({ response, data }) => {
-                    if (!response.ok) {
-                        throw new Error(data.error || 'Dimming control failed');
-                    }
-                    updateDimmingButton(data);
-                })
-                .catch(err => {
-                    button.textContent = '⚠ ' + err.message;
-                    button.disabled = false;
-                    console.error('Dimming control failed:', err);
-                });
         }
         
         function updateStatus() {
@@ -799,6 +705,9 @@
                     } else {
                         focusInactiveAlert.classList.remove('show');
                     }
+
+                    const shouldShowPlaceholder = !streamActive || (!data.is_capturing && !data.web_focus_active);
+                    setStreamPlaceholderVisible(shouldShowPlaceholder);
 
                     endFocusBtn.disabled = !data.web_focus_active;
 
@@ -852,44 +761,6 @@
                     document.getElementById('focusMeterLabel').textContent = score.toFixed(0);
                 })
                 .catch(err => console.error('Focus update failed:', err));
-        }
-
-        function updateSensors() {
-            fetch('/api/sensors')
-                .then(response => response.json())
-                .then(data => {
-                    const tableBody = document.getElementById('sensorTableBody');
-                    if (data.error) {
-                        data = {
-                            values: { time_read: '--', LUX: '---', Temp_in: '---', bus_voltage: '---', shunt_voltage: '---', current: '---', power: '---', Temp_out: '---', air_pressure: '---', air_humidity: '---' },
-                            status: { Light_Sensor: 0, Inner_Sensor: 0, Power_Sensor: 0, Environment_Sensor: 0 }
-                        };
-                    }
-
-                    const values = data.values;
-                    const status = data.status;
-                    const groups = [
-                        ['💡 Ambient Light Sensor', 'Light_Sensor', [['Ambient Light', 'LUX', 'Lux']]],
-                        ['🌡️ Inner Sensor', 'Inner_Sensor', [['Inner Temperature', 'Temp_in', '°C']]],
-                        ['⚡ Power Sensor', 'Power_Sensor', [['Bus Voltage', 'bus_voltage', 'V'], ['Shunt Voltage', 'shunt_voltage', 'V'], ['Current', 'current', 'mA'], ['Power', 'power', 'mW']]],
-                        ['🌦️ Environment Sensor', 'Environment_Sensor', [['Temperature', 'Temp_out', '°C'], ['Air Pressure', 'air_pressure', 'hPa'], ['Air Humidity', 'air_humidity', '%']]]
-                    ];
-
-                    let rows = `<tr><td class="sensor-value-name">🕒 Time</td><td>${values.time_read || '---'}</td></tr>`;
-                    groups.forEach(([name, statusKey, measurements]) => {
-                        const available = status[statusKey] === 1;
-                        rows += `<tr class="sensor-group-row"><td>${name}</td><td class="${available ? 'sensor-status-ok' : 'sensor-status-error'}">${available ? '✅' : '❌'}</td></tr>`;
-                        measurements.forEach(([label, key, unit]) => {
-                            const value = values[key] ?? '---';
-                            rows += `<tr><td class="sensor-value-name">${label}</td><td>${value} ${unit}</td></tr>`;
-                        });
-                    });
-                    tableBody.innerHTML = rows;
-                    document.getElementById('sensorTimestamp').textContent = values.time_read || '--';
-                })
-                .catch(() => {
-                    document.getElementById('sensorTimestamp').textContent = '--';
-                });
         }
         
         function updateCameraInfo() {
@@ -957,8 +828,6 @@
         // Initial updates
         updateStatus();
         updateFocus();
-        updateSensors();
-        loadDimmingStatus();
         updateCameraInfo();
         loadCameraSettings();
         loadGallery();
@@ -966,8 +835,6 @@
         // Periodic updates
         setInterval(updateStatus, 2000);
         setInterval(updateFocus, 1000);
-        setInterval(updateSensors, 2000);
-        setInterval(loadDimmingStatus, 2000);
         setInterval(updateCameraInfo, 30000);
         // Refresh gallery every 60 seconds
         setInterval(loadGallery, 60000);
@@ -975,10 +842,15 @@
         // Handle stream errors
         streamImage.onerror = function() {
             if (streamActive) {
+                setStreamPlaceholderVisible(true);
                 setTimeout(() => {
                     streamImage.src = '/stream?' + new Date().getTime();
                 }, 2000);
             }
+        };
+
+        streamImage.onload = function() {
+            setStreamPlaceholderVisible(false);
         };
         
         // ---- Gallery Functions ----

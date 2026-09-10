@@ -16,7 +16,7 @@ import time
 import cv2
 import numpy as np
 from fastapi import FastAPI, Response, Request
-from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
@@ -64,6 +64,12 @@ frame_available = threading.Event()
 streaming_active = False
 stream_consumers = 0
 stream_consumers_lock = threading.Lock()
+dimming_active = False
+dimming_disabled = False
+dimming_started_at: Optional[float] = None
+dimming_timer: Optional[threading.Timer] = None
+dimming_lock = threading.Lock()
+DIMMING_MAX_DURATION_S = 5 * 60
 
 # Camera settings
 CAMERA_SETTINGS_FILE = "/home/Ento/LepmonOS/camera_web_settings.json"
@@ -76,6 +82,48 @@ camera_settings = {
     "exposure": DEFAULT_EXPOSURE,
     "gain": DEFAULT_GAIN
 }
+
+
+def sensor_defaults() -> dict:
+    """Return a complete sensor payload for unavailable I2C readings."""
+    return {
+        "values": {
+            "time_read": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "LUX": "---",
+            "Temp_in": "---",
+            "bus_voltage": "---",
+            "Temp_out": "---",
+        },
+        "status": {
+            "Light_Sensor": 0,
+            "Inner_Sensor": 0,
+            "Power_Sensor": 0,
+            "Environment_Sensor": 0,
+        },
+    }
+
+
+def _stop_dimming(disable: bool = False) -> None:
+    """Dim the light down and optionally prevent further web activation."""
+    global dimming_active, dimming_disabled, dimming_started_at, dimming_timer
+    from Lights import dim_down
+
+    dim_down()
+    with dimming_lock:
+        dimming_active = False
+        dimming_started_at = None
+        dimming_timer = None
+        if disable:
+            dimming_disabled = True
+
+
+def _dimming_state() -> dict:
+    with dimming_lock:
+        return {
+            "active": dimming_active,
+            "disabled": dimming_disabled,
+            "started_at": dimming_started_at,
+        }
 
 def load_camera_settings():
     """Load camera settings from JSON file."""
@@ -250,7 +298,7 @@ def frame_generator() -> Generator[bytes, None, None]:
 
     The camera is only touched while a web focus session is active
     (set by the OLED "Web Focus" menu entry) AND no timelapse is running.
-    Otherwise we yield a low-rate status placeholder.
+    Otherwise the stream closes so the browser can show its placeholder.
     """
     global current_frame, streaming_active, stream_consumers
 
@@ -323,22 +371,14 @@ def frame_generator() -> Generator[bytes, None, None]:
             # Timelapse wins — never compete with it.
             if state.is_capturing:
                 _close_camera()
-                status_frame = create_status_frame("Capturing in progress...")
-                _, jpeg = cv2.imencode('.jpg', status_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
-                time.sleep(1.0)
-                continue
+                logger.info("Stream unavailable: capture is in progress")
+                return
 
-            # No web focus session — show a hint instead of grabbing the camera.
+            # No web focus session — do not grab the camera.
             if not state.web_focus_active:
                 _close_camera()
-                status_frame = create_status_frame("Open Web Focus on device menu")
-                _, jpeg = cv2.imencode('.jpg', status_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
-                time.sleep(1.0)
-                continue
+                logger.info("Stream unavailable: Web Focus is not active")
+                return
 
             # Capture frame from the persistent camera handle (opened once).
             frame = None
@@ -391,11 +431,8 @@ def frame_generator() -> Generator[bytes, None, None]:
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
             else:
-                # Generate error frame
-                error_frame = create_status_frame("Camera not available")
-                _, jpeg = cv2.imencode('.jpg', error_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
+                logger.error("Stream unavailable: camera returned no frame")
+                return
             
             # Frame rate control (~5 FPS for preview)
             time.sleep(0.2)
@@ -513,9 +550,19 @@ async def index(request: Request):
     })
 
 
+@app.get("/LEPMON_Logo_Circle.png")
+async def logo():
+    """Serve the camera-stream placeholder image."""
+    return FileResponse(templates_dir / "LEPMON_Logo_Circle.png")
+
+
 @app.get("/stream")
 async def video_stream():
     """MJPEG video stream endpoint."""
+    state = get_capturing_state()
+    if state.is_capturing or not state.web_focus_active:
+        logger.info("Redirecting unavailable stream request to the logo placeholder")
+        return RedirectResponse(url="/LEPMON_Logo_Circle.png")
     return StreamingResponse(
         frame_generator(),
         media_type="multipart/x-mixed-replace; boundary=frame"
@@ -567,6 +614,58 @@ async def get_status():
         "stop_focus_requested": state.stop_focus_requested,
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
     }
+
+
+@app.get("/api/sensors")
+async def get_sensors():
+    """Read and return the current I2C sensor values for the web monitor."""
+    try:
+        from sensor_data import read_sensor_data
+
+        sensor_values, sensor_status = read_sensor_data(
+            "web_monitor", time.strftime("%Y-%m-%d %H:%M:%S"), "log"
+        )
+        return {"values": sensor_values, "status": sensor_status}
+    except Exception as e:
+        logger.error(f"Could not read sensor data: {e}")
+        return sensor_defaults()
+
+
+@app.get("/api/dimming")
+async def get_dimming_status():
+    """Return the web-controlled dimming state."""
+    return _dimming_state()
+
+
+@app.post("/api/dimming/toggle")
+async def toggle_dimming():
+    """Toggle light dimming, with a five-minute maximum web-on duration."""
+    global dimming_active, dimming_started_at, dimming_timer
+    with dimming_lock:
+        if dimming_disabled:
+            return JSONResponse(
+                {"error": "Dimming is disabled after the five-minute limit"},
+                status_code=403,
+            )
+        should_start = not dimming_active
+        existing_timer = dimming_timer
+
+    if should_start:
+        from Lights import dim_up
+
+        dim_up()
+        with dimming_lock:
+            dimming_active = True
+            dimming_started_at = time.time()
+            dimming_timer = threading.Timer(DIMMING_MAX_DURATION_S, _stop_dimming, kwargs={"disable": True})
+            dimming_timer.daemon = True
+            dimming_timer.start()
+    else:
+        if existing_timer is not None:
+            existing_timer.cancel()
+        _stop_dimming()
+
+    return _dimming_state()
 
 
 @app.post("/api/focus/stop")
@@ -704,6 +803,8 @@ def find_latest_images(count: int = 10) -> List[dict]:
     for root, dirs, files in os.walk(usb_path):
         dirs[:] = [d for d in dirs if d != THUMBS_DIR_NAME]
         for f in files:
+            if f.lower().startswith("._"):  # Skip macOS resource forks
+                continue
             if f.lower().endswith(image_extensions):
                 full_path = os.path.join(root, f)
                 try:

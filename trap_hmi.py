@@ -36,7 +36,7 @@ from Experiments import *
 
 HARDWARE_VERSION = get_hardware_version()
 
-WEB_FOCUS_EMERGENCY_TIMEOUT_S = 300  # mirrors find_focus.vis_emergency (5 min)
+WEB_FOCUS_EMERGENCY_TIMEOUT_S = 300  # mirrors find_focus.vis_emergency (5 min) --> might be migrated into the "/tmp/lepmon_capture_state.json"
 WEB_FOCUS_QR_PATH = "/tmp/lepmon_focus_qr.png"
 
 
@@ -120,8 +120,6 @@ def run_web_focus_session(log_mode, lang):
         show_message("wlan_login", ssid=ssid, password=password, lang=lang)
         show_message("wlan_success", lang=lang)
 
-
-
     url = f"http://{ip}:8080/"
     log_schreiben(f"Web focus URL: {url}", log_mode=log_mode)
 
@@ -134,8 +132,17 @@ def run_web_focus_session(log_mode, lang):
     turn_on_led("blau")
 
     clear_stop_focus_request()
-    set_web_focus_active(True)
-
+    try:
+        set_web_focus_active(True)
+        log_schreiben("Web-Fokussierhilfe gestartet, set_web_focus_active(True)", log_mode=log_mode)
+        with open("/tmp/lepmon_capture_state.json", "r") as state_file:
+            log_schreiben(
+                f"Capture state after Web Focus activation: {state_file.read()}",
+                log_mode=log_mode,
+            )
+    except Exception as e:
+        log_schreiben(f"Failed to set_web_focus_active(True): {e}", log_mode=log_mode)
+    
     qr_path = _render_focus_qr(url, log_mode)
     print(f"QR Code erstellt: {qr_path}")
     show_message("focus_web_started", lang=lang)
@@ -143,6 +150,15 @@ def run_web_focus_session(log_mode, lang):
     session_start = time.time()
     try:
         while True:
+            try: 
+                log_schreiben("lese /tmp/lepmon_capture_state.json...", log_mode=log_mode)
+                with open("/tmp/lepmon_capture_state.json", "r") as state_file:
+                    log_schreiben(
+                        f"Capture state after Web Focus activation: {state_file.read()}",
+                        log_mode=log_mode,
+                    )
+            except Exception as e:
+                log_schreiben(f"Failed to read /tmp/lepmon_capture_state.json: {e}", log_mode=log_mode)
             elapsed = time.time() - session_start
             remaining = max(0, int(WEB_FOCUS_EMERGENCY_TIMEOUT_S - elapsed))
 
