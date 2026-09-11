@@ -75,7 +75,7 @@ DIMMING_MAX_DURATION_S = 5 * 60
 CAMERA_SETTINGS_FILE = "/home/Ento/LepmonOS/camera_web_settings.json"
 DEFAULT_EXPOSURE = 140  # ms
 DEFAULT_GAIN = 5
-STREAM_DOWNSCALE = 4  # Downscale factor for streaming (reduces bandwidth)
+STREAM_DOWNSCALE = 8  # Downscale factor for streaming (reduces bandwidth)
 
 # Global camera settings (loaded from file)
 camera_settings = {
@@ -89,12 +89,14 @@ def sensor_defaults() -> dict:
     return {
         "values": {
             "time_read": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "jetzt_local": "---",
             "LUX": "---",
             "Temp_in": "---",
             "bus_voltage": "---",
             "Temp_out": "---",
         },
         "status": {
+            "rtc_status": 0,
             "Light_Sensor": 0,
             "Inner_Sensor": 0,
             "Power_Sensor": 0,
@@ -102,6 +104,29 @@ def sensor_defaults() -> dict:
         },
     }
 
+def read_LepmonOS_log(log_mode: str = "web_stream") -> List[str]:
+    """Read the configured LepmonOS log file and return its last 500 lines."""
+    from json_read_write import get_value_from_section
+    log_file_path = "/home/Ento/LepmonOS/lepmonos.log"
+    try:
+        log_file_path = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_log")
+    except Exception as e:
+        try:
+            log_file_path = "/Volumes/Dennis_OTG/LEPMON/Raspberry_Pi/LepmonOS/templates/Lepmon#SN000000_XX_YYY_Sample.log"
+        except Exception as e:
+            pass
+        logger.error(f"Could not get log file path: {e}")
+
+
+    if not os.path.exists(log_file_path):
+        return ["Log file not found."]
+    
+    try:
+        with open(log_file_path, "r") as f:
+            return f.readlines()[-500:]
+    except Exception as e:
+        logger.error(f"Could not read log file: {e}")
+        return [f"Error reading log file: {e}"]
 
 def _stop_dimming(disable: bool = False) -> None:
     """Dim the light down and optionally prevent further web activation."""
@@ -621,10 +646,15 @@ async def get_sensors():
     """Read and return the current I2C sensor values for the web monitor."""
     try:
         from sensor_data import read_sensor_data
+        from times import Zeit_aktualisieren
+
+        jetzt_local, _, rtc_status = Zeit_aktualisieren(log_mode="web_stream")
 
         sensor_values, sensor_status = read_sensor_data(
-            "web_monitor", time.strftime("%Y-%m-%d %H:%M:%S"), "log"
+            "web_monitor", time.strftime("%Y-%m-%d %H:%M:%S"), "web_stream"
         )
+        sensor_values["jetzt_local"] = jetzt_local
+        sensor_status["rtc_status"] = rtc_status
         return {"values": sensor_values, "status": sensor_status}
     except Exception as e:
         logger.error(f"Could not read sensor data: {e}")
@@ -853,6 +883,12 @@ async def get_latest_images(count: int = 10):
         "usb_path": usb_path,
         "total_found": len(result)
     }
+
+
+@app.get("/api/log")
+async def get_log():
+    """Return the latest lines from the configured LepmonOS log."""
+    return {"lines": read_LepmonOS_log()}
 
 
 @app.get("/api/images/file")

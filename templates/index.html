@@ -470,6 +470,22 @@
             padding: 2rem;
             color: var(--text-dim);
         }
+
+        .log-content {
+            max-height: 360px;
+            overflow: auto;
+            margin: 0;
+            padding: 1rem;
+            background: #0b1020;
+            color: var(--text);
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            font-family: 'SF Mono', 'Consolas', monospace;
+            font-size: 0.75rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
         
         /* Lightbox overlay for full image viewing */
         .lightbox {
@@ -618,10 +634,6 @@
                 </button>
                 <div id="settingsStatus" class="settings-status"></div>
             </div>
-                <div class="stat-row">
-                    <span class="stat-label">Serial</span>
-                    <span id="cameraSerial" class="stat-value">--</span>
-                </div>
             </div>
             
             <div class="card">
@@ -654,7 +666,9 @@
                     </tr>
                 </thead>
                 <tbody id="sensorTableBody">
-                    <tr><td class="sensor-value-name">🕒 Time</td><td>---</td></tr>
+                    <tr><td class="sensor-value-name">🕒 Time on Raspberry</td><td>---</td></tr>
+                    <tr class="sensor-group-row"><td>⏱️ RTC</td><td class="sensor-status-error">❌</td></tr>
+                    <tr><td class="sensor-value-name">RTC Time</td><td>---</td></tr>
                     <tr class="sensor-group-row"><td>💡 Ambient Light Sensor</td><td class="sensor-status-error">❌</td></tr>
                     <tr><td class="sensor-value-name">Ambient Light</td><td>--- Lux</td></tr>
                     <tr class="sensor-group-row"><td>🌡️ Inner Sensor</td><td class="sensor-status-error">❌</td></tr>
@@ -686,6 +700,16 @@
             <div id="galleryGrid" class="gallery-grid">
                 <div class="gallery-empty">Loading images...</div>
             </div>
+        </div>
+    </section>
+
+    <section class="gallery-section">
+        <div class="gallery-card">
+            <div class="gallery-header">
+                <h3>📜 LepmonOS Log</h3>
+                <button class="btn btn-secondary" onclick="loadLog()">↻ Reload Log</button>
+            </div>
+            <pre id="logContent" class="log-content">Loading log...</pre>
         </div>
     </section>
     
@@ -861,8 +885,8 @@
                     const tableBody = document.getElementById('sensorTableBody');
                     if (data.error) {
                         data = {
-                            values: { time_read: '--', LUX: '---', Temp_in: '---', bus_voltage: '---', shunt_voltage: '---', current: '---', power: '---', Temp_out: '---', air_pressure: '---', air_humidity: '---' },
-                            status: { Light_Sensor: 0, Inner_Sensor: 0, Power_Sensor: 0, Environment_Sensor: 0 }
+                            values: { time_read: '--', jetzt_local: '---', LUX: '---', Temp_in: '---', bus_voltage: '---', shunt_voltage: '---', current: '---', power: '---', Temp_out: '---', air_pressure: '---', air_humidity: '---' },
+                            status: { rtc_status: 0, Light_Sensor: 0, Inner_Sensor: 0, Power_Sensor: 0, Environment_Sensor: 0 }
                         };
                     }
 
@@ -875,7 +899,9 @@
                         ['🌦️ Environment Sensor', 'Environment_Sensor', [['Temperature', 'Temp_out', '°C'], ['Air Pressure', 'air_pressure', 'hPa'], ['Air Humidity', 'air_humidity', '%']]]
                     ];
 
-                    let rows = `<tr><td class="sensor-value-name">🕒 Time</td><td>${values.time_read || '---'}</td></tr>`;
+                    let rows = `<tr><td class="sensor-value-name">🕒 Time on Raspberry</td><td>${values.time_read || '---'}</td></tr>`;
+                    rows += `<tr class="sensor-group-row"><td>🕒 Real Time Clock (RTC)</td><td class="${status.rtc_status === 1 ? 'sensor-status-ok' : 'sensor-status-error'}">${status.rtc_status === 1 ? '✅' : '❌'}</td></tr>`;
+                    rows += `<tr><td class="sensor-value-name">RTC Time</td><td>${values.jetzt_local || '---'}</td></tr>`;
                     groups.forEach(([name, statusKey, measurements]) => {
                         const available = status[statusKey] === 1;
                         rows += `<tr class="sensor-group-row"><td>${name}</td><td class="${available ? 'sensor-status-ok' : 'sensor-status-error'}">${available ? '✅' : '❌'}</td></tr>`;
@@ -901,7 +927,7 @@
                         document.getElementById('cameraSerial').textContent = data.serial || 'Unknown';
                     } else {
                         document.getElementById('cameraModel').textContent = 'Not available';
-                        document.getElementById('cameraSerial').textContent = '-';
+                        document.getElementById('cameraSerial').textContent = '--';
                     }
                 })
                 .catch(err => {
@@ -962,6 +988,7 @@
         updateCameraInfo();
         loadCameraSettings();
         loadGallery();
+        loadLog();
         
         // Periodic updates
         setInterval(updateStatus, 2000);
@@ -1033,6 +1060,20 @@
                     console.error('Gallery load failed:', err);
                     document.getElementById('galleryGrid').innerHTML = 
                         '<div class="gallery-empty">Failed to load images.</div>';
+                });
+        }
+
+        function loadLog() {
+            const logContent = document.getElementById('logContent');
+            logContent.textContent = 'Loading log...';
+            fetch('/api/log')
+                .then(response => response.json())
+                .then(data => {
+                    logContent.textContent = data.lines.join('');
+                    logContent.scrollTop = logContent.scrollHeight;
+                })
+                .catch(() => {
+                    logContent.textContent = 'Log could not be loaded.';
                 });
         }
         

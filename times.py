@@ -25,20 +25,22 @@ def Zeit_aktualisieren(log_mode="log"):
             note_mock("hardware RTC (DS3231)")
             rtc = MockRTC()
         else:
-            error_message(8, e, log_mode)
+            if log_mode != "web_stream":
+                error_message(8, e, log_mode)
             jetzt_local = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             lokale_Zeit = datetime.now().strftime("%H:%M:%S")
             return jetzt_local, lokale_Zeit, rtc_status
 
     try:
-        rtc_status = 1
         t = rtc.datetime
         dt = datetime(t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec)
 
         jetzt_local = dt.strftime("%Y-%m-%d %H:%M:%S")
         lokale_Zeit = dt.strftime("%H:%M:%S")
+        rtc_status = 1
     except Exception as e:
-        error_message(8,e, log_mode)
+        if log_mode != "web_stream":
+            error_message(8,e, log_mode)
         jetzt_local = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         lokale_Zeit = datetime.now().strftime("%H:%M:%S")
         pass

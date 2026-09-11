@@ -94,7 +94,8 @@ def get_light(log_mode):
     try:
         Dämmerungsschwellenwert = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "dusk_treshold")
     except Exception as e:
-        error_message(11,e,log_mode)
+        if not log_mode == "web_stream":
+            error_message(11,e,log_mode)
         Dämmerungsschwellenwert = 90
 
     try:
@@ -107,7 +108,8 @@ def get_light(log_mode):
             LUX = mock_lux()
             Sensorstatus_Licht = 1
         else:
-            error_message(4,e,log_mode)
+            if not log_mode == "web_stream":
+                error_message(4,e,log_mode)
             Sensorstatus_Licht = 0
             LUX = Dämmerungsschwellenwert
 
@@ -145,7 +147,8 @@ def read_sensor_data(code,lokale_Zeit, log_mode):
             Temp_in = mock_inner_temp()
             Sensorstatus_Inne = 1
         else:
-            error_message(6,e,log_mode)
+            if not log_mode == "web_stream":
+                error_message(6,e,log_mode)
             Temp_in = "---"
             Sensorstatus_Inne = 0
 
@@ -209,7 +212,8 @@ def read_sensor_data(code,lokale_Zeit, log_mode):
                 update_sensor_data(sensor_data, "air_humidity", f"{Luftfeuchte:.2f}")
                 update_sensor_data(sensor_data, "Environment_Sensor", Status_außen)
             else:
-                error_message(5,e,log_mode)
+                if not log_mode == "web_stream":
+                    error_message(5,e,log_mode)
                 Temperatur = "---"
                 Luftdruck = "---"
                 Luftfeuchte = "---"

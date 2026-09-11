@@ -147,7 +147,6 @@ def run_web_focus_session(log_mode, lang):
     print(f"QR Code erstellt: {qr_path}")
     show_message("focus_web_started", lang=lang)
 
-    session_start = time.time()
     try:
         while True:
             try: 
@@ -159,15 +158,15 @@ def run_web_focus_session(log_mode, lang):
                     )
             except Exception as e:
                 log_schreiben(f"Failed to read /tmp/lepmon_capture_state.json: {e}", log_mode=log_mode)
-            elapsed = time.time() - session_start
-            remaining = max(0, int(WEB_FOCUS_EMERGENCY_TIMEOUT_S - elapsed))
+            #elapsed = time.time() - session_start
+            #remaining = max(0, int(WEB_FOCUS_EMERGENCY_TIMEOUT_S - elapsed))
 
             # Render IP + countdown + QR (or text-only fallback if QR failed).
             if qr_path:
                 display_text_and_image(
                     f"scan QR",
                     f"on phone",
-                    f"{remaining}s",
+                    f"Enter=stop",
                     qr_path,
                     sleeptime=0,
                 )
@@ -175,18 +174,20 @@ def run_web_focus_session(log_mode, lang):
                 display_text(
                     f"Web link",
                     f"{ip}:8080  ",
-                    f"{remaining}s; Enter=stop",
+                    f"Enter=stop",
                     sleeptime=3,
                 )
             else:
                 show_message(
-                    "focus_web_running", lang=lang, ip=ip, sec=remaining
+                    "focus_web_running", lang=lang, ip=ip, sec=""
                 )
 
+            '''
             if elapsed >= WEB_FOCUS_EMERGENCY_TIMEOUT_S:
                 log_schreiben("Web focus emergency timeout", log_mode=log_mode)
                 show_message("focus_12", lang=lang)
                 break
+            '''
 
             if is_stop_focus_requested():
                 log_schreiben("Web focus stopped via web UI", log_mode=log_mode)
@@ -195,7 +196,7 @@ def run_web_focus_session(log_mode, lang):
 
             # ~1 s of button polling — same cadence as the local focus loop.
             stopped_by_button = False
-            for _ in range(20):
+            for _ in range(199):
                 if button_pressed("enter") or button_pressed("rechts"):
                     stopped_by_button = True
                     break
