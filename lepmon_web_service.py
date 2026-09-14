@@ -128,6 +128,41 @@ def read_LepmonOS_log(log_mode: str = "web_stream") -> List[str]:
         logger.error(f"Could not read log file: {e}")
         return [f"Error reading log file: {e}"]
 
+def read_LepmonOS_metadata(log_mode: str = "web_stream") -> dict:
+    """Read the configured LepmonOS log file and return its metadata."""
+    from json_read_write import get_value_from_section
+    log_file_path = "/home/Ento/LepmonOS/lepmonos.log"
+    try:
+        log_file_path = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_log")
+    except Exception as e:
+        try:
+            log_file_path = "/Volumes/Dennis_OTG/LEPMON/Raspberry_Pi/LepmonOS/templates/Lepmon#SN000000_XX_YYY_Sample.log"
+        except Exception as e:
+            pass
+        logger.error(f"Could not get log file path: {e}")
+
+    if not os.path.exists(log_file_path):
+        return {"error": "Metadata file not found."}
+    
+    try:
+        with open(log_file_path, "r") as f:
+            lines = f.readlines()
+            if not lines:
+                return {"error": "Metadata file is empty."}
+            header = "".join(lines[0:27]).strip()
+            first_entries = "".join(lines[28:50]).strip()
+            last_entries = "".join(lines[-15:]).strip()
+            return {
+                "log_file": log_file_path,
+                "header": header,
+                "first_entries": first_entries,
+                "last_entries": last_entries,
+                "total_lines": len(lines)
+            }
+    except Exception as e:
+        logger.error(f"Could not read log file: {e}")
+        return {"error": f"Error reading log file: {e}"}
+
 def _stop_dimming(disable: bool = False) -> None:
     """Dim the light down and optionally prevent further web activation."""
     global dimming_active, dimming_disabled, dimming_started_at, dimming_timer

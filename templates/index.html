@@ -178,7 +178,44 @@
             margin: 0 auto;
             padding: 0 2rem 2rem;
         }
+        .usb-section {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem 2rem;
+        }
+        .timing-section {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem 2rem;
+        }
 
+        .gallery-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            margin-bottom: 2rem;
+        }
+        .log-content {
+            max-height: 360px;
+            overflow: auto;
+            margin: 0;
+            padding: 1rem;
+            background: #0b1020;
+            color: var(--text);
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            font-family: 'SF Mono', 'Consolas', monospace;
+            font-size: 0.75rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+        .location-section {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem 2rem;
+        }
         .sensor-table {
             width: 100%;
             border-collapse: collapse;
@@ -192,6 +229,12 @@
             text-align: left;
         }
 
+        .Location-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+            margin-top: 2rem;
+        }
         .sensor-table th {
             color: var(--text-dim);
             font-weight: 500;
@@ -634,7 +677,6 @@
                 </button>
                 <div id="settingsStatus" class="settings-status"></div>
             </div>
-            </div>
             
             <div class="card">
                 <h3>📖 Focus Instructions</h3>
@@ -695,13 +737,7 @@
             </div>
 
             <table class="sensor-table storage-table">
-                <thead>
-                    <tr>
-                        <th>Storage</th>
-                        <th></th>
-                        <th></th>
-                    </tr>
-                </thead>
+
                 <tbody id="storageTableBody">
                     <tr>
                         <td class="sensor-value-name">Total</td>
@@ -732,12 +768,6 @@
             </div>
 
             <table class="sensor-table">
-                <thead>
-                    <tr>
-                        <th>Event</th>
-                        <th>Time</th>
-                    </tr>
-                </thead>
 
                 <tbody id="timingTableBody">
 
@@ -793,60 +823,43 @@
     </section>
 
 
-    <div class="gallery-card">
-        <div class="gallery-header">
-            <h3>📍 Location</h3>
+
+    <section class="location-section">
+        <div class="gallery-card">
+            <div class="gallery-header">
+                <h3>📍 Location & LEPMON Code</h3>
+            </div>
+                <table class="sensor-table">
+
+                    <tbody id="locationTableBody">
+                        <tr class="sensor-group-row">
+                            <td colspan="2">🧭 GPS Coordinates</td>
+                        </tr>
+                        <tr>
+                            <td class="sensor-value-name">Latitude</td>
+                            <td id="latitudeValue">---</td>
+                        </tr>
+                        <tr>
+                            <td class="sensor-value-name">Longitude</td>
+                            <td id="longitudeValue">---</td>
+                        </tr>
+
+                        <tr class="sensor-group-row">
+                            <td colspan="2">🔤 LEPMON Code</td>
+                        </tr>
+                        <tr>
+                            <td class="sensor-value-name">Province</td>
+                            <td id="provinceValue">---</td>
+                        </tr>
+                        <tr>
+                            <td class="sensor-value-name">City</td>
+                            <td id="cityValue">---</td>
+                        </tr>
+                    </tbody>
+                </table>
         </div>
+    </section>
 
-        <table class="sensor-table">
-            <thead>
-                <tr>
-                    <th>🧭 GPS Coordinates</th>
-                </tr>
-            </thead>
-
-            <tbody id="locationTableBody">
-                <tr>
-                    <td class="sensor-value-name">Latitude</td>
-                    <td>---</td>
-                </tr>
-                <tr>
-                    <td class="sensor-value-name">Longitude</td>
-                    <td>---</td>
-                </tr>
-            </tbody>
-
-            <thead>
-                <tr>
-                    <th>🔤 LEPMON Code</th>
-                </tr>
-            </thead>
-
-            <tbody id="lepmonsTableBody">
-                <tr>
-                    <td class="sensor-value-name">Province</td>
-                    <td>---</td>
-                </tr>
-                <tr>
-                    <td class="sensor-value-name">City</td>
-                    <td>---</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <div class="location-map">
-            <iframe
-                id="locationMap"
-                src=""
-                width="100%"
-                height="250"
-                style="border:0;"
-                loading="lazy"
-                allowfullscreen>
-            </iframe>
-        </div>
-    </div>
-</section>
 
 
 
@@ -878,32 +891,20 @@
         </div>
     </section>
 
+
+
     <section class="gallery-section">
         <div class="gallery-card">
             <div class="gallery-header">
                 <h3>📊 CSV Data</h3>
-
-                <button class="btn btn-secondary" onclick="loadCSV()">
-                    ↻ Reload CSV
-                </button>
+                <button class="btn btn-secondary" onclick="loadCSV()">↻ Reload CSV</button>
             </div>
-
-            <div class="csv-table-container">
-                <table id="csvTable" class="sensor-table">
-                    <thead>
-                        <tr>
-                            <th>Loading...</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Loading CSV...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+            
+            <pre id="csvContent" class="log-content">Loading CSV...</pre>
         </div>
     </section>
+
+
     
     <!-- Lightbox for full-size image viewing -->
     <div id="lightbox" class="lightbox" onclick="closeLightbox()">
@@ -1172,6 +1173,27 @@
             });
         }
         
+        function updateLocation() {
+            fetch('/api/location')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('latitudeValue').textContent =
+                        data.latitude ?? '---';
+
+                    document.getElementById('longitudeValue').textContent =
+                        data.longitude ?? '---';
+
+                    document.getElementById('provinceValue').textContent =
+                        data.province ?? '---';
+
+                    document.getElementById('cityValue').textContent =
+                        data.city ?? '---';
+                })
+                .catch(err => {
+                    console.error('Location update failed:', err);
+                });
+        }
+
         // Initial updates
         updateStatus();
         updateFocus();
@@ -1181,6 +1203,8 @@
         loadCameraSettings();
         loadGallery();
         loadLog();
+        loadCSV();
+        updateLocation();
         
         // Periodic updates
         setInterval(updateStatus, 2000);
@@ -1266,6 +1290,20 @@
                 })
                 .catch(() => {
                     logContent.textContent = 'Log could not be loaded.';
+                });
+        }
+
+        function loadCSV() {
+            const csvContent = document.getElementById('csvContent');
+            csvContent.textContent = 'Loading CSV...';
+            fetch('/api/csv')
+                .then(response => response.json())
+                .then(data => {
+                    csvContent.textContent = data.lines.join('');
+                    csvContent.scrollTop = csvContent.scrollHeight;
+                })
+                .catch(() => {
+                    csvContent.textContent = 'CSV could not be loaded.';
                 });
         }
         
