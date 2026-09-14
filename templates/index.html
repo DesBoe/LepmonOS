@@ -656,7 +656,6 @@
         <div class="gallery-card">
             <div class="gallery-header">
                 <h3>📊 Sensor Monitoring</h3>
-                <span id="sensorTimestamp" class="stat-label">--</span>
             </div>
             <table class="sensor-table">
                 <thead>
@@ -687,6 +686,172 @@
         </div>
     </section>
     
+
+    <!-- USB Info -->
+    <section class="usb-section">
+        <div class="gallery-card">
+            <div class="gallery-header">
+                <h3>💾 USB Storage</h3>
+            </div>
+
+            <table class="sensor-table storage-table">
+                <thead>
+                    <tr>
+                        <th>Storage</th>
+                        <th></th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="storageTableBody">
+                    <tr>
+                        <td class="sensor-value-name">Total</td>
+                        <td>--- GB</td>
+                        <td>100 %</td>
+                    </tr>
+                    <tr>
+                        <td class="sensor-value-name">Used</td>
+                        <td>--- GB</td>
+                        <td>--- %</td>
+                    </tr>
+                    <tr>
+                        <td class="sensor-value-name">Available</td>
+                        <td>--- GB</td>
+                        <td>--- %</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+
+
+    <section class="timing-section">
+        <div class="gallery-card">
+            <div class="gallery-header">
+                <h3>🌙 Experiment Timing</h3>
+            </div>
+
+            <table class="sensor-table">
+                <thead>
+                    <tr>
+                        <th>Event</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+
+                <tbody id="timingTableBody">
+
+                    <tr class="sensor-group-row">
+                        <td>✨ Experiment Start</td>
+                        <td>---</td>
+                    </tr>
+
+                    <tr>
+                        <td class="sensor-value-name timing-sub-item">Attiny ON</td>
+                        <td>---</td>
+                    </tr>
+
+                    <tr>
+                        <td class="sensor-value-name timing-sub-item">Sunset</td>
+                        <td>---</td>
+                    </tr>
+
+                    <tr>
+                        <td class="sensor-value-name timing-sub-item">Start Capture</td>
+                        <td>---</td>
+                    </tr>
+
+                    <tr>
+                        <td class="sensor-value-name timing-sub-item">Start Delay</td>
+                        <td>--- min</td>
+                    </tr>
+
+
+                    <tr class="sensor-group-row">
+                        <td>🌞 Experiment End</td>
+                        <td>---</td>
+                    </tr>
+
+                    <tr>
+                        <td class="sensor-value-name timing-sub-item">End Capture</td>
+                        <td>---</td>
+                    </tr>
+
+                    <tr>
+                        <td class="sensor-value-name timing-sub-item">Attiny OFF</td>
+                        <td>---</td>
+                    </tr>
+
+                    <tr>
+                        <td class="sensor-value-name timing-sub-item">Sunrise</td>
+                        <td>---</td>
+                    </tr>
+
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+
+    <div class="gallery-card">
+        <div class="gallery-header">
+            <h3>📍 Location</h3>
+        </div>
+
+        <table class="sensor-table">
+            <thead>
+                <tr>
+                    <th>🧭 GPS Coordinates</th>
+                </tr>
+            </thead>
+
+            <tbody id="locationTableBody">
+                <tr>
+                    <td class="sensor-value-name">Latitude</td>
+                    <td>---</td>
+                </tr>
+                <tr>
+                    <td class="sensor-value-name">Longitude</td>
+                    <td>---</td>
+                </tr>
+            </tbody>
+
+            <thead>
+                <tr>
+                    <th>🔤 LEPMON Code</th>
+                </tr>
+            </thead>
+
+            <tbody id="lepmonsTableBody">
+                <tr>
+                    <td class="sensor-value-name">Province</td>
+                    <td>---</td>
+                </tr>
+                <tr>
+                    <td class="sensor-value-name">City</td>
+                    <td>---</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="location-map">
+            <iframe
+                id="locationMap"
+                src=""
+                width="100%"
+                height="250"
+                style="border:0;"
+                loading="lazy"
+                allowfullscreen>
+            </iframe>
+        </div>
+    </div>
+</section>
+
+
+
+
+
     <!-- Captured Images Gallery -->
     <section class="gallery-section">
         <div class="gallery-card">
@@ -710,6 +875,33 @@
                 <button class="btn btn-secondary" onclick="loadLog()">↻ Reload Log</button>
             </div>
             <pre id="logContent" class="log-content">Loading log...</pre>
+        </div>
+    </section>
+
+    <section class="gallery-section">
+        <div class="gallery-card">
+            <div class="gallery-header">
+                <h3>📊 CSV Data</h3>
+
+                <button class="btn btn-secondary" onclick="loadCSV()">
+                    ↻ Reload CSV
+                </button>
+            </div>
+
+            <div class="csv-table-container">
+                <table id="csvTable" class="sensor-table">
+                    <thead>
+                        <tr>
+                            <th>Loading...</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Loading CSV...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </section>
     

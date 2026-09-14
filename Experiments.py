@@ -14,6 +14,7 @@ Enable_Delay = get_value_from_section(CONFIG_PATH, "Experiment_Delay", "Enable_D
 Enable_Interval = get_value_from_section(CONFIG_PATH, "Experiment_Interval", "Enable_Interval")
 ARNIS_Delay_Experiment = []
 ARNIs_Interval_Experiment = []
+Hexmon_Experiment = []
 
 def get_section(CONFIG_PATH, section_name):
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -40,6 +41,9 @@ if get_value_from_section(CONFIG_PATH, "Experiment_Delay", "Enable_Delay"):
 
 if get_value_from_section(CONFIG_PATH, "Experiment_Interval", "Enable_Interval"):
     ARNIs_Interval_Experiment = get_arni_values(CONFIG_PATH, "Experiment_Interval")
+
+if get_value_from_section(CONFIG_PATH, "Hexmon_Experiment", "Enable_Hexmon"):
+    Hexmon_Experiment = get_arni_values(CONFIG_PATH, "Hexmon_Experiment")
 
 
 
@@ -166,6 +170,27 @@ def timedelta_to_hms(td):
     return f"{hours:02}:{minutes:02}:{seconds:02}"
 
 
+
+def modify_ARNI_specs( log_mode= "log", gen="", Schirmbreite="", Schirmhöhe="", effective_resolution="", distance="", project_name=""):
+    sn = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","general","serielnumber")
+    modified_gen = gen
+    modified_Schirmbreite = Schirmbreite
+    modified_Schirmhöhe = Schirmhöhe
+    modified_effective_resolution = effective_resolution
+    modified_distance = distance
+    modified_project_name = project_name
+
+    if sn in Hexmon_Experiment and get_value_from_section(CONFIG_PATH, "Hexmon_Experiment", "Enable_Hexmon"):
+        modified_gen = "Pro_Min_1"
+        modified_Schirmbreite = 180
+        modified_Schirmhöhe = 120
+        modified_effective_resolution = 32
+        modified_distance = 335
+        modified_project_name = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","Hexmon_Experiment","project_name")
+
+    return modified_gen, modified_Schirmbreite, modified_Schirmhöhe, modified_effective_resolution, modified_distance, modified_project_name
+
+
 def display_experiments(log_mode):
     sn = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")
     if sn in ARNIs_Interval_Experiment and Enable_Delay:
@@ -179,6 +204,12 @@ def display_experiments(log_mode):
     if sn in ARNIs_Interval_Experiment and Enable_Interval:
         interval = get_interval()
         display_text(f"ARNI {sn}","Interval Experiment",f"{interval} min", 3)
+
+    if sn in Hexmon_Experiment and get_value_from_section(CONFIG_PATH, "Hexmon_Experiment", "Enable_Hexmon"):
+        modified_gen, modified_Schirmbreite, modified_Schirmhöhe, modified_effective_resolution, modified_distance, modified_distance, moified_project_name = modify_ARNI_specs(sn, log_mode)
+        display_text(f"ARNI {sn}",f"Projek: {moified_project_name}",f"Gen: {modified_gen}", 3)
+        display_text(f"Schirm: {modified_Schirmbreite}x{modified_Schirmhöhe} mm",f"Auflösung: {modified_effective_resolution} px/mm",f"Abstand: {modified_distance} mm", 3)
+
 
 
 

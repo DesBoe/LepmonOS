@@ -3,6 +3,7 @@ from fram_direct import *
 from json_read_write import *
 from serial_list  import *
 from functools import lru_cache
+from Experiments import *
 
 geraete_bibliothek = {
     "Pro_Gen_1": {
@@ -137,7 +138,13 @@ def refresh_hardware_version_cache():
 if __name__ == "__main__":
     print(f"Dieser ARNI ist ein {get_hardware_version()} Modell")
     print(f"verbaute Kamera {get_device_info('camera')} mit Sensor {get_device_info('sensor')}")
-    print(f"Auflösung: {get_device_info('length')} x {get_device_info('height')}") 
-    print(f"Schirmbreite x Höhe in mm: {get_device_info('Schirmbreite')} x {get_device_info('Schirmhöhe')}")
-    print(f"Abstand zwischen Kamera und Schirm: {get_device_info('distance')} ")
-    print(f"Effektive Auflösung: {get_device_info('effective_resolution')} ")
+    Schirmhöhe = f"{get_device_info('length')}"
+    Schirmbreite = f"{get_device_info('width')}"
+    Schirmgröße = f"{get_device_info('Schirmbreite')} mm x {get_device_info('Schirmhöhe')} mm"
+    Abstand = f"{get_device_info('distance')} mm"
+    Effektive_Auflösung = f"{get_device_info('effective_resolution')} px/mm"
+    _, Schirmbreite, Schirmhöhe, Effektive_Auflösung, Abstand, _ = modify_ARNI_specs(log_mode="log", Schirmbreite=Schirmbreite, Schirmhöhe=Schirmhöhe, effective_resolution=Effektive_Auflösung, distance=Abstand)
+    print(f"Auflösung: {Effektive_Auflösung}")
+    print(f"Schirmgröße: {Schirmgröße}")
+    print(f"Abstand zwischen Kamera und Schirm: {Abstand}")
+    print(f"Effektive Auflösung: {Effektive_Auflösung}")

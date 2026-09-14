@@ -7,7 +7,7 @@ from logging_utils import *
 from fram_operations import read_fram
 from sensor_data import *
 from hardware import *
-from Experiments import get_interval
+from Experiments import *
 
 def erstelle_und_aktualisiere_csv(sensor_data, log_mode):
     path = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_folder")
@@ -36,7 +36,7 @@ def erstelle_und_aktualisiere_csv(sensor_data, log_mode):
             sunset, sunrise, _ = get_sun(log_mode)
             moonrise, moonset, moon_phase, max_altitude = get_moon(log_mode)
             experiment_start_time, experiment_end_time,_,_ = get_experiment_times(log_mode)     
-            sensor_id = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")  
+            sn = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")  
             interval = get_interval()
 
             sensor = get_device_info("sensor")
@@ -48,11 +48,14 @@ def erstelle_und_aktualisiere_csv(sensor_data, log_mode):
             Schirmhöhe = get_device_info("Schirmhöhe")
             distance = get_device_info("distance")
             effective_resolution = get_device_info("effective_resolution")
+
+            ARNI_Gen, Schirmbreite, Schirmhöhe, effective_resolution, distance, _ = modify_ARNI_specs(log_mode=log_mode, gen = ARNI_Gen, Schirmbreite=Schirmbreite, Schirmhöhe=Schirmhöhe, effective_resolution=effective_resolution, distance=distance)
+
             
             with open(csv_path, mode='w', newline='') as csvfile:
                 csv_writer = csv.writer(csvfile, delimiter='\t')  # Setze den Tabulator als Trennzeichen
                 csv_writer.writerow(["#Software:",                  f"{Version} vom {date}"])   
-                csv_writer.writerow(["#Machine ID:",                sensor_id])
+                csv_writer.writerow(["#Machine ID:",                sn])
                 csv_writer.writerow(["#ARNI-Generation:",           ARNI_Gen])  
                 csv_writer.writerow(["#Kamera:",                    kamera])
                 csv_writer.writerow(["#Sensor:",                    sensor])

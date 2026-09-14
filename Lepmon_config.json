@@ -111,12 +111,17 @@
         "Test-ARNI-4": "SN010115"
     },
     "Experiment_Interval": {
-        "Enable_Interval": true,
+        "Enable_Interval": false,
         "Test-ARNI-1": "SN010010",
         "Test-ARNI-2": "SN010011",
         "Test-ARNI-3": "SN010063",
         "Test-ARNI-4": "SN010115",
         "interval_for_experiment": 1,
         "Skip_Sanity_Check": false
+    },
+    "Hexmon_Experiment": {
+        "Enable_Hexmon": true,
+        "Test-ARNI-1": "SN010063",
+        "project_name": "Hexmon"
     }
 }

@@ -17,6 +17,7 @@ import re
 from GPIO_Setup import *
 from usb_controller import find_usb_mount
 from dev_mode import DEV_MODE, note_mock
+from Experiments import modify_ARNI_specs
 
 
 
@@ -32,14 +33,6 @@ def get_Lepmon_code(log_mode):
     Kreis_code = None
     project_name = None
     sn = None
-    
-    try:
-        project_name = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","general","project_name")
-    except Exception as e:
-        error_message(11,e,log_mode)
-        print(f"Fehler beim Lesen des Projektnamens: {e}")
-        project_name = "Lepmon#"    
-    time.sleep(.5)
         
     try:
         province = read_fram(0x04D0,3).replace('\x00', '').strip()
@@ -84,9 +77,19 @@ def get_Lepmon_code(log_mode):
         except Exception as e:
             error_message(11,e,log_mode)
             print("Warnung: sn ist ungültig, setze Fallback-Wert 'Fehler_sn'")
-            sn = "Fehler_sn"      
+            sn = "Fehler_sn"  
+
+    try:
+        project_name = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","general","project_name")
+    except Exception as e:
+        error_message(11,e,log_mode)
+        print(f"Fehler beim Lesen des Projektnamens: {e}")
+        project_name = "Lepmon#"   
+
+    _, _, _, _, _, project_name = modify_ARNI_specs(log_mode, project_name=project_name) 
+    time.sleep(.5)    
                 
-    return project_name,province, Kreis_code, sn
+    return project_name, province, Kreis_code, sn
 
 
 
