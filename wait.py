@@ -20,6 +20,7 @@ power = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","powermo
 def wait(log_mode, skip = False):
     lang = get_language()
     write_timestamp(0x07E0)
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_step", "wait")
     
     experiment_start_time, experiment_end_time,time_buffer, minutes_to_sunrise = get_experiment_times(log_mode)
     _, lokale_Zeit, _ = Zeit_aktualisieren(log_mode)

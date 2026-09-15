@@ -24,6 +24,7 @@ def erstelle_und_aktualisiere_csv(sensor_data, log_mode):
     try:
         if not os.path.exists(csv_path) and log_mode == "log":
             print("Erstelle neue CSV Datei und lese Daten für Header")
+            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_csv", csv_path)
             Version = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "version")
             ARNI_Gen = get_hardware_version()
             date = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "date") 

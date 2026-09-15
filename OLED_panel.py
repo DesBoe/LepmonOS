@@ -5,7 +5,10 @@ from luma.oled.device import sh1106
 import time
 import os
 from GPIO_Setup import *
-from hardware import get_hardware_version
+def _get_hardware_version():
+    """Lazy import to avoid circular dependency (hardware -> Experiments -> times -> logging_utils -> OLED_panel -> hardware)."""
+    from hardware import get_hardware_version
+    return get_hardware_version()
 from messages import MESSAGE_REGISTER
 from dev_mode import DEV_MODE, note_mock
 
@@ -41,7 +44,7 @@ except Exception as e:
     else:
         indicate_display_error(e)
 
-HARDWARE_VERSION = get_hardware_version()
+HARDWARE_VERSION = _get_hardware_version()
 if HARDWARE_VERSION == "Pro_Gen_1" and oled is not None:
     oled.rotate = 2
 

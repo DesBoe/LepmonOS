@@ -30,6 +30,8 @@ from flatfield import load_flatfield, apply_flatfield
 HARDWARE_VERSION = get_hardware_version()
 Enable_Interval = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Experiment_Interval", "Enable_Interval")
 
+write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "has_power", True)
+
 flatfield_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "flatfield_correction")
 if flatfield_correction:
     if HARDWARE_VERSION in ["CSS_Gen_1"]:
@@ -89,8 +91,10 @@ def dict_to_xml(tag, d):
 def _rpi_camera_present():
     """Cheap presence check - lists cameras without opening/configuring one."""
     try:
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_detected", True)
         return bool(Picamera2.global_camera_info())
     except Exception:
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_detected", False)
         return False
 
 
@@ -226,6 +230,9 @@ def snap_image_rpi(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, expec
     Bild_erfolgreich_gespeichert = False
     hardware = get_device_info("hardware")
 
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing", True)
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "free_for_web", False)
+
     avg_brightness, good_exposure = "---", False
     image_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","capture_mode","gamma_correction")
 
@@ -302,7 +309,9 @@ def snap_image_rpi(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, expec
         error_message(3, f"USB-Stick nicht gefunden: {ordnerpfad}", log_mode)
         print(f"Fehler: USB-Stick nicht gefunden: {ordnerpfad}")
         Status_Kamera = 0
-       
+
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing", False)
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "free_for_web", True)
         return code, dateipfad, Status_Kamera, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, Gain, None, None
 
     # Abrufen des Frames in Abhängigkeit vom Kameramodus
@@ -479,7 +488,8 @@ def snap_image_rpi(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, expec
         power_on = "---"
         log_schreiben(f"Fehler beim Messen des Stromverbrauchs der Visible LED: {e}", log_mode=log_mode)
 
-
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing", False)
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "free_for_web", True)
     return code, dateipfad, Kamera_RPI_Status, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, Gain, red_gain, blue_gain
     
 

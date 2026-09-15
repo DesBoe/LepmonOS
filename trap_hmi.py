@@ -1,5 +1,5 @@
 import faulthandler; faulthandler.enable()
-from Camera_AV import snap_image_AV, camera as camera_pin
+from Camera_AV import snap_image_AV, switch_camera_power
 from Camera_RPI import snap_image_rpi
 from GPIO_Setup import turn_on_led, turn_off_led, button_pressed
 from OLED_panel import *
@@ -126,7 +126,9 @@ def run_web_focus_session(log_mode, lang):
     # Reuse the pin already claimed by Camera_AV — a second LED(5) here
     # would raise GPIOPinInUse and abort the session before it starts.
     try:
-        camera_pin.on()
+        switch_camera_power("on")
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "free_for_web", True)
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing", False)
     except Exception as e:
         print(f"Failed to turn on camera pin for web focus: {e}")
     turn_on_led("blau")
@@ -134,12 +136,7 @@ def run_web_focus_session(log_mode, lang):
     clear_stop_focus_request()
     try:
         set_web_focus_active(True)
-        log_schreiben("Web-Fokussierhilfe gestartet, set_web_focus_active(True)", log_mode=log_mode)
-        with open("/tmp/lepmon_capture_state.json", "r") as state_file:
-            log_schreiben(
-                f"Capture state after Web Focus activation: {state_file.read()}",
-                log_mode=log_mode,
-            )
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "web_requested", True)
     except Exception as e:
         log_schreiben(f"Failed to set_web_focus_active(True): {e}", log_mode=log_mode)
     
@@ -207,10 +204,11 @@ def run_web_focus_session(log_mode, lang):
                 break
     finally:
         set_web_focus_active(False)
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "web_requested", False)
         clear_stop_focus_request()
         turn_off_led("blau")
         try:
-            camera_pin.off()
+            switch_camera_power("off")
         except Exception:
             pass
         log_schreiben("Web-Fokussierhilfe beendet", log_mode=log_mode)
@@ -274,7 +272,8 @@ hmi_timeout = 7.5
 def open_trap_hmi(log_mode, start_step = 0):
     lang = get_language()
     menu_exit = False
-    print("starte lokales HMI")   
+    print("starte lokales HMI")  
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_step", "local_menu") 
     
     set_new_location_code = force_new_location_code(log_mode)
     if set_new_location_code:

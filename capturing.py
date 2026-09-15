@@ -45,6 +45,7 @@ gamma_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.jso
 def capturing(log_mode):
     Do_write_Night_Control_Bit = True
     überleiten_zu_shutdown = False
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_step", "capturing")
 
     dusk_treshold = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "dusk_treshold")
     trigger_for_wb = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "capture_mode", "trigger_for_wb")

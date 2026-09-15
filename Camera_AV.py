@@ -41,13 +41,26 @@ if get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Experiment_
 # Kamera GPIO Pin
 camera = LED(5)
 
+def switch_camera_power(state):
+    """Switch the camera power on or off."""
+    if state == "on":
+        camera.on()
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "has_power", True)
+    else:
+        camera.off()
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "has_power", False)
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing", False)
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "free_for_web", False)
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_detected", False)
 
 def _av_camera_present():
     """Cheap presence check - lists cameras without opening/configuring one."""
     try:
         with VmbSystem.get_instance() as vmb:
             return bool(vmb.get_all_cameras())
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_detected", True)
     except Exception:
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_detected", False)
         return False
 
 def av_camera_available(cam_Initiliase_tries, log_mode):
@@ -56,8 +69,10 @@ def av_camera_available(cam_Initiliase_tries, log_mode):
             cameras = vmb.get_all_cameras()
             if cameras:
                 print(f"Allied-Vision-Kamera gefunden: {cameras[0].get_id()}")
+                write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_detected", True)
                 return True
             if cam_Initiliase_tries > 10:    
+                write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_detected", False)
                 print("Keine Allied-Vision-Kamera gefunden.")
             return False
 
@@ -65,6 +80,7 @@ def av_camera_available(cam_Initiliase_tries, log_mode):
         message = f"Vimba X konnte nicht gestartet werden: {error}"
         print(message)
         log_schreiben(message, log_mode=log_mode)
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_detected", False)
         return False
     
 HARDWARE_VERSION = get_hardware_version()
@@ -147,6 +163,9 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4)
     frame = None
     Kamera_Status = 0
     error_details = ""
+
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing", True)
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "free_for_web", False)
 
     if DEV_MODE and not _av_camera_present():
         note_mock("Allied Vision camera (vmbpy)")
@@ -314,7 +333,7 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
 
     avg_brightness, good_exposure = "---", False
 
-    camera.on()
+    switch_camera_power("on")
 
     if cam_mode == "display": 
         log_schreiben("Kamera wird eingeschaltet und initialisiert...", log_mode=log_mode)
@@ -388,7 +407,9 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
         error_message(3, f"USB-Stick nicht gefunden: {ordnerpfad}", log_mode)
         print(f"Fehler: USB-Stick nicht gefunden: {ordnerpfad}")
         Status_Kamera = 0
-       
+
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing", False)
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "free_for_web", True)
         return code, dateipfad, Status_Kamera, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, Gain
     
     
@@ -514,7 +535,7 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
             log_schreiben(f"erhöhe Kamera Fehlerserie auf {Kamera_Fehlerserie}", log_mode=log_mode)
 
     print(f"Status Kamera: {Status_Kamera}, Fehlerserie: {Kamera_Fehlerserie}, Foto OK: {Bild_erfolgreich_gespeichert}")
-    camera.off()
+    switch_camera_power("off")
     #camera.close()
 
     if HARDWARE_VERSION in ["Pro_Gen_1", "Pro_Gen_2"]:
@@ -527,6 +548,8 @@ def snap_image_AV(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, Exposu
         except Exception as e:
             log_schreiben(f"Fehler beim Messen des Stromverbrauchs der Visible LED: {e}. Power_Vis:{power_vis} W, Power_cam:{power_cam} W", log_mode=log_mode)
 
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing", False)
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "free_for_web", True)
     return code, dateipfad, Status_Kamera, power_on, Kamera_Fehlerserie, avg_brightness, good_exposure, Exposure, Gain
 
 

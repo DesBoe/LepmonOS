@@ -37,6 +37,7 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
     - during_run: wird von anderen Skripten aufgerufen, um den Shutdown zu triggern, ohne die Alarme neu zu setzen (zB bei Fehlern, die durch Neustart gelöst werden können)
 
     '''
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_step", "end")
     try:
         Errorcode = int.from_bytes(read_fram_bytes(0x0810, 4), byteorder='big')
         print(f"Fehlercode {Errorcode} aus dem FRAM gelesen.")

@@ -371,6 +371,52 @@
         .alert-warning.show {
             display: block;
         }
+
+        .alert-danger {
+            background: rgba(233, 69, 96, 0.2);
+            border: 1px solid var(--highlight);
+            color: var(--highlight);
+        }
+
+        .alert-danger.show {
+            display: block;
+        }
+
+        /* Stream control sliders */
+        .stream-sliders {
+            display: flex;
+            gap: 2rem;
+            padding: 0.75rem 1.5rem;
+            background: var(--bg-card);
+            border-top: 1px solid var(--accent);
+            flex-wrap: wrap;
+        }
+
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .slider-group label {
+            font-size: 0.875rem;
+            color: var(--text-dim);
+            white-space: nowrap;
+        }
+
+        .slider-group input[type="range"] {
+            width: 140px;
+            accent-color: var(--highlight);
+        }
+
+        .slider-value {
+            font-size: 0.875rem;
+            font-weight: 600;
+            font-family: 'SF Mono', 'Consolas', monospace;
+            color: var(--success);
+            min-width: 28px;
+            text-align: center;
+        }
         
         .settings-input {
             width: 80px;
@@ -599,6 +645,10 @@
                 📟 Open the <b>Web Focus</b> entry on the device's OLED menu to start streaming
             </div>
 
+            <div id="cameraPowerAlert" class="alert alert-danger">
+                🔌 Camera is not powered on. Stream cannot start without camera power.
+            </div>
+
             <div class="stream-display">
                 <img id="streamImage" class="stream-video" src="LEPMON_Logo_Circle.png" alt="Camera Stream" onload="hideStreamPlaceholderMessage()" onerror="showStreamPlaceholder()">
                 <p id="streamPlaceholderMessage" class="stream-placeholder-message">Camera not available. Enable Fokus menu on ARNI.</p>
@@ -607,6 +657,21 @@
             <div class="stream-footer">
                 <span id="streamStatus">▶️ Stream active</span>
                 <span id="timestamp">--:--:--</span>
+            </div>
+
+            <div class="stream-sliders">
+                <div class="slider-group">
+                    <label for="downscaleSlider">🔽 Downscale:</label>
+                    <input type="range" id="downscaleSlider" min="1" max="20" value="8" step="1"
+                           oninput="updateDownscale(this.value)">
+                    <span id="downscaleValue" class="slider-value">8</span>
+                </div>
+                <div class="slider-group">
+                    <label for="zoomSlider">🔍 Zoom:</label>
+                    <input type="range" id="zoomSlider" min="1" max="5" value="1" step="1"
+                           oninput="updateZoom(this.value)">
+                    <span id="zoomValue" class="slider-value">1</span>
+                </div>
             </div>
         </div>
         
@@ -771,6 +836,11 @@
 
                 <tbody id="timingTableBody">
 
+                    <tr>
+                        <td class="sensor-value-name">⚡ Current Step</td>
+                        <td id="currentStepValue">---</td>
+                    </tr>
+
                     <tr class="sensor-group-row">
                         <td>✨ Experiment Start</td>
                         <td>---</td>
@@ -885,7 +955,10 @@
         <div class="gallery-card">
             <div class="gallery-header">
                 <h3>📜 LepmonOS Log</h3>
-                <button class="btn btn-secondary" onclick="loadLog()">↻ Reload Log</button>
+                <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                    <button class="btn btn-secondary" onclick="loadLog()">↻ Reload Log</button>
+                    <button class="btn btn-secondary" onclick="downloadFile('/api/download/log', 'log.txt')">⬇ Download</button>
+                </div>
             </div>
             <pre id="logContent" class="log-content">Loading log...</pre>
         </div>
@@ -897,7 +970,11 @@
         <div class="gallery-card">
             <div class="gallery-header">
                 <h3>📊 CSV Data</h3>
-                <button class="btn btn-secondary" onclick="loadCSV()">↻ Reload CSV</button>
+                <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                    <span id="csvFilePath" style="font-size:0.7rem; color:var(--text-dim); max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title=""></span>
+                    <button class="btn btn-secondary" onclick="loadCSV()">↻ Reload CSV</button>
+                    <button class="btn btn-secondary" onclick="downloadFile('/api/download/csv', 'LepmonOS_data.csv')">⬇ Download</button>
+                </div>
             </div>
             
             <pre id="csvContent" class="log-content">Loading CSV...</pre>
@@ -919,6 +996,24 @@
     <script>
         let streamActive = true;
         const streamImage = document.getElementById('streamImage');
+
+        /* ---- Polling backoff state ---- */
+        var POLL_BASE   = 3000;   // normal polling interval (ms)
+        var POLL_MAX    = 30000;  // max interval after consecutive failures
+        var pollFails   = 0;      // consecutive failure counter
+        var pollInterval = POLL_BASE;
+
+        function pollOnSuccess() {
+            pollFails = 0;
+            pollInterval = POLL_BASE;
+        }
+
+        function pollOnFailure() {
+            pollFails++;
+            // Exponential backoff: 3s → 6s → 12s → 24s → 30s (cap)
+            pollInterval = Math.min(pollInterval * 2, POLL_MAX);
+            console.warn('Poll failure #' + pollFails + ' — next retry in ' + pollInterval + 'ms');
+        }
 
         function showStreamPlaceholder() {
             streamImage.onerror = null;
@@ -970,6 +1065,128 @@
                 .catch(err => console.error('Dimming status failed:', err));
         }
 
+        function showToast(message, isError) {
+            var el = document.getElementById('toastMsg');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'toastMsg';
+                el.style.cssText = 'position:fixed;top:1rem;left:50%;transform:translateX(-50%);padding:.6rem 1.2rem;border-radius:.5rem;font-size:.85rem;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,.25);opacity:0;transition:opacity .3s;pointer-events:none;';
+                document.body.appendChild(el);
+            }
+            el.textContent = message;
+            el.style.backgroundColor = isError ? '#dc3545' : '#28a745';
+            el.style.color = '#fff';
+            el.style.opacity = '1';
+            clearTimeout(el._timer);
+            el._timer = setTimeout(function() { el.style.opacity = '0'; }, 3000);
+        }
+
+        function downloadFile(url, fallbackName) {
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    // Extract filename from Content-Disposition header
+                    var disposition = response.headers.get('Content-Disposition');
+                    var filename = fallbackName;
+                    if (disposition && disposition.includes('filename=')) {
+                        filename = disposition.split('filename=')[1].replace(/"/g, '');
+                    }
+                    return response.blob().then(blob => ({ blob: blob, filename: filename }));
+                })
+                .then(result => {
+                    var link = document.createElement('a');
+                    link.href = URL.createObjectURL(result.blob);
+                    link.download = result.filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(link.href);
+                    showToast('Download started: ' + result.filename, false);
+                })
+                .catch(err => {
+                    console.error('Download failed:', err);
+                    if (err.message.indexOf('HTTP 503') !== -1) {
+                        showToast('USB disconnected — download unavailable', true);
+                    } else if (err.message.indexOf('HTTP 404') !== -1) {
+                        showToast('File not found on device', true);
+                    } else {
+                        showToast('Download failed: ' + err.message, true);
+                    }
+                });
+        }
+
+        function loadLog() {
+            const logContent = document.getElementById('logContent');
+            logContent.textContent = 'Loading log...';
+            fetch('/api/log')
+                .then(response => response.json())
+                .then(data => {
+                    logContent.textContent = data.lines.join('');
+                    logContent.scrollTop = logContent.scrollHeight;
+                })
+                .catch(() => {
+                    logContent.textContent = 'Log could not be loaded.';
+                });
+        }
+
+        function loadCSV() {
+            const csvContent = document.getElementById('csvContent');
+            const csvFilePath = document.getElementById('csvFilePath');
+            csvContent.textContent = 'Loading CSV...';
+            csvFilePath.textContent = '';
+            fetch('/api/csv')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('HTTP ' + response.status + ' ' + response.statusText);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('CSV API response:', data);
+                    if (data.error) {
+                        // API returned an error (e.g. "CSV file not found.")
+                        csvContent.textContent = 'Error: ' + data.error;
+                        var filePath = data.csv_file || 'unknown';
+                        csvFilePath.textContent = '📄 ' + filePath;
+                        csvFilePath.title = filePath;
+                        return;
+                    }
+                    // API returns: { csv_file, header, first_entries, last_entries, total_lines }
+                    var filePath = data.csv_file || 'unknown';
+                    csvFilePath.textContent = '📄 ' + filePath;
+                    csvFilePath.title = filePath;
+
+                    var output = '';
+                    if (data.header) {
+                        output += '═══ Metadata ═══\n' + data.header + '\n\n';
+                    }
+                    if (data.first_entries) {
+                        output += '═══ First Entries ═══\n' + data.first_entries + '\n\n';
+                    }
+                    if (data.last_entries) {
+                        output += '═══ Last Entries ═══\n' + data.last_entries + '\n';
+                    }
+                    if (data.total_lines) {
+                        output += '\n(Total lines: ' + data.total_lines + ')';
+                    }
+                    if (!output) {
+                        output = 'CSV is empty or has no recognizable structure.\n\nDebug info:\n';
+                        output += '  csv_file: ' + (data.csv_file || '(empty)') + '\n';
+                        output += '  header: ' + (data.header || '(empty)') + '\n';
+                        output += '  first_entries: ' + (data.first_entries || '(empty)') + '\n';
+                        output += '  last_entries: ' + (data.last_entries || '(empty)') + '\n';
+                        output += '  total_lines: ' + (data.total_lines || '(missing)') + '\n';
+                    }
+                    csvContent.textContent = output;
+                    csvContent.scrollTop = csvContent.scrollHeight;
+                })
+                .catch(err => {
+                    csvContent.textContent = 'CSV could not be loaded.\n\nError: ' + err.message;
+                    csvFilePath.textContent = '';
+                    console.error('CSV load failed:', err);
+                });
+        }
+        
         function toggleDimming() {
             const button = document.getElementById('dimmingToggle');
             button.disabled = true;
@@ -995,6 +1212,7 @@
                     const statusBadge = document.getElementById('systemStatus');
                     const captureAlert = document.getElementById('captureAlert');
                     const focusInactiveAlert = document.getElementById('focusInactiveAlert');
+                    const cameraPowerAlert = document.getElementById('cameraPowerAlert');
                     const endFocusBtn = document.getElementById('endFocusBtn');
 
                     if (data.is_capturing) {
@@ -1017,6 +1235,13 @@
                         focusInactiveAlert.classList.remove('show');
                     }
 
+                    // Show/hide camera power alert
+                    if (data.camera_has_power === false) {
+                        cameraPowerAlert.classList.add('show');
+                    } else {
+                        cameraPowerAlert.classList.remove('show');
+                    }
+
                     endFocusBtn.disabled = !data.web_focus_active;
 
                     document.getElementById('webFocusStatus').textContent =
@@ -1032,8 +1257,68 @@
                     document.getElementById('imagesCount').textContent = data.images_captured || '0';
                     document.getElementById('viewersCount').textContent = data.stream_consumers || '0';
                     document.getElementById('timestamp').textContent = data.timestamp;
+
+                    // Automatically start or stop the MJPEG stream depending on
+                    // whether the conditions are fulfilled (web_focus_active AND
+                    // NOT is_capturing).  Only switch _to_ the stream
+                    // automatically; when it becomes unavailable we show the
+                    // placeholder but leave `streamActive` flag untouched so the
+                    // user can still re-try manually via the toggle button.
+                    var streamPossible = data.web_focus_active && !data.is_capturing;
+                    if (streamPossible && streamActive) {
+                        // Make sure the <img> actually points to /stream.
+                        // This handles both the initial page-load (src = logo)
+                        // and the case where the user previously stopped then
+                        // re-enabled the stream via the button.
+                        if (!streamImage.src.includes('/stream')) {
+                            startStream();
+                        }
+                    } else if (!streamPossible) {
+                        // Conditions not met – show placeholder.
+                        showStreamPlaceholder();
+                    }
                 })
                 .catch(err => console.error('Status update failed:', err));
+        }
+
+        /* ---- Stream slider helpers ---- */
+        function updateDownscale(val) {
+            document.getElementById('downscaleValue').textContent = val;
+            fetch('/api/camera/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stream_downscale: parseInt(val) })
+            })
+            .then(r => r.json())
+            .then(data => { if (!data.success) console.error('Downscale update failed:', data.error); })
+            .catch(err => console.error('Downscale request failed:', err));
+        }
+
+        function updateZoom(val) {
+            document.getElementById('zoomValue').textContent = val;
+            fetch('/api/camera/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stream_zoom: parseInt(val) })
+            })
+            .then(r => r.json())
+            .then(data => { if (!data.success) console.error('Zoom update failed:', data.error); })
+            .catch(err => console.error('Zoom request failed:', err));
+        }
+
+        // Load current downscale/zoom values from server on page load
+        function loadStreamSettings() {
+            fetch('/api/camera/settings')
+                .then(response => response.json())
+                .then(data => {
+                    const ds = data.stream_downscale || 8;
+                    const z = data.stream_zoom || 1;
+                    document.getElementById('downscaleSlider').value = ds;
+                    document.getElementById('downscaleValue').textContent = ds;
+                    document.getElementById('zoomSlider').value = z;
+                    document.getElementById('zoomValue').textContent = z;
+                })
+                .catch(err => console.error('Failed to load stream settings:', err));
         }
 
         function endFocusSession() {
@@ -1104,10 +1389,12 @@
                         });
                     });
                     tableBody.innerHTML = rows;
-                    document.getElementById('sensorTimestamp').textContent = values.time_read || '--';
+                    var ts = document.getElementById('sensorTimestamp');
+                    if (ts) ts.textContent = values.time_read || '--';
                 })
                 .catch(() => {
-                    document.getElementById('sensorTimestamp').textContent = '--';
+                    var ts = document.getElementById('sensorTimestamp');
+                    if (ts) ts.textContent = '--';
                 });
         }
         
@@ -1177,6 +1464,11 @@
             fetch('/api/location')
                 .then(response => response.json())
                 .then(data => {
+                    if (data.error) {
+                        console.error('Location API error:', data.error);
+                        document.getElementById('latitudeValue').textContent = 'Error: ' + data.error;
+                        return;
+                    }
                     document.getElementById('latitudeValue').textContent =
                         data.latitude ?? '---';
 
@@ -1191,6 +1483,146 @@
                 })
                 .catch(err => {
                     console.error('Location update failed:', err);
+                    document.getElementById('latitudeValue').textContent = 'API error';
+                });
+        }
+
+        /* ---- USB Storage Table ---- */
+        function updateStorage() {
+            fetch('/api/storage')
+                .then(response => response.json())
+                .then(data => {
+                    const table = document.getElementById('storageTableBody');
+                    if (!data.mounted || data.error) {
+                        table.innerHTML =
+                            '<tr><td class="sensor-value-name">Status</td><td>USB drive not mounted</td><td>—</td></tr>';
+                        return;
+                    }
+                    table.innerHTML =
+                        '<tr>' +
+                            '<td class="sensor-value-name">Total</td>' +
+                            '<td>' + data.total_gb + ' GB</td>' +
+                            '<td>100 %</td>' +
+                        '</tr>' +
+                        '<tr>' +
+                            '<td class="sensor-value-name">Used</td>' +
+                            '<td>' + data.used_gb + ' GB</td>' +
+                            '<td>' + data.used_percent + ' %</td>' +
+                        '</tr>' +
+                        '<tr>' +
+                            '<td class="sensor-value-name">Available</td>' +
+                            '<td>' + data.available_gb + ' GB</td>' +
+                            '<td>' + data.available_percent + ' %</td>' +
+                        '</tr>';
+                })
+                .catch(err => {
+                    console.error('Storage update failed:', err);
+                });
+        }
+
+        /* ---- Experiment Timing Table ---- */
+        function updateTiming() {
+            fetch('/api/timing')
+                .then(response => response.json())
+                .then(data => {
+                    const table = document.getElementById('timingTableBody');
+                    if (data.error) {
+                        table.innerHTML = '<tr><td colspan="2">Error: ' + data.error + '</td></tr>';
+                        return;
+                    }
+
+                    // Helper: return the value or "---" as fallback
+                    var v = function(val) {
+                        if (val === undefined || val === null || val === "---") {
+                            return "---";
+                        }
+                        return val;
+                    };
+
+                    // ── Current Step with icon ──
+                    var currentStep  = v(data.current_step);
+                    var stepIcon = "⏸";
+                    if (currentStep === "start_up")      stepIcon = "🔌 Boot";
+                    else if (currentStep === "capturing") stepIcon = "📸 Capturing";
+                    else if (currentStep === "wait")      stepIcon = "⏳ Waiting";
+                    else if (currentStep === "end")       stepIcon = "🏁 Ended";
+                    else if (currentStep === "local_menu") stepIcon = "📟 Menu";
+
+                    // ── Dynamic solar-based times from lepmon_web_tables.py ──
+                    var sunset       = v(data.sunset);
+                    var sunrise      = v(data.sunrise);
+                    var attinyOn     = v(data.attiny_on);
+                    var attinyOff    = v(data.attiny_off);
+                    var startCapture = v(data.start_capture);
+                    var endCapture   = v(data.end_capture);
+                    var startDelay   = v(data.minutes_after_sunset);
+
+                    // Format attiny times: show as "HH:MM:SS" if datetime string like "2026-09-15 18:45:00"
+                    var fmtTime = function(ts) {
+                        if (ts === "---") return "---";
+                        // If it's a full datetime string, extract the time part
+                        if (typeof ts === 'string' && ts.indexOf('-') > 0 && ts.indexOf(':') > 0) {
+                            var parts = ts.split(' ');
+                            if (parts.length >= 2) {
+                                return parts[1]; // "HH:MM:SS"
+                            }
+                        }
+                        return ts;
+                    };
+
+                    // Build the Current Step row with a highlighted class
+                    var stepClass = (currentStep === "capturing") ? 'sensor-status-ok' : 'timing-step-value';
+                    var currentStepRow =
+                        '<tr>' +
+                            '<td class="sensor-value-name">⚡ Current Step</td>' +
+                            '<td class="' + stepClass + '">' + stepIcon + '</td>' +
+                        '</tr>';
+
+                    table.innerHTML =
+                        currentStepRow +
+                        '<tr class="sensor-group-row">' +
+                            '<td>✨ Experiment Start</td>' +
+                            '<td>' + sunset + '</td>' +
+                        '</tr>' +
+                        '<tr>' +
+                            '<td class="sensor-value-name timing-sub-item">Attiny ON</td>' +
+                            '<td>' + fmtTime(attinyOn) + '</td>' +
+                        '</tr>' +
+                        '<tr>' +
+                            '<td class="sensor-value-name timing-sub-item">Sunset</td>' +
+                            '<td>' + sunset + '</td>' +
+                        '</tr>' +
+                        '<tr>' +
+                            '<td class="sensor-value-name timing-sub-item">Start Capture</td>' +
+                            '<td>' + startCapture + '</td>' +
+                        '</tr>' +
+                        '<tr>' +
+                            '<td class="sensor-value-name timing-sub-item">Start Delay</td>' +
+                            '<td>' + (startDelay === "---" ? "---" : startDelay + ' min') + '</td>' +
+                        '</tr>' +
+                        '<tr class="sensor-group-row">' +
+                            '<td>🌞 Experiment End</td>' +
+                            '<td>' + sunrise + '</td>' +
+                        '</tr>' +
+                        '<tr>' +
+                            '<td class="sensor-value-name timing-sub-item">End Capture</td>' +
+                            '<td>' + endCapture + '</td>' +
+                        '</tr>' +
+                        '<tr>' +
+                            '<td class="sensor-value-name timing-sub-item">Attiny OFF</td>' +
+                            '<td>' + fmtTime(attinyOff) + '</td>' +
+                        '</tr>' +
+                        '<tr>' +
+                            '<td class="sensor-value-name timing-sub-item">Sunrise</td>' +
+                            '<td>' + sunrise + '</td>' +
+                        '</tr>';
+                })
+                .catch(err => {
+                    console.error('Timing update failed:', err);
+                    var table = document.getElementById('timingTableBody');
+                    if (table) {
+                        table.innerHTML = '<tr><td colspan="2">API error – check console</td></tr>';
+                    }
                 });
         }
 
@@ -1201,10 +1633,13 @@
         loadDimmingStatus();
         updateCameraInfo();
         loadCameraSettings();
+        loadStreamSettings();
         loadGallery();
         loadLog();
         loadCSV();
         updateLocation();
+        updateStorage();
+        updateTiming();
         
         // Periodic updates
         setInterval(updateStatus, 2000);
@@ -1212,8 +1647,16 @@
         setInterval(updateSensors, 2000);
         setInterval(loadDimmingStatus, 2000);
         setInterval(updateCameraInfo, 30000);
-        // Refresh gallery every 60 seconds
-        setInterval(loadGallery, 60000);
+        setInterval(updateStorage, 30000);
+        setInterval(updateTiming, 30000);
+
+        /* Only Gallery uses auto-polling with exponential backoff.
+           Log and CSV are only reloaded on manual button click. */
+        function scheduleGallery() { setTimeout(loadGallery, pollInterval); }
+        // Gallery auto-refresh (base 60 s, but respects backoff)
+        (function pollGallery() {
+            setTimeout(function() { loadGallery(); pollGallery(); }, 60000);
+        })();
         
         // Handle stream errors
         streamImage.onerror = function() {
@@ -1231,7 +1674,7 @@
                 .then(data => {
                     const grid = document.getElementById('galleryGrid');
                     const usbStatus = document.getElementById('usbStatus');
-                    
+
                     // Update USB status badge
                     if (data.usb_mounted) {
                         usbStatus.textContent = 'USB: ' + (data.usb_path || 'connected');
@@ -1240,26 +1683,29 @@
                         usbStatus.textContent = 'USB: not mounted';
                         usbStatus.className = 'usb-status usb-disconnected';
                     }
-                    
+
                     if (!data.images || data.images.length === 0) {
                         grid.innerHTML = '<div class="gallery-empty">' +
-                            (data.usb_mounted 
-                                ? 'No images found on USB drive yet.' 
+                            (data.usb_mounted
+                                ? 'No images found on USB drive yet.'
                                 : 'USB drive not connected.') +
                             '</div>';
+                        // USB is mounted but empty — still a "success" from polling perspective
+                        if (data.usb_mounted) pollOnSuccess();
+                        else pollOnFailure();
                         return;
                     }
-                    
+
                     grid.innerHTML = '';
                     data.images.forEach(function(img) {
                         const item = document.createElement('div');
                         item.className = 'gallery-item';
                         item.onclick = function() { openLightbox(img.url); };
-                        
+
                         const modified = new Date(img.modified);
                         const timeStr = modified.toLocaleString();
-                        
-                        item.innerHTML = 
+
+                        item.innerHTML =
                             '<img src="' + img.thumbnail_url + '" alt="' + img.filename + '" loading="lazy">' +
                             '<div class="gallery-item-info">' +
                             '  <div class="filename" title="' + img.filename + '">' + img.filename + '</div>' +
@@ -1268,44 +1714,20 @@
                             '    <span>' + img.size_kb + ' KB</span>' +
                             '  </div>' +
                             '</div>';
-                        
+
                         grid.appendChild(item);
                     });
+                    pollOnSuccess();
                 })
                 .catch(err => {
                     console.error('Gallery load failed:', err);
-                    document.getElementById('galleryGrid').innerHTML = 
+                    document.getElementById('galleryGrid').innerHTML =
                         '<div class="gallery-empty">Failed to load images.</div>';
+                    pollOnFailure();
                 });
         }
 
-        function loadLog() {
-            const logContent = document.getElementById('logContent');
-            logContent.textContent = 'Loading log...';
-            fetch('/api/log')
-                .then(response => response.json())
-                .then(data => {
-                    logContent.textContent = data.lines.join('');
-                    logContent.scrollTop = logContent.scrollHeight;
-                })
-                .catch(() => {
-                    logContent.textContent = 'Log could not be loaded.';
-                });
-        }
 
-        function loadCSV() {
-            const csvContent = document.getElementById('csvContent');
-            csvContent.textContent = 'Loading CSV...';
-            fetch('/api/csv')
-                .then(response => response.json())
-                .then(data => {
-                    csvContent.textContent = data.lines.join('');
-                    csvContent.scrollTop = csvContent.scrollHeight;
-                })
-                .catch(() => {
-                    csvContent.textContent = 'CSV could not be loaded.';
-                });
-        }
         
         function openLightbox(imageUrl) {
             const lightbox = document.getElementById('lightbox');

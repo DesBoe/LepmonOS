@@ -15,6 +15,7 @@ import threading
 import time
 import cv2
 import numpy as np
+from urllib.parse import quote as urlquote
 from fastapi import FastAPI, Response, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -29,7 +30,7 @@ from contextlib import asynccontextmanager
 from typing import Optional, Generator, List
 import logging
 import glob
-
+from json_read_write import get_value_from_section, write_value_to_section
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -76,11 +77,14 @@ CAMERA_SETTINGS_FILE = "/home/Ento/LepmonOS/camera_web_settings.json"
 DEFAULT_EXPOSURE = 140  # ms
 DEFAULT_GAIN = 5
 STREAM_DOWNSCALE = 8  # Downscale factor for streaming (reduces bandwidth)
+STREAM_ZOOM = 1        # Center-crop zoom factor (1 = full frame, 2 = inner half, ...)
 
 # Global camera settings (loaded from file)
 camera_settings = {
     "exposure": DEFAULT_EXPOSURE,
-    "gain": DEFAULT_GAIN
+    "gain": DEFAULT_GAIN,
+    "stream_downscale": STREAM_DOWNSCALE,
+    "stream_zoom": STREAM_ZOOM,
 }
 
 
@@ -104,23 +108,88 @@ def sensor_defaults() -> dict:
         },
     }
 
-def read_LepmonOS_log(log_mode: str = "web_stream") -> List[str]:
-    """Read the configured LepmonOS log file and return its last 500 lines."""
+
+def resolve_log_path() -> Optional[str]:
+    """Resolve the path to the current LepmonOS log file.
+
+    Resolution order:
+      1. current_log from Lepmon_config.json (if file exists)
+      2. Sample log in templates directory
+    """
     from json_read_write import get_value_from_section
     log_file_path = "/home/Ento/LepmonOS/lepmonos.log"
     try:
-        log_file_path = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_log")
+        log_file_path = get_value_from_section(
+            "/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_log"
+        )
+        if not isinstance(log_file_path, str) or not log_file_path:
+            log_file_path = "/home/Ento/LepmonOS/lepmonos.log"
     except Exception as e:
-        try:
-            log_file_path = "/Volumes/Dennis_OTG/LEPMON/Raspberry_Pi/LepmonOS/templates/Lepmon#SN000000_XX_YYY_Sample.log"
-        except Exception as e:
-            pass
-        logger.error(f"Could not get log file path: {e}")
+        logger.warning(f"Could not get log file path from config: {e}")
+
+    if os.path.exists(log_file_path):
+        return log_file_path
+
+    sample_path = str(templates_dir / "Lepmon#SN000000_XX_YYY_Sample.log")
+    if os.path.exists(sample_path):
+        logger.info(f"Configured log path not found, using sample: {sample_path}")
+        return sample_path
+
+    return None
 
 
-    if not os.path.exists(log_file_path):
+def resolve_csv_path() -> Optional[str]:
+    """Resolve the path to the current LepmonOS CSV data file.
+
+    Resolution order mirrors read_LepmonOS_csv():
+      1. current_csv from Lepmon_config.json (if file exists)
+      2. current_log from config with .log → .csv (if exists)
+      3. Latest CSV inside a Lepmon#SN* directory on USB
+      4. Sample CSV in templates directory
+    """
+    DEFAULT_CSV_PATH = str(templates_dir / "Lepmon#SN000000_XX_YYY_Sample.csv")
+    from json_read_write import get_value_from_section
+
+    # Step 1: explicit current_csv
+    try:
+        explicit_csv = get_value_from_section(
+            "/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_csv"
+        )
+        if isinstance(explicit_csv, str) and explicit_csv and os.path.exists(explicit_csv):
+            return explicit_csv
+    except Exception as e:
+        logger.warning(f"Could not read current_csv from config: {e}")
+
+    # Step 2: derive from current_log (.log → .csv)
+    try:
+        log_path = get_value_from_section(
+            "/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_log"
+        )
+        if isinstance(log_path, str) and log_path:
+            derived = os.path.splitext(log_path)[0] + ".csv"
+            if os.path.exists(derived):
+                return derived
+    except Exception as e:
+        logger.warning(f"Could not derive CSV path from config: {e}")
+
+    # Step 3: search USB stick
+    usb_csv = _find_csv_on_usb()
+    if usb_csv:
+        return usb_csv
+
+    # Step 4: sample CSV
+    if os.path.exists(DEFAULT_CSV_PATH):
+        return DEFAULT_CSV_PATH
+
+    return None
+
+
+def read_LepmonOS_log(log_mode: str = "web_stream") -> List[str]:
+    """Read the configured LepmonOS log file and return its last 500 lines."""
+    log_file_path = resolve_log_path()
+    if log_file_path is None or not os.path.exists(log_file_path):
         return ["Log file not found."]
-    
+
     try:
         with open(log_file_path, "r") as f:
             return f.readlines()[-500:]
@@ -129,26 +198,35 @@ def read_LepmonOS_log(log_mode: str = "web_stream") -> List[str]:
         return [f"Error reading log file: {e}"]
 
 def read_LepmonOS_metadata(log_mode: str = "web_stream") -> dict:
-    """Read the configured LepmonOS log file and return its metadata."""
-    from json_read_write import get_value_from_section
+    """Read the configured LepmonOS log file and return its metadata.
+
+    Tries the path from Lepmon_config.json first.  If that file or key is
+    missing, OR if the resolved path does not exist on disk, falls back to
+    the default sample log so the web UI always has something to show.
+    """
+    DEFAULT_LOG_PATH = str(templates_dir / "Lepmon#SN000000_XX_YYY_Sample.log")
     log_file_path = "/home/Ento/LepmonOS/lepmonos.log"
+
     try:
-        log_file_path = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_log")
+        log_file_path = get_value_from_section(
+            "/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_log"
+        )
     except Exception as e:
-        try:
-            log_file_path = "/Volumes/Dennis_OTG/LEPMON/Raspberry_Pi/LepmonOS/templates/Lepmon#SN000000_XX_YYY_Sample.log"
-        except Exception as e:
-            pass
-        logger.error(f"Could not get log file path: {e}")
+        logger.warning(f"Could not read log path from config: {e}")
+
+    # Fall back when the resolved path does not exist on disk
+    if not os.path.exists(log_file_path):
+        logger.info(f"Configured log path does not exist: {log_file_path}")
+        log_file_path = DEFAULT_LOG_PATH
 
     if not os.path.exists(log_file_path):
-        return {"error": "Metadata file not found."}
-    
+        return {"error": "Metadata file not found.", "log_file": log_file_path}
+
     try:
         with open(log_file_path, "r") as f:
             lines = f.readlines()
             if not lines:
-                return {"error": "Metadata file is empty."}
+                return {"error": "Metadata file is empty.", "log_file": log_file_path}
             header = "".join(lines[0:27]).strip()
             first_entries = "".join(lines[28:50]).strip()
             last_entries = "".join(lines[-15:]).strip()
@@ -161,7 +239,142 @@ def read_LepmonOS_metadata(log_mode: str = "web_stream") -> dict:
             }
     except Exception as e:
         logger.error(f"Could not read log file: {e}")
-        return {"error": f"Error reading log file: {e}"}
+        return {"error": f"Error reading log file: {e}", "log_file": log_file_path}
+
+
+def _find_csv_on_usb() -> Optional[str]:
+    """Search the USB stick for the latest CSV inside a Lepmon#SN* directory.
+
+    Used as a fallback when the config paths don't resolve (e.g. the
+    config was written on a macOS machine with a different mount point).
+    Returns the newest CSV path found, or None.
+    """
+    usb_path = _find_usb_mount_shared()
+    if not usb_path:
+        return None
+
+    csv_files = []
+    for root, dirs, files in os.walk(usb_path):
+        # Only descend into Lepmon#SN* directories
+        dirs[:] = [d for d in dirs if d.startswith("Lepmon#SN")]
+        for f in files:
+            if f.lower().endswith(".csv"):
+                full = os.path.join(root, f)
+                try:
+                    csv_files.append((full, os.stat(full).st_mtime))
+                except OSError:
+                    pass
+
+    if not csv_files:
+        return None
+    # Return the newest one
+    csv_files.sort(key=lambda x: x[1], reverse=True)
+    return csv_files[0][0]
+
+
+def read_LepmonOS_csv() -> dict:
+    """Read the CSV data file and return its metadata (header + first/last rows).
+
+    Resolution order for the CSV path:
+      1. current_csv from Lepmon_config.json (if file exists on disk)
+      2. current_log from Lepmon_config.json with .log replaced by .csv (if exists)
+      2.5 Latest CSV inside a Lepmon#SN* directory on the USB drive
+      3. Sample CSV in the templates directory
+    Both the sample CSV and real CSV share the same structure.
+    """
+    DEFAULT_CSV_PATH = str(templates_dir / "Lepmon#SN000000_XX_YYY_Sample.csv")
+    csv_file_path = None
+
+    # ── Step 1: Try explicit current_csv from config ──
+    try:
+        explicit_csv = get_value_from_section(
+            "/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_csv"
+        )
+        if isinstance(explicit_csv, str) and explicit_csv and os.path.exists(explicit_csv):
+            csv_file_path = explicit_csv
+            logger.info(f"Using CSV from config current_csv: {csv_file_path}")
+    except Exception as e:
+        logger.warning(f"Could not read current_csv from config: {e}")
+
+    # ── Step 2: Fall back to deriving from current_log (.log → .csv) ──
+    if csv_file_path is None:
+        try:
+            log_path = get_value_from_section(
+                "/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_log"
+            )
+            if isinstance(log_path, str) and log_path:
+                derived = os.path.splitext(log_path)[0] + ".csv"
+                if os.path.exists(derived):
+                    csv_file_path = derived
+                    logger.info(f"Using CSV derived from current_log: {csv_file_path}")
+        except Exception as e:
+            logger.warning(f"Could not derive CSV path from config: {e}")
+
+    # ── Step 2.5: Search USB stick for CSV in Lepmon#SN* directories ──
+    if csv_file_path is None:
+        usb_csv = _find_csv_on_usb()
+        if usb_csv:
+            csv_file_path = usb_csv
+            logger.info(f"Using CSV found on USB: {csv_file_path}")
+
+    # ── Step 3: Fall back to sample CSV ──
+    if csv_file_path is None:
+        logger.info("No configured CSV found, falling back to sample CSV.")
+        csv_file_path = DEFAULT_CSV_PATH
+
+    if not os.path.exists(csv_file_path):
+        return {"error": "CSV file not found.", "csv_file": csv_file_path}
+
+    try:
+        with open(csv_file_path, "r") as f:
+            lines = f.readlines()
+            if not lines:
+                return {"error": "CSV file is empty.", "csv_file": csv_file_path}
+
+            # CSV structure (shared between sample and real CSV):
+            # Lines 1-23:   # comment metadata (software, machine, GPS, etc.)
+            # Line 24:      ******************** separator
+            # Line 25-26:   #Starting new Programme / #Local Time
+            # Line 27:      column header row (tab-separated)
+            # Lines 28+:    data rows (tab-separated)
+
+            # Find the separator line (*********************) to split header/data
+            separator_idx = None
+            for i, line in enumerate(lines):
+                if line.strip().startswith("*****"):
+                    separator_idx = i
+                    break
+
+            if separator_idx is not None:
+                # Header = metadata comments before separator
+                header = "".join(lines[:separator_idx]).strip()
+                # Data starts after "#Starting new Programme" and "#Local Time" lines
+                # Find the column header row (first line that doesn't start with # or *)
+                data_start = separator_idx + 1
+                for i in range(separator_idx + 1, len(lines)):
+                    stripped = lines[i].strip()
+                    if stripped and not stripped.startswith("#") and not stripped.startswith("*"):
+                        data_start = i
+                        break
+
+                first_rows = "".join(lines[data_start:data_start + 10]).strip()
+                last_rows = "".join(lines[-10:]).strip()
+            else:
+                # No separator found – treat as plain CSV
+                header = "".join(lines[:3]).strip()
+                first_rows = "".join(lines[3:13]).strip()
+                last_rows = "".join(lines[-10:]).strip()
+
+            return {
+                "csv_file": csv_file_path,
+                "header": header,
+                "first_entries": first_rows,
+                "last_entries": last_rows,
+                "total_lines": len(lines)
+            }
+    except Exception as e:
+        logger.error(f"Could not read CSV file: {e}")
+        return {"error": f"Error reading CSV file: {e}", "csv_file": csv_file_path}
 
 def _stop_dimming(disable: bool = False) -> None:
     """Dim the light down and optionally prevent further web activation."""
@@ -424,8 +637,11 @@ def frame_generator() -> Generator[bytes, None, None]:
         # Use global camera settings
         exposure = camera_settings["exposure"]
         gain = camera_settings["gain"]
+        downscale = camera_settings.get("stream_downscale", STREAM_DOWNSCALE)
+        zoom = camera_settings.get("stream_zoom", STREAM_ZOOM)
 
         while True:
+            '''
             state = get_capturing_state()
 
             # Timelapse wins — never compete with it.
@@ -433,9 +649,17 @@ def frame_generator() -> Generator[bytes, None, None]:
                 _close_camera()
                 logger.info("Stream unavailable: capture is in progress")
                 return
+            '''
+            # Derive all camera state from Lepmon_config.json via get_value_from_section
+            capturing_state = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing")
+            if capturing_state:
+                _close_camera()
+                logger.info("Stream unavailable: capture is in progress")
+                return
 
-            # No web focus session — do not grab the camera.
-            if not state.web_focus_active:
+            # web_focus_active derived from config JSON
+            web_focus_active = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "web_focus_active")
+            if not web_focus_active:
                 _close_camera()
                 logger.info("Stream unavailable: Web Focus is not active")
                 return
@@ -454,11 +678,20 @@ def frame_generator() -> Generator[bytes, None, None]:
                 frame = _dev_mode_frame() if DEV_MODE else None
 
             if frame is not None:
-                # Downscale raw image first to reduce processing time
+                # 1) Center-crop zoom first (before downscale, for accuracy)
+                if zoom > 1:
+                    h, w = frame.shape[:2]
+                    crop_h = max(1, h // zoom)
+                    crop_w = max(1, w // zoom)
+                    y_start = (h - crop_h) // 2
+                    x_start = (w - crop_w) // 2
+                    frame = frame[y_start:y_start + crop_h, x_start:x_start + crop_w]
+
+                # 2) Downscale to reduce processing time
                 h, w = frame.shape[:2]
-                if STREAM_DOWNSCALE > 1:
-                    new_w = w // STREAM_DOWNSCALE
-                    new_h = h // STREAM_DOWNSCALE
+                if downscale > 1:
+                    new_w = w // downscale
+                    new_h = h // downscale
                     frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
                 
                 # Apply min/max stretch for better visibility
@@ -481,7 +714,9 @@ def frame_generator() -> Generator[bytes, None, None]:
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                 cv2.putText(stretched, f"Exp: {exposure}ms Gain: {gain}", (10, 90),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-                cv2.putText(stretched, f"Scale: 1/{STREAM_DOWNSCALE}", (10, 120),
+                cv2.putText(stretched, f"Downscale: 1/{downscale}", (10, 120),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                cv2.putText(stretched, f"Zoom: {zoom}x", (10, 150),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                 
                 current_frame = stretched
@@ -619,14 +854,28 @@ async def logo():
 @app.get("/stream")
 async def video_stream():
     """MJPEG video stream endpoint."""
-    state = get_capturing_state()
-    if state.is_capturing or not state.web_focus_active:
+    # Derive web_focus_active from config JSON
+    web_focus_active = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "web_focus_active")
+    capturing_state = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing")
+    if capturing_state or not web_focus_active:
         logger.info("Redirecting unavailable stream request to the logo placeholder")
         return RedirectResponse(url="/LEPMON_Logo_Circle.png")
     return StreamingResponse(
         frame_generator(),
         media_type="multipart/x-mixed-replace; boundary=frame"
     )
+
+LEPMON_CONFIG_PATH = "/home/Ento/LepmonOS/Lepmon_config.json"
+
+
+@app.get("/api/camera/power")
+async def get_camera_power():
+    """Return Camera_state.has_power from Lepmon_config.json."""
+    try:
+        has_power = get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "has_power")
+    except Exception:
+        has_power = False
+    return {"has_power": bool(has_power)}
 
 
 @app.get("/snapshot")
@@ -662,6 +911,13 @@ async def snapshot():
 async def get_status():
     """Get current system status."""
     state = get_capturing_state()
+    web_focus_active = get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "web_focus_active")
+
+    # Camera power state from config
+    try:
+        camera_has_power = get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "has_power")
+    except Exception:
+        camera_has_power = False
 
     return {
         "is_capturing": state.is_capturing,
@@ -669,9 +925,10 @@ async def get_status():
         "images_captured": state.images_captured,
         "stream_active": streaming_active,
         "stream_consumers": stream_consumers,
-        "web_focus_active": state.web_focus_active,
+        "web_focus_active": web_focus_active,
         "web_focus_started_at": state.web_focus_started_at.isoformat() if state.web_focus_started_at else None,
         "stop_focus_requested": state.stop_focus_requested,
+        "camera_has_power": bool(camera_has_power),
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
     }
 
@@ -704,32 +961,43 @@ async def get_dimming_status():
 
 @app.post("/api/dimming/toggle")
 async def toggle_dimming():
-    """Toggle light dimming, with a five-minute maximum web-on duration."""
     global dimming_active, dimming_started_at, dimming_timer
+
     with dimming_lock:
         if dimming_disabled:
             return JSONResponse(
-                {"error": "Dimming is disabled after the five-minute limit"},
+               {"error": "Dimming is disabled after the five-minute limit"},
                 status_code=403,
             )
-        should_start = not dimming_active
-        existing_timer = dimming_timer
 
-    if should_start:
-        from Lights import dim_up
+        if not dimming_active:
+            old_timer = dimming_timer
+            if old_timer is not None:
+                old_timer.cancel()
 
-        dim_up()
-        with dimming_lock:
+            from Lights import dim_up
+            dim_up()
+
             dimming_active = True
             dimming_started_at = time.time()
-            dimming_timer = threading.Timer(DIMMING_MAX_DURATION_S, _stop_dimming, kwargs={"disable": True})
+            dimming_timer = threading.Timer(
+                DIMMING_MAX_DURATION_S,
+                _stop_dimming,
+                kwargs={"disable": True}
+            )
             dimming_timer.daemon = True
             dimming_timer.start()
-    else:
-        if existing_timer is not None:
-            existing_timer.cancel()
-        _stop_dimming()
+        else:
+            old_timer = dimming_timer
+            if old_timer is not None:
+                old_timer.cancel()
+            dimming_timer = None
+            dimming_active = False  # Mark inactive so _stop_dimming() runs below
 
+    if dimming_active:
+        return _dimming_state()
+
+    _stop_dimming()
     return _dimming_state()
 
 
@@ -794,34 +1062,63 @@ async def get_camera_settings():
 
 @app.post("/api/camera/settings")
 async def update_camera_settings(settings: dict):
-    """Update camera settings and save to file."""
+    """Update camera settings and save to file.
+
+    Supported keys:
+      - exposure    (float, 1-10000 ms)
+      - gain        (float, 0-48 dB)
+      - stream_downscale  (int, 1-20)
+      - stream_zoom       (int, 1-5)
+    """
     global camera_settings
-    
+
     try:
         # Validate and update settings
         if "exposure" in settings:
             exposure = float(settings["exposure"])
-            if 1 <= exposure <= 10000:  # 1ms to 10s
+            if 1 <= exposure <= 10000:
                 camera_settings["exposure"] = exposure
             else:
                 return JSONResponse(
                     {"error": "Exposure must be between 1 and 10000 ms"},
                     status_code=400
                 )
-        
+
         if "gain" in settings:
             gain = float(settings["gain"])
-            if 0 <= gain <= 48:  # Typical range for Allied Vision cameras
+            if 0 <= gain <= 48:
                 camera_settings["gain"] = gain
             else:
                 return JSONResponse(
                     {"error": "Gain must be between 0 and 48"},
                     status_code=400
                 )
-        
+
+        # Stream downscale factor (1 = no downscale, up to 20)
+        if "stream_downscale" in settings:
+            ds = int(settings["stream_downscale"])
+            if 1 <= ds <= 20:
+                camera_settings["stream_downscale"] = ds
+            else:
+                return JSONResponse(
+                    {"error": "stream_downscale must be between 1 and 20"},
+                    status_code=400
+                )
+
+        # Center-crop zoom factor (1 = full frame, up to 5)
+        if "stream_zoom" in settings:
+            z = int(settings["stream_zoom"])
+            if 1 <= z <= 5:
+                camera_settings["stream_zoom"] = z
+            else:
+                return JSONResponse(
+                    {"error": "stream_zoom must be between 1 and 5"},
+                    status_code=400
+                )
+
         # Save to file
         save_camera_settings()
-        
+
         return {
             "success": True,
             "settings": camera_settings
@@ -854,7 +1151,9 @@ find_usb_mount = _find_usb_mount_shared
 def find_latest_images(count: int = 10) -> List[dict]:
     """
     Recursively find the latest `count` image files on the USB drive.
-    Returns list of dicts with path, filename, modified time, and size.
+    Only descends into directories whose name starts with "Lepmon#SN"
+    so that test images, trash contents, and other non-capture files
+    are excluded from the gallery.
     The .thumbs/ shadow tree is skipped so precomputed previews don't
     show up in the gallery as their own entries.
     """
@@ -866,7 +1165,13 @@ def find_latest_images(count: int = 10) -> List[dict]:
     images = []
 
     for root, dirs, files in os.walk(usb_path):
-        dirs[:] = [d for d in dirs if d != THUMBS_DIR_NAME]
+        # Only descend into Lepmon#SN* directories (and the top-level USB root)
+        dirs[:] = [
+            d for d in dirs
+            if d != THUMBS_DIR_NAME
+            and not d.lower().startswith("._")
+            and (root == usb_path or d.startswith("Lepmon#SN"))
+        ]
         for f in files:
             if f.lower().startswith("._"):  # Skip macOS resource forks
                 continue
@@ -899,14 +1204,14 @@ async def get_latest_images(count: int = 10):
 
     result = []
     for img in images:
-        # Create a safe ID from the path for the serving endpoint
-        rel_path = img["path"]
+        # URL-encode the path so special chars like '#' don't break query params
+        safe_path = urlquote(img["path"], safe="")
         from datetime import datetime
         mod_time = datetime.fromtimestamp(img["modified"])
         result.append({
             "filename": img["filename"],
-            "url": f"/api/images/file?path={img['path']}",
-            "thumbnail_url": f"/api/images/thumbnail?path={img['path']}",
+            "url": f"/api/images/file?path={safe_path}",
+            "thumbnail_url": f"/api/images/thumbnail?path={safe_path}",
             "modified": mod_time.isoformat(),
             "size_kb": round(img["size"] / 1024, 1)
         })
@@ -926,6 +1231,72 @@ async def get_log():
     return {"lines": read_LepmonOS_log()}
 
 
+@app.get("/api/download/log")
+async def download_log():
+    """Download the raw LepmonOS log file."""
+    log_file_path = resolve_log_path()
+    if log_file_path is None or not os.path.isfile(log_file_path):
+        return JSONResponse({"error": "No log file found."}, status_code=404)
+
+    filename = os.path.basename(log_file_path)
+    try:
+        with open(log_file_path, "rb") as f:
+            content = f.read()
+    except OSError as e:
+        logger.warning(f"Failed to read log file {log_file_path} (USB hot-unplug?): {e}")
+        return JSONResponse({"error": "Log file disappeared (USB disconnected?)."}, status_code=503)
+    return Response(
+        content=content,
+        media_type="text/plain",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@app.get("/api/csv")
+async def read_csv_file():
+    """Return structured metadata (header + first/last entries) from the CSV data file.
+
+    Reads the actual CSV file and returns a JSON object with:
+      - csv_file: path to the CSV file being displayed
+      - header: metadata comment block (lines 1–N before separator)
+      - first_entries: column header + first 10 data rows
+      - last_entries: last 10 data rows
+      - total_lines: total line count of the file
+
+    Falls back to the sample CSV when no real data file exists.
+    On failure, returns { error: "...", csv_file: "..." }.
+    """
+    meta = read_LepmonOS_csv()
+    if meta.get("error"):
+        # Return the error directly so the frontend can detect data.error.
+        return {
+            "error": meta["error"],
+            "csv_file": meta.get("csv_file", "unknown"),
+        }
+    # Pass through the structured response unchanged.
+    return meta
+
+
+@app.get("/api/download/csv")
+async def download_csv():
+    """Download the raw CSV data file."""
+    csv_file_path = resolve_csv_path()
+    if not csv_file_path or not os.path.isfile(csv_file_path):
+        return JSONResponse({"error": "CSV file not found."}, status_code=404)
+
+    filename = os.path.basename(csv_file_path)
+    try:
+        with open(csv_file_path, "rb") as f:
+            content = f.read()
+    except OSError as e:
+        logger.warning(f"Failed to read CSV file {csv_file_path} (USB hot-unplug?): {e}")
+        return JSONResponse({"error": "CSV file disappeared (USB disconnected?)."}, status_code=503)
+    return Response(
+        content=content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
 @app.get("/api/images/file")
 async def serve_image(path: str):
     """Serve an image file from the USB drive."""
@@ -943,8 +1314,12 @@ async def serve_image(path: str):
     }
     mime = mime_map.get(ext, 'application/octet-stream')
 
-    with open(path, 'rb') as f:
-        data = f.read()
+    try:
+        with open(path, 'rb') as f:
+            data = f.read()
+    except OSError as e:
+        logger.warning(f"Failed to serve image {path} (USB hot-unplug?): {e}")
+        return JSONResponse({"error": "Image disappeared (USB disconnected?)."}, status_code=503)
 
     return Response(content=data, media_type=mime)
 
@@ -960,8 +1335,13 @@ async def serve_thumbnail(path: str, max_size: int = THUMB_MAX_PX):
     """
     if not is_usb_path(path):
         return JSONResponse({"error": "Access denied"}, status_code=403)
-    if not os.path.isfile(path):
-        return JSONResponse({"error": "File not found"}, status_code=404)
+
+    try:
+        if not os.path.isfile(path):
+            return JSONResponse({"error": "File not found"}, status_code=404)
+    except OSError as e:
+        logger.warning(f"Thumbnail path check failed {path} (USB hot-unplug?): {e}")
+        return JSONResponse({"error": "USB disconnected during request."}, status_code=503)
 
     thumb_path = _thumb_path_for(path)
 
@@ -989,6 +1369,77 @@ async def serve_thumbnail(path: str, max_size: int = THUMB_MAX_PX):
         return Response(content=data, media_type="image/jpeg")
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/storage")
+async def get_storage_info():
+    """Return USB disk usage information."""
+    usb_path = find_usb_mount()
+    if not usb_path:
+        return {"mounted": False}
+    try:
+        st = os.statvfs(usb_path)
+        total = st.f_frsize * st.f_blocks
+        free = st.f_frsize * st.f_bfree
+        available = st.f_frsize * st.f_bavail
+        used = total - free
+        gb = 1024 ** 3
+        return {
+            "mounted": True,
+            "path": usb_path,
+            "total_gb": round(total / gb, 2),
+            "used_gb": round(used / gb, 2),
+            "available_gb": round(available / gb, 2),
+            "used_percent": round(used / total * 100, 1) if total else 0,
+            "available_percent": round(available / total * 100, 1) if total else 0,
+        }
+    except Exception as e:
+        logger.error(f"Storage info error: {e}")
+        return {"mounted": True, "error": str(e)}
+
+
+@app.get("/api/timing")
+async def get_timing_info():
+    """Return full experiment timing + location + USB data object.
+
+    Delegates to lepmon_web_tables.get_web_table_object() which collects:
+    - Sun times (sunset, sunrise)
+    - Experiment times (start/end capture)
+    - Power times (attiny ON/OFF)
+    - Config offsets
+    - GPS coordinates, locality (province/city)
+    - USB stick storage info
+    - Current pipeline step (start_up / capturing / wait / end / local_menu)
+    """
+    try:
+        from lepmon_web_tables import get_web_table_object
+        return get_web_table_object(log_mode="web_stream")
+    except Exception as e:
+        logger.error(f"Timing info error: {e}")
+        return {"error": str(e)}
+
+
+@app.get("/api/location")
+async def get_location_info():
+    """Return GPS coordinates and locality data (province/city).
+
+    Uses the shared web_table_object but returns only location fields.
+    """
+    try:
+        from lepmon_web_tables import get_web_table_object
+        data = get_web_table_object(log_mode="web_stream")
+        return {
+            "latitude": data.get("latitude"),
+            "longitude": data.get("longitude"),
+            "pol": data.get("pol", ""),
+            "block": data.get("block", ""),
+            "province": data.get("province", "---"),
+            "city": data.get("city", "---"),
+            "country": data.get("country", "---"),
+        }
+    except Exception as e:
+        logger.error(f"Location info error: {e}")
+        return {"error": str(e)}
 
 
 def run_server(host: str = "0.0.0.0", port: int = 8080):

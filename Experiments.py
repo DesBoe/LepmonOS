@@ -181,7 +181,7 @@ def modify_ARNI_specs( log_mode= "log", gen="", Schirmbreite="", Schirmhöhe="",
     modified_project_name = project_name
 
     if sn in Hexmon_Experiment and get_value_from_section(CONFIG_PATH, "Hexmon_Experiment", "Enable_Hexmon"):
-        modified_gen = "Pro_Min_1"
+        modified_gen = "Pro_Magni_1"
         modified_Schirmbreite = 180
         modified_Schirmhöhe = 120
         modified_effective_resolution = 32
@@ -206,8 +206,8 @@ def display_experiments(log_mode):
         display_text(f"ARNI {sn}","Interval Experiment",f"{interval} min", 3)
 
     if sn in Hexmon_Experiment and get_value_from_section(CONFIG_PATH, "Hexmon_Experiment", "Enable_Hexmon"):
-        modified_gen, modified_Schirmbreite, modified_Schirmhöhe, modified_effective_resolution, modified_distance, modified_distance, moified_project_name = modify_ARNI_specs(sn, log_mode)
-        display_text(f"ARNI {sn}",f"Projek: {moified_project_name}",f"Gen: {modified_gen}", 3)
+        modified_gen, modified_Schirmbreite, modified_Schirmhöhe, modified_effective_resolution, modified_distance, modified_project_name = modify_ARNI_specs(sn, log_mode)
+        display_text(f"ARNI {sn}",f"Projek: {modified_project_name}",f"Gen: {modified_gen}", 3)
         display_text(f"Schirm: {modified_Schirmbreite}x{modified_Schirmhöhe} mm",f"Auflösung: {modified_effective_resolution} px/mm",f"Abstand: {modified_distance} mm", 3)
 
 

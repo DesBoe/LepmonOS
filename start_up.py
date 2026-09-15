@@ -35,6 +35,7 @@ def start_up(log_mode):
     print("starte Setup")
     turn_off_led("blau")
     send_lora("Starte Lepmon Software")
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_step", "start_up")
 
 
     ############################################################################################################################################################################################################
