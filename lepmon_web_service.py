@@ -961,30 +961,25 @@ async def logo():
     return FileResponse(templates_dir / "LEPMON_Logo_Circle.png")
 
 
+@app.get("/Capture_Image.png")
+async def capture_image_placeholder():
+    """Serve the capture placeholder image."""
+    return FileResponse(templates_dir / "Capture_Image.png")
+
+
 @app.get("/stream")
 async def video_stream():
-    """MJPEG video stream endpoint."""
-    # Check ALL conditions BEFORE entering the generator.
-    # If any condition fails, redirect to placeholder immediately so the
-    # browser doesn't get stuck on a blocking /stream request.
+    """MJPEG video stream endpoint. Only served when focus session allows it."""
     try:
-        is_capturing = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing")
-        has_power = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "has_power")
         free_for_web = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "free_for_web")
+        web_requested = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "web_requested")
     except Exception:
-        is_capturing = True
-        has_power = False
         free_for_web = False
+        web_requested = False
 
-    if is_capturing:
-        logger.info("Stream blocked: capture is in progress")
-        return RedirectResponse(url="/LEPMON_Logo_Circle.png")
-    if not has_power:
-        logger.info("Stream blocked: camera has no power")
-        return RedirectResponse(url="/LEPMON_Logo_Circle.png")
-    if not free_for_web:
-        logger.info("Stream blocked: camera is not free for web streaming")
-        return RedirectResponse(url="/LEPMON_Logo_Circle.png")
+    if not (free_for_web and web_requested):
+        logger.info("Stream blocked: camera not free or not requested for web")
+        return RedirectResponse(url="/Capture_Image.png")
 
     return StreamingResponse(
         frame_generator(),
@@ -1099,9 +1094,13 @@ async def get_status():
     try:
         camera_has_power = get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "has_power")
         camera_is_detected = get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "is_detected")
+        camera_free_for_web = get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "free_for_web")
+        camera_web_requested = get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "web_requested")
     except Exception:
         camera_has_power = False
         camera_is_detected = False
+        camera_free_for_web = False
+        camera_web_requested = False
 
     return {
         "is_capturing": state.is_capturing,
@@ -1112,6 +1111,8 @@ async def get_status():
         "stop_focus_requested": state.stop_focus_requested,
         "camera_has_power": bool(camera_has_power),
         "is_detected": bool(camera_is_detected),
+        "free_for_web": bool(camera_free_for_web),
+        "web_requested": bool(camera_web_requested),
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
     }
 
