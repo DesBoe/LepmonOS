@@ -341,42 +341,6 @@
         
         .stat-value.warning {
             color: var(--warning);
-
-        /* Camera State mini-table */
-        .camera-state-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.75rem;
-        }
-
-        .camera-state-table td {
-            padding: 0.3rem 0;
-            border-bottom: 1px solid rgba(15, 52, 96, 0.6);
-        }
-
-        .camera-state-table tr:last-child td {
-            border-bottom: none;
-        }
-
-        .camera-state-table .state-label {
-            color: var(--text-dim);
-            width: 55%;
-        }
-
-        .camera-state-table .state-value {
-            text-align: right;
-            font-weight: 600;
-            font-family: 'SF Mono', 'Consolas', monospace;
-        }
-
-        .state-value.state-true {
-            color: var(--success);
-        }
-
-        .state-value.state-false {
-            color: var(--text-dim);
-        }
-
         }
         
         .focus-meter {
@@ -703,9 +667,6 @@
                         🌑 Dim Down
                     </button>
                     <span id="dimTimerDisplay" class="dim-timer-display" style="display:none;">⏱ <span id="dimTimerValue">5:00</span></span>
-                    <button id="endFocusBtn" class="btn btn-primary" onclick="endFocusSession()" disabled>
-                        ⏹ End Focus Session
-                    </button>
                     <button class="btn btn-primary" onclick="takeSnapshot()">
                         📸 Snapshot
                     </button>
@@ -716,12 +677,13 @@
                 ⚠️ Capturing in progress - camera stream shows status only
             </div>
 
-            <div id="focusInactiveAlert" class="alert alert-warning">
-                📟 Open the <b>Web Focus</b> entry on the device's OLED menu to start streaming
-            </div>
 
             <div id="cameraPowerAlert" class="alert alert-danger">
                 🔌 Camera is not powered on. Stream cannot start without camera power.
+            </div>
+
+            <div id="cameraPresentAlert" class="alert alert-danger">
+                ⚠️ Camera not detected. Check USB connection and camera hardware.
             </div>
 
             <div class="stream-display">
@@ -770,10 +732,6 @@
             <div class="card">
                 <h3>📈 System Status</h3>
                 <div class="stat-row">
-                    <span class="stat-label">Web Focus</span>
-                    <span id="webFocusStatus" class="stat-value">--</span>
-                </div>
-                <div class="stat-row">
                     <span class="stat-label">Capturing</span>
                     <span id="capturingStatus" class="stat-value">--</span>
                 </div>
@@ -797,38 +755,30 @@
                     <span class="stat-label">Serial</span>
                     <span id="cameraSerial" class="stat-value">--</span>
                 </div>
+                <div class="stat-row">
+                    <span class="stat-label">Detected</span>
+                    <span id="cameraIsDetected" class="stat-value">--</span>
+                </div>
             </div>
 
             <div class="card">
                 <h3>📡 Camera State</h3>
-                <table class="camera-state-table">
-                    <tbody>
-                        <tr>
-                            <td class="state-label">Has Power</td>
-                            <td><span id="cameraHasPower" class="state-value">--</span></td>
-                        </tr>
-                        <tr>
-                            <td class="state-label">Is Detected</td>
-                            <td><span id="cameraIsDetected" class="state-value">--</span></td>
-                        </tr>
-                        <tr>
-                            <td class="state-label">Is Capturing</td>
-                            <td><span id="cameraIsCapturing" class="state-value">--</span></td>
-                        </tr>
-                        <tr>
-                            <td class="state-label">Free for Web</td>
-                            <td><span id="cameraFreeForWeb" class="state-value">--</span></td>
-                        </tr>
-                        <tr>
-                            <td class="state-label">Web Requested</td>
-                            <td><span id="cameraWebRequested" class="state-value">--</span></td>
-                        </tr>
-                        <tr>
-                            <td class="state-label">Web Focus Active</td>
-                            <td><span id="cameraWebFocusActive" class="state-value">--</span></td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div class="stat-row">
+                    <span class="stat-label">Has Power</span>
+                    <span id="cameraHasPower" class="stat-value">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Is Capturing</span>
+                    <span id="cameraIsCapturing" class="stat-value">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Free for Web</span>
+                    <span id="cameraFreeForWeb" class="stat-value">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Web Requested</span>
+                    <span id="cameraWebRequested" class="stat-value">--</span>
+                </div>
             </div>
 
             
@@ -1288,29 +1238,19 @@
                 .then(data => {
                     const statusBadge = document.getElementById('systemStatus');
                     const captureAlert = document.getElementById('captureAlert');
-                    const focusInactiveAlert = document.getElementById('focusInactiveAlert');
                     const cameraPowerAlert = document.getElementById('cameraPowerAlert');
-                    const endFocusBtn = document.getElementById('endFocusBtn');
+                    const cameraPresentAlert = document.getElementById('cameraPresentAlert');
 
                     if (data.is_capturing) {
                         statusBadge.textContent = 'Capturing Active';
                         statusBadge.className = 'status-badge status-capturing';
                         captureAlert.classList.add('show');
-                    } else if (data.web_focus_active) {
-                        statusBadge.textContent = 'Web Focus Active';
-                        statusBadge.className = 'status-badge status-capturing';
-                        captureAlert.classList.remove('show');
                     } else {
                         statusBadge.textContent = 'System Idle';
                         statusBadge.className = 'status-badge status-idle';
                         captureAlert.classList.remove('show');
                     }
 
-                    if (!data.is_capturing && !data.web_focus_active) {
-                        focusInactiveAlert.classList.add('show');
-                    } else {
-                        focusInactiveAlert.classList.remove('show');
-                    }
 
                     // Show/hide camera power alert
                     if (data.camera_has_power === false) {
@@ -1319,12 +1259,12 @@
                         cameraPowerAlert.classList.remove('show');
                     }
 
-                    endFocusBtn.disabled = !data.web_focus_active;
+                    if (data.is_detected == false) {
+                        cameraPresentAlert.classList.add('show');
+                    } else {
+                        cameraPresentAlert.classList.remove('show');   
+                    }
 
-                    document.getElementById('webFocusStatus').textContent =
-                        data.web_focus_active ? 'Active' : 'Idle';
-                    document.getElementById('webFocusStatus').className =
-                        'stat-value ' + (data.web_focus_active ? 'good' : '');
 
                     document.getElementById('capturingStatus').textContent =
                         data.is_capturing ? 'Yes' : 'No';
@@ -1336,12 +1276,12 @@
                     document.getElementById('timestamp').textContent = data.timestamp;
 
                     // Automatically start or stop the MJPEG stream depending on
-                    // whether the conditions are fulfilled (web_focus_active AND
-                    // NOT is_capturing).  Only switch _to_ the stream
+                    // whether capturing is in progress. Only switch _to_ the stream
+                    
                     // automatically; when it becomes unavailable we show the
                     // placeholder but leave `streamActive` flag untouched so the
                     // user can still re-try manually via the toggle button.
-                    var streamPossible = data.web_focus_active && !data.is_capturing;
+                    var streamPossible = !data.is_capturing;
                     if (streamPossible && streamActive) {
                         // Make sure the <img> actually points to /stream.
                         // This handles both the initial page-load (src = logo)
@@ -1482,13 +1422,19 @@
                     if (data.available) {
                         document.getElementById('cameraModel').textContent = data.model || 'Unknown';
                         document.getElementById('cameraSerial').textContent = data.serial || 'Unknown';
+                        document.getElementById('cameraIsDetected').textContent = 'Yes';
+                        document.getElementById('cameraIsDetected').className = 'stat-value good';
                     } else {
                         document.getElementById('cameraModel').textContent = 'Not available';
                         document.getElementById('cameraSerial').textContent = '--';
+                        document.getElementById('cameraIsDetected').textContent = 'No';
+                        document.getElementById('cameraIsDetected').className = 'stat-value';
                     }
                 })
                 .catch(err => {
                     document.getElementById('cameraModel').textContent = 'Error';
+                    document.getElementById('cameraIsDetected').textContent = 'Error';
+                    document.getElementById('cameraIsDetected').className = 'stat-value';
                 });
         }
 
@@ -1498,11 +1444,9 @@
                 .then(function(data) {
                     var fields = [
                         { id: 'cameraHasPower', key: 'has_power' },
-                        { id: 'cameraIsDetected', key: 'is_detected' },
                         { id: 'cameraIsCapturing', key: 'is_capturing' },
                         { id: 'cameraFreeForWeb', key: 'free_for_web' },
                         { id: 'cameraWebRequested', key: 'web_requested' },
-                        { id: 'cameraWebFocusActive', key: 'web_focus_active' },
                     ];
                     for (var i = 0; i < fields.length; i++) {
                         var el = document.getElementById(fields[i].id);
@@ -1510,10 +1454,10 @@
                             var val = data[fields[i].key];
                             if (val === true) {
                                 el.textContent = 'Yes';
-                                el.className = 'state-value state-true';
+                                el.className = 'stat-value good';
                             } else {
                                 el.textContent = 'No';
-                                el.className = 'state-value state-false';
+                                el.className = 'stat-value';
                             }
                         }
                     }

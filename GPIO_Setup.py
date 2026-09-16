@@ -2,8 +2,15 @@ import RPi.GPIO as GPIO
 import time
 import threading
 GPIO.setwarnings(False)
-from hardware import get_hardware_version
-HARDWARE_VERSION = get_hardware_version()
+
+# Lazy import to avoid circular dependency:
+# hardware → Experiments → times → logging_utils → OLED_panel → GPIO_Setup → hardware
+def _get_hardware_version():
+    """Lazy import to break the circular import chain."""
+    from hardware import get_hardware_version  # noqa: PLC0415
+    return get_hardware_version()
+
+HARDWARE_VERSION = _get_hardware_version()
 
 # Terminal-Eingabe für Buttons simulieren
 terminal_button_input = None

@@ -5,7 +5,7 @@ import time
 from OLED_panel import show_message
 from GPIO_Setup import turn_on_led, turn_off_led
 import os
-from hardware import *
+from hardware import get_hardware_version
 import hashlib
 from language import get_language
 import unicodedata

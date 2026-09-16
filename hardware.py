@@ -3,7 +3,9 @@ from fram_direct import *
 from json_read_write import *
 from serial_list  import *
 from functools import lru_cache
-from Experiments import *
+# NOTE: 'from Experiments import *' was removed to break the circular import:
+# hardware → Experiments → times → logging_utils → OLED_panel → GPIO_Setup → hardware
+# modify_ARNI_specs is only used in __main__, so it's imported lazily there.
 
 geraete_bibliothek = {
     "Pro_Gen_1": {
@@ -136,6 +138,8 @@ def refresh_hardware_version_cache():
     return get_hardware_version()
 
 if __name__ == "__main__":
+    # Lazy import to avoid circular dependency at module level
+    from Experiments import modify_ARNI_specs  # noqa: PLC0415
     print(f"Dieser ARNI ist ein {get_hardware_version()} Modell")
     print(f"verbaute Kamera {get_device_info('camera')} mit Sensor {get_device_info('sensor')}")
     Schirmhöhe = f"{get_device_info('length')}"

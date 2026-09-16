@@ -146,15 +146,6 @@ def run_web_focus_session(log_mode, lang):
 
     try:
         while True:
-            try: 
-                log_schreiben("lese /tmp/lepmon_capture_state.json...", log_mode=log_mode)
-                with open("/tmp/lepmon_capture_state.json", "r") as state_file:
-                    log_schreiben(
-                        f"Capture state after Web Focus activation: {state_file.read()}",
-                        log_mode=log_mode,
-                    )
-            except Exception as e:
-                log_schreiben(f"Failed to read /tmp/lepmon_capture_state.json: {e}", log_mode=log_mode)
             #elapsed = time.time() - session_start
             #remaining = max(0, int(WEB_FOCUS_EMERGENCY_TIMEOUT_S - elapsed))
 

@@ -39,7 +39,6 @@ logger = logging.getLogger(__name__)
 from capturing_state import (
     get_capturing_state,
     CaptureState,
-    is_web_focus_active,
     is_stop_focus_requested,
     request_stop_focus,
 )
@@ -69,9 +68,14 @@ dimming_active = False
 dimming_disabled = False
 dimming_started_at: Optional[float] = None
 dimming_timer: Optional[threading.Timer] = None
+dimming_cooldown_timer: Optional[threading.Timer] = None
 DIMMING_MAX_DURATION_S = 5 * 60
+DIMMING_COOLDOWN_S = 5 * 60
 dimming_remaining: int = DIMMING_MAX_DURATION_S  # seconds left after Dim Down
 dimming_lock = threading.Lock()
+
+# Camera detection polling
+_camera_detection_thread: Optional[threading.Thread] = None
 
 
 # Camera settings
@@ -380,7 +384,7 @@ def read_LepmonOS_csv() -> dict:
 
 def _stop_dimming(disable: bool = False) -> None:
     """Dim the light down. Preserve remaining time for resume via Dim Up."""
-    global dimming_active, dimming_disabled, dimming_started_at, dimming_timer, dimming_remaining
+    global dimming_active, dimming_disabled, dimming_started_at, dimming_timer, dimming_remaining, dimming_cooldown_timer
     from Lights import dim_down
 
     dim_down()
@@ -392,8 +396,77 @@ def _stop_dimming(disable: bool = False) -> None:
         dimming_started_at = None
         dimming_timer = None
         if disable:
+            # Timeout: enforce 5-minute cooldown before Dim Up is allowed again
             dimming_disabled = True
             dimming_remaining = 0
+            if dimming_cooldown_timer is not None:
+                dimming_cooldown_timer.cancel()
+            dimming_cooldown_timer = threading.Timer(
+                DIMMING_COOLDOWN_S, _enable_after_cooldown
+            )
+            dimming_cooldown_timer.daemon = True
+            dimming_cooldown_timer.start()
+
+
+def _enable_after_cooldown() -> None:
+    """Re-enable Dim Up after the mandatory cooldown period."""
+    global dimming_disabled, dimming_remaining, dimming_cooldown_timer
+    with dimming_lock:
+        dimming_disabled = False
+        dimming_remaining = DIMMING_MAX_DURATION_S
+        dimming_cooldown_timer = None
+
+
+# ---------- Camera detection polling ----------
+
+def _poll_camera_detection() -> None:
+    """Background thread: poll camera presence every 2s and update config JSON.
+
+    IMPORTANT: Do NOT use 'with VmbSystem.get_instance()' because the __exit__
+    method can shut down the VmbSystem singleton, which would break the
+    streaming thread that also relies on the same singleton.
+    """
+    from json_read_write import write_value_to_section
+    CONFIG = "/home/Ento/LepmonOS/Lepmon_config.json"
+    while True:
+        detected = False
+        try:
+            from vmbpy import VmbSystem  # noqa: PLC0415
+            vmb = VmbSystem.get_instance()
+            try:
+                cams = vmb.get_all_cameras()
+                detected = bool(cams)
+                logger.debug(f"Camera detection poll: found {len(cams) if cams else 0} camera(s)")
+            except Exception as e:
+                logger.debug(f"Camera detection get_all_cameras() failed: {e}")
+        except ImportError:
+            logger.debug("vmbpy not available for camera detection polling")
+        except Exception as e:
+            logger.debug(f"Camera detection poll failed: {e}")
+
+        try:
+            write_value_to_section(CONFIG, "Camera_state", "is_detected", detected)
+        except Exception as e:
+            logger.error(f"Failed to write camera detection to config: {e}")
+
+        time.sleep(2)
+
+
+def _start_camera_detection() -> None:
+    """Launch the camera detection background thread."""
+    global _camera_detection_thread
+    if _camera_detection_thread is not None and _camera_detection_thread.is_alive():
+        return
+    _camera_detection_thread = threading.Thread(
+        target=_poll_camera_detection, daemon=True
+    )
+    _camera_detection_thread.start()
+
+
+def _stop_camera_detection() -> None:
+    """Signal the detection thread to stop (handled by daemon flag on exit)."""
+    global _camera_detection_thread
+    _camera_detection_thread = None
 
 
 
@@ -697,17 +770,23 @@ def frame_generator() -> Generator[bytes, None, None]:
                 return
             '''
             # Derive all camera state from Lepmon_config.json via get_value_from_section
-            capturing_state = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing")
-            if capturing_state:
+            is_capturing = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing")
+            has_power = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "has_power")
+            free_for_web = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "free_for_web")
+
+            if not free_for_web:
+                _close_camera()
+                logger.info("Stream unavailable: camera is not free for web streaming")
+                return
+            
+            if is_capturing:
                 _close_camera()
                 logger.info("Stream unavailable: capture is in progress")
                 return
 
-            # web_focus_active derived from config JSON
-            web_focus_active = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "web_focus_active")
-            if not web_focus_active:
+            if not has_power:
                 _close_camera()
-                logger.info("Stream unavailable: Web Focus is not active")
+                logger.info("Stream unavailable: camera has no power")
                 return
 
             # Capture frame from the persistent camera handle (opened once).
@@ -720,6 +799,7 @@ def frame_generator() -> Generator[bytes, None, None]:
                         frame = cam.get_frame(timeout_ms=5000).as_opencv_image()
             except Exception as e:
                 logger.error(f"Error capturing stream frame: {e}")
+                print("Error capturing stream frame:", e)
                 _close_camera()
                 frame = _dev_mode_frame() if DEV_MODE else None
 
@@ -757,12 +837,6 @@ def frame_generator() -> Generator[bytes, None, None]:
                 cv2.putText(stretched, f"Focus: {focus_score:.1f}", (10, 30),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                 cv2.putText(stretched, f"Brightness: {brightness:.1f}", (10, 60),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-                cv2.putText(stretched, f"Exp: {exposure}ms Gain: {gain}", (10, 90),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-                cv2.putText(stretched, f"Downscale: 1/{downscale}", (10, 120),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-                cv2.putText(stretched, f"Zoom: {zoom}x", (10, 150),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                 
                 current_frame = stretched
@@ -900,10 +974,9 @@ async def logo():
 @app.get("/stream")
 async def video_stream():
     """MJPEG video stream endpoint."""
-    # Derive web_focus_active from config JSON
-    web_focus_active = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "web_focus_active")
+    # Only block stream if capturing is in progress
     capturing_state = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing")
-    if capturing_state or not web_focus_active:
+    if capturing_state:
         logger.info("Redirecting unavailable stream request to the logo placeholder")
         return RedirectResponse(url="/LEPMON_Logo_Circle.png")
     return StreamingResponse(
@@ -934,7 +1007,6 @@ async def get_camera_state():
             "is_capturing": bool(get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "is_capturing")),
             "free_for_web": bool(get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "free_for_web")),
             "web_requested": bool(get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "web_requested")),
-            "web_focus_active": bool(get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "web_focus_active")),
         }
     except Exception:
         return {
@@ -943,7 +1015,6 @@ async def get_camera_state():
             "is_capturing": False,
             "free_for_web": False,
             "web_requested": False,
-            "web_focus_active": False,
         }
 
 
@@ -1016,13 +1087,14 @@ async def snapshot():
 async def get_status():
     """Get current system status."""
     state = get_capturing_state()
-    web_focus_active = get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "web_focus_active")
 
-    # Camera power state from config
+    # Camera state from config
     try:
         camera_has_power = get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "has_power")
+        camera_is_detected = get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "is_detected")
     except Exception:
         camera_has_power = False
+        camera_is_detected = False
 
     return {
         "is_capturing": state.is_capturing,
@@ -1030,10 +1102,9 @@ async def get_status():
         "images_captured": state.images_captured,
         "stream_active": streaming_active,
         "stream_consumers": stream_consumers,
-        "web_focus_active": web_focus_active,
-        "web_focus_started_at": state.web_focus_started_at.isoformat() if state.web_focus_started_at else None,
         "stop_focus_requested": state.stop_focus_requested,
         "camera_has_power": bool(camera_has_power),
+        "is_detected": bool(camera_is_detected),
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
     }
 
@@ -1065,16 +1136,11 @@ async def request_focus_stop():
     """
     Ask the OLED loop to end the active web focus session.
 
-    The OLED polling loop sees the flag, clears web_focus_active,
-    releases the camera, and returns to the main menu. Safe to call
-    repeatedly or when no session is active.
+    The OLED polling loop sees the flag and returns to the main menu.
+    Safe to call repeatedly or when no session is active.
     """
-    state = get_capturing_state()
-    if not state.web_focus_active:
-        return {"message": "No active focus session", "web_focus_active": False}
-
     request_stop_focus()
-    return {"message": "Stop request sent", "web_focus_active": True}
+    return {"message": "Stop request sent"}
 
 
 @app.get("/api/camera/info")
@@ -1091,14 +1157,15 @@ async def camera_info():
                         "available": True,
                         "model": cam.get_model(),
                         "serial": cam.get_serial(),
-                        "interface_id": cam.get_interface_id()
+                        "interface_id": cam.get_interface_id(),
+                        "is_detected": True
                     }
             else:
-                return {"available": False, "error": "No camera found"}
+                return {"available": False, "error": "No camera found", "is_detected": False}
     except ImportError:
-        return {"available": False, "error": "VmbPy SDK not installed"}
+        return {"available": False, "error": "VmbPy SDK not installed", "is_detected": False}
     except Exception as e:
-        return {"available": False, "error": str(e)}
+        return {"available": False, "error": str(e), "is_detected": False}
 
 
 @app.get("/api/focus")
@@ -1526,5 +1593,8 @@ if __name__ == "__main__":
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")
     parser.add_argument("--port", type=int, default=8080, help="Port to bind to")
     args = parser.parse_args()
+    # Start camera detection polling (2s interval)
+    _start_camera_detection()
+
     
     run_server(args.host, args.port)
