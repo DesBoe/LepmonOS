@@ -69,8 +69,10 @@ dimming_active = False
 dimming_disabled = False
 dimming_started_at: Optional[float] = None
 dimming_timer: Optional[threading.Timer] = None
-dimming_lock = threading.Lock()
 DIMMING_MAX_DURATION_S = 5 * 60
+dimming_remaining: int = DIMMING_MAX_DURATION_S  # seconds left after Dim Down
+dimming_lock = threading.Lock()
+
 
 # Camera settings
 CAMERA_SETTINGS_FILE = "/home/Ento/LepmonOS/camera_web_settings.json"
@@ -377,26 +379,70 @@ def read_LepmonOS_csv() -> dict:
         return {"error": f"Error reading CSV file: {e}", "csv_file": csv_file_path}
 
 def _stop_dimming(disable: bool = False) -> None:
-    """Dim the light down and optionally prevent further web activation."""
-    global dimming_active, dimming_disabled, dimming_started_at, dimming_timer
+    """Dim the light down. Preserve remaining time for resume via Dim Up."""
+    global dimming_active, dimming_disabled, dimming_started_at, dimming_timer, dimming_remaining
     from Lights import dim_down
 
     dim_down()
     with dimming_lock:
+        if dimming_started_at is not None:
+            elapsed = time.time() - dimming_started_at
+            dimming_remaining = max(0, int(DIMMING_MAX_DURATION_S - elapsed))
         dimming_active = False
         dimming_started_at = None
         dimming_timer = None
         if disable:
             dimming_disabled = True
+            dimming_remaining = 0
 
 
-def _dimming_state() -> dict:
+
+def _start_dimming() -> bool:
+    """Dim the light up. Resume from saved remaining time (no reset to 5 min)."""
+    global dimming_active, dimming_disabled, dimming_started_at, dimming_timer, dimming_remaining
+    from Lights import dim_up
+
     with dimming_lock:
+        if dimming_disabled:
+            return False
+        if dimming_active:
+            return True  # already active, nothing to do
+        if dimming_remaining <= 0:
+            return False  # no time left
+
+    dim_up()
+
+    with dimming_lock:
+        dimming_active = True
+        dimming_disabled = False
+        dimming_started_at = time.time()
+
+        # Cancel existing timer if any
+        if dimming_timer is not None:
+            dimming_timer.cancel()
+
+        # Start timer with the *remaining* seconds (not always full 5 min)
+        dimming_timer = threading.Timer(dimming_remaining, _stop_dimming, args=(True,))
+        dimming_timer.daemon = True
+        dimming_timer.start()
+
+    return True
+
+
+def _get_dimming_status() -> dict:
+    """Return the current dimming state."""
+    with dimming_lock:
+        remaining = dimming_remaining
+        if dimming_active and dimming_started_at is not None:
+            elapsed = time.time() - dimming_started_at
+            remaining = max(0, int(dimming_remaining - elapsed))
         return {
             "active": dimming_active,
             "disabled": dimming_disabled,
-            "started_at": dimming_started_at,
+            "remaining": remaining,
         }
+
+
 
 def load_camera_settings():
     """Load camera settings from JSON file."""
@@ -878,6 +924,65 @@ async def get_camera_power():
     return {"has_power": bool(has_power)}
 
 
+@app.get("/api/camera/state")
+async def get_camera_state():
+    """Return all Camera_state control parameters from Lepmon_config.json."""
+    try:
+        return {
+            "has_power": bool(get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "has_power")),
+            "is_detected": bool(get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "is_detected")),
+            "is_capturing": bool(get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "is_capturing")),
+            "free_for_web": bool(get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "free_for_web")),
+            "web_requested": bool(get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "web_requested")),
+            "web_focus_active": bool(get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "web_focus_active")),
+        }
+    except Exception:
+        return {
+            "has_power": False,
+            "is_detected": False,
+            "is_capturing": False,
+            "free_for_web": False,
+            "web_requested": False,
+            "web_focus_active": False,
+        }
+
+
+
+
+@app.post("/api/dimming/up")
+async def api_dim_up():
+    """Turn the visible LED on (dim up) and start the 5-minute safety timer."""
+    try:
+        success = _start_dimming()
+        if not success:
+            return JSONResponse(
+                {"error": "Dimming is disabled (max duration reached). Press Dim Down to reset."},
+                status_code=409
+            )
+        status = _get_dimming_status()
+        return {"success": True, "active": True, "remaining": status["remaining"]}
+    except Exception as e:
+        logger.error(f"Dim up failed: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/dimming/down")
+async def api_dim_down():
+    """Turn the visible LED off (dim down) and reset the timer."""
+    try:
+        _stop_dimming(disable=False)
+        return {"success": True, "active": False}
+    except Exception as e:
+        logger.error(f"Dim down failed: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/dimming/status")
+async def api_dimming_status():
+    """Get the current dimming state (active, disabled, remaining seconds)."""
+    return _get_dimming_status()
+
+
 @app.get("/snapshot")
 async def snapshot():
     """Capture and return a single JPEG snapshot."""
@@ -953,52 +1058,6 @@ async def get_sensors():
         return sensor_defaults()
 
 
-@app.get("/api/dimming")
-async def get_dimming_status():
-    """Return the web-controlled dimming state."""
-    return _dimming_state()
-
-
-@app.post("/api/dimming/toggle")
-async def toggle_dimming():
-    global dimming_active, dimming_started_at, dimming_timer
-
-    with dimming_lock:
-        if dimming_disabled:
-            return JSONResponse(
-               {"error": "Dimming is disabled after the five-minute limit"},
-                status_code=403,
-            )
-
-        if not dimming_active:
-            old_timer = dimming_timer
-            if old_timer is not None:
-                old_timer.cancel()
-
-            from Lights import dim_up
-            dim_up()
-
-            dimming_active = True
-            dimming_started_at = time.time()
-            dimming_timer = threading.Timer(
-                DIMMING_MAX_DURATION_S,
-                _stop_dimming,
-                kwargs={"disable": True}
-            )
-            dimming_timer.daemon = True
-            dimming_timer.start()
-        else:
-            old_timer = dimming_timer
-            if old_timer is not None:
-                old_timer.cancel()
-            dimming_timer = None
-            dimming_active = False  # Mark inactive so _stop_dimming() runs below
-
-    if dimming_active:
-        return _dimming_state()
-
-    _stop_dimming()
-    return _dimming_state()
 
 
 @app.post("/api/focus/stop")

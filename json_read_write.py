@@ -142,6 +142,16 @@ def write_value_to_section(file_path, section_name, key_name, value):
         return f"Ein unerwarteter Fehler ist aufgetreten: {e}"
      
 
+def set_Camera_States_false():
+    """Setzt die Kamera-Statuswerte in der Konfigurationsdatei auf False."""
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "has_power", False)
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_detected", False)
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing", False)
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "free_for_web", False)
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "web_requested", False)
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "web_focus_active", False)
+
+
 
 if __name__ == "__main__":
     print("Funktionen, um die Konfigurationsdatei zu lesen und Einträge zu verändern")

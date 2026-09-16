@@ -139,6 +139,41 @@
         .btn-secondary:hover {
             background: var(--bg-card);
         }
+
+        .btn-success {
+            background: var(--success);
+            color: #000;
+        }
+
+        .btn-success:hover {
+            background: #22c55e;
+        }
+
+        .btn-success:disabled {
+            background: #555;
+            color: #888;
+            cursor: not-allowed;
+        }
+
+        .btn-danger {
+            background: var(--highlight);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #d63d55;
+        }
+
+        .dim-timer-display {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            background: var(--accent);
+            color: var(--warning);
+            white-space: nowrap;
+        }
+
         
         .stream-video {
             width: 100%;
@@ -306,6 +341,42 @@
         
         .stat-value.warning {
             color: var(--warning);
+
+        /* Camera State mini-table */
+        .camera-state-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+        }
+
+        .camera-state-table td {
+            padding: 0.3rem 0;
+            border-bottom: 1px solid rgba(15, 52, 96, 0.6);
+        }
+
+        .camera-state-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .camera-state-table .state-label {
+            color: var(--text-dim);
+            width: 55%;
+        }
+
+        .camera-state-table .state-value {
+            text-align: right;
+            font-weight: 600;
+            font-family: 'SF Mono', 'Consolas', monospace;
+        }
+
+        .state-value.state-true {
+            color: var(--success);
+        }
+
+        .state-value.state-false {
+            color: var(--text-dim);
+        }
+
         }
         
         .focus-meter {
@@ -625,9 +696,13 @@
                     <button class="btn btn-secondary" onclick="toggleStream()">
                         <span id="streamToggle">Stop Stream</span>
                     </button>
-                    <button id="dimmingToggle" class="btn btn-secondary" onclick="toggleDimming()">
+                    <button id="dimUpBtn" class="btn btn-success" onclick="dimUp()">
                         💡 Dim Up
                     </button>
+                    <button id="dimDownBtn" class="btn btn-danger" onclick="dimDown()">
+                        🌑 Dim Down
+                    </button>
+                    <span id="dimTimerDisplay" class="dim-timer-display" style="display:none;">⏱ <span id="dimTimerValue">5:00</span></span>
                     <button id="endFocusBtn" class="btn btn-primary" onclick="endFocusSession()" disabled>
                         ⏹ End Focus Session
                     </button>
@@ -723,6 +798,39 @@
                     <span id="cameraSerial" class="stat-value">--</span>
                 </div>
             </div>
+
+            <div class="card">
+                <h3>📡 Camera State</h3>
+                <table class="camera-state-table">
+                    <tbody>
+                        <tr>
+                            <td class="state-label">Has Power</td>
+                            <td><span id="cameraHasPower" class="state-value">--</span></td>
+                        </tr>
+                        <tr>
+                            <td class="state-label">Is Detected</td>
+                            <td><span id="cameraIsDetected" class="state-value">--</span></td>
+                        </tr>
+                        <tr>
+                            <td class="state-label">Is Capturing</td>
+                            <td><span id="cameraIsCapturing" class="state-value">--</span></td>
+                        </tr>
+                        <tr>
+                            <td class="state-label">Free for Web</td>
+                            <td><span id="cameraFreeForWeb" class="state-value">--</span></td>
+                        </tr>
+                        <tr>
+                            <td class="state-label">Web Requested</td>
+                            <td><span id="cameraWebRequested" class="state-value">--</span></td>
+                        </tr>
+                        <tr>
+                            <td class="state-label">Web Focus Active</td>
+                            <td><span id="cameraWebFocusActive" class="state-value">--</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
             
             <div class="card">
                 <h3>⚙️ Camera Settings</h3>
@@ -1052,19 +1160,6 @@
             window.open('/snapshot', '_blank');
         }
 
-        function updateDimmingButton(data) {
-            const button = document.getElementById('dimmingToggle');
-            button.disabled = data.disabled;
-            button.textContent = data.disabled ? '💡 Dim Disabled' : (data.active ? '💡 Dim Down' : '💡 Dim Up');
-        }
-
-        function loadDimmingStatus() {
-            fetch('/api/dimming')
-                .then(response => response.json())
-                .then(updateDimmingButton)
-                .catch(err => console.error('Dimming status failed:', err));
-        }
-
         function showToast(message, isError) {
             var el = document.getElementById('toastMsg');
             if (!el) {
@@ -1184,24 +1279,6 @@
                     csvContent.textContent = 'CSV could not be loaded.\n\nError: ' + err.message;
                     csvFilePath.textContent = '';
                     console.error('CSV load failed:', err);
-                });
-        }
-        
-        function toggleDimming() {
-            const button = document.getElementById('dimmingToggle');
-            button.disabled = true;
-            fetch('/api/dimming/toggle', { method: 'POST' })
-                .then(response => response.json().then(data => ({ response, data })))
-                .then(({ response, data }) => {
-                    if (!response.ok) {
-                        throw new Error(data.error || 'Dimming control failed');
-                    }
-                    updateDimmingButton(data);
-                })
-                .catch(err => {
-                    button.textContent = '⚠ ' + err.message;
-                    button.disabled = false;
-                    console.error('Dimming control failed:', err);
                 });
         }
         
@@ -1414,6 +1491,38 @@
                     document.getElementById('cameraModel').textContent = 'Error';
                 });
         }
+
+        function loadCameraState() {
+            fetch('/api/camera/state')
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    var fields = [
+                        { id: 'cameraHasPower', key: 'has_power' },
+                        { id: 'cameraIsDetected', key: 'is_detected' },
+                        { id: 'cameraIsCapturing', key: 'is_capturing' },
+                        { id: 'cameraFreeForWeb', key: 'free_for_web' },
+                        { id: 'cameraWebRequested', key: 'web_requested' },
+                        { id: 'cameraWebFocusActive', key: 'web_focus_active' },
+                    ];
+                    for (var i = 0; i < fields.length; i++) {
+                        var el = document.getElementById(fields[i].id);
+                        if (el) {
+                            var val = data[fields[i].key];
+                            if (val === true) {
+                                el.textContent = 'Yes';
+                                el.className = 'state-value state-true';
+                            } else {
+                                el.textContent = 'No';
+                                el.className = 'state-value state-false';
+                            }
+                        }
+                    }
+                })
+                .catch(function(err) {
+                    console.error('Camera state load failed:', err);
+                });
+        }
+
         
         function loadCameraSettings() {
             fetch('/api/camera/settings')
@@ -1626,12 +1735,123 @@
                 });
         }
 
+
+        /* ---- Dimming Control ---- */
+        var dimmingTimerInterval = null;
+        var dimmingRemainingSec = 0;
+
+        function dimUp() {
+            fetch('/api/dimming/up', { method: 'POST' })
+                .then(function(response) {
+                    if (!response.ok) {
+                        return response.json().then(function(err) {
+                            throw new Error(err.detail || err.error || 'HTTP ' + response.status);
+                        }).catch(function() {
+                            throw new Error('HTTP ' + response.status);
+                        });
+                    }
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (data.success) {
+                        startDimTimer(data.remaining);
+                        document.getElementById('dimUpBtn').disabled = false;
+                        document.getElementById('dimDownBtn').disabled = false;
+                    } else {
+                        alert('Dim Up failed: ' + (data.error || data.detail || 'unknown'));
+                    }
+                })
+                .catch(function(err) {
+                    console.error('Dim Up failed:', err);
+                    alert('Dim Up failed: ' + err.message);
+                });
+        }
+
+        function dimDown() {
+            fetch('/api/dimming/down', { method: 'POST' })
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    stopDimTimer();
+                    document.getElementById('dimUpBtn').disabled = false;
+                    document.getElementById('dimDownBtn').disabled = false;
+                })
+                .catch(function(err) {
+                    console.error('Dim Down failed:', err);
+                });
+        }
+
+        function startDimTimer(remainingSec) {
+            stopDimTimer();
+            dimmingRemainingSec = remainingSec;
+            var display = document.getElementById('dimTimerDisplay');
+            display.style.display = 'inline';
+            updateDimTimerDisplay();
+
+            dimmingTimerInterval = setInterval(function() {
+                dimmingRemainingSec--;
+                if (dimmingRemainingSec <= 0) {
+                    stopDimTimer();
+                    document.getElementById('dimUpBtn').disabled = true;
+                    document.getElementById('dimDownBtn').disabled = true;
+                    return;
+                }
+                updateDimTimerDisplay();
+            }, 1000);
+        }
+
+        function stopDimTimer() {
+            if (dimmingTimerInterval) {
+                clearInterval(dimmingTimerInterval);
+                dimmingTimerInterval = null;
+            }
+            dimmingRemainingSec = 0;
+            document.getElementById('dimTimerDisplay').style.display = 'none';
+        }
+
+        function updateDimTimerDisplay() {
+            var mins = Math.floor(dimmingRemainingSec / 60);
+            var secs = dimmingRemainingSec % 60;
+            document.getElementById('dimTimerValue').textContent =
+                mins + ':' + (secs < 10 ? '0' : '') + secs;
+        }
+
+        function loadDimmingStatus() {
+            fetch('/api/dimming/status')
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    var upBtn = document.getElementById('dimUpBtn');
+                    var downBtn = document.getElementById('dimDownBtn');
+
+                    if (data.active) {
+                        upBtn.disabled = data.disabled;
+                        downBtn.disabled = false;
+                        // Sync the client-side timer with server remaining time
+                        if (dimmingTimerInterval === null && data.remaining > 0) {
+                            startDimTimer(data.remaining);
+                        }
+                        // If server says less remaining, update client timer
+                        if (data.remaining > 0 && data.remaining < dimmingRemainingSec) {
+                            dimmingRemainingSec = data.remaining;
+                            updateDimTimerDisplay();
+                        }
+                    } else {
+                        stopDimTimer();
+                        upBtn.disabled = data.disabled;
+                        downBtn.disabled = false;
+                    }
+                })
+                .catch(function(err) {
+                    console.error('Dimming status failed:', err);
+                });
+        }
+
         // Initial updates
         updateStatus();
         updateFocus();
         updateSensors();
         loadDimmingStatus();
         updateCameraInfo();
+        loadCameraState();
         loadCameraSettings();
         loadStreamSettings();
         loadGallery();
@@ -1647,6 +1867,7 @@
         setInterval(updateSensors, 2000);
         setInterval(loadDimmingStatus, 2000);
         setInterval(updateCameraInfo, 30000);
+        setInterval(loadCameraState, 2000);
         setInterval(updateStorage, 30000);
         setInterval(updateTiming, 30000);
 
