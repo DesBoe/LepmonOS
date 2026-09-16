@@ -778,16 +778,6 @@ def frame_generator() -> Generator[bytes, None, None]:
                 _close_camera()
                 logger.info("Stream unavailable: camera is not free for web streaming")
                 return
-            
-            if is_capturing:
-                _close_camera()
-                logger.info("Stream unavailable: capture is in progress")
-                return
-
-            if not has_power:
-                _close_camera()
-                logger.info("Stream unavailable: camera has no power")
-                return
 
             # Capture frame from the persistent camera handle (opened once).
             frame = None
@@ -974,11 +964,28 @@ async def logo():
 @app.get("/stream")
 async def video_stream():
     """MJPEG video stream endpoint."""
-    # Only block stream if capturing is in progress
-    capturing_state = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing")
-    if capturing_state:
-        logger.info("Redirecting unavailable stream request to the logo placeholder")
+    # Check ALL conditions BEFORE entering the generator.
+    # If any condition fails, redirect to placeholder immediately so the
+    # browser doesn't get stuck on a blocking /stream request.
+    try:
+        is_capturing = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing")
+        has_power = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "has_power")
+        free_for_web = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "free_for_web")
+    except Exception:
+        is_capturing = True
+        has_power = False
+        free_for_web = False
+
+    if is_capturing:
+        logger.info("Stream blocked: capture is in progress")
         return RedirectResponse(url="/LEPMON_Logo_Circle.png")
+    if not has_power:
+        logger.info("Stream blocked: camera has no power")
+        return RedirectResponse(url="/LEPMON_Logo_Circle.png")
+    if not free_for_web:
+        logger.info("Stream blocked: camera is not free for web streaming")
+        return RedirectResponse(url="/LEPMON_Logo_Circle.png")
+
     return StreamingResponse(
         frame_generator(),
         media_type="multipart/x-mixed-replace; boundary=frame"
