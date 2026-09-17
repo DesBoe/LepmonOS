@@ -78,6 +78,11 @@ dimming_lock = threading.Lock()
 # Camera detection polling
 _camera_detection_thread: Optional[threading.Thread] = None
 
+# Cached camera info (populated when streaming opens the camera)
+_last_camera_model: Optional[str] = None
+_last_camera_serial: Optional[str] = None
+_last_camera_detected: bool = False
+stream_frame_count: int = 0
 
 # Camera settings
 CAMERA_SETTINGS_FILE = "/home/Ento/LepmonOS/camera_web_settings.json"
@@ -726,8 +731,8 @@ def frame_generator() -> Generator[bytes, None, None]:
 
     def _open_camera(exposure, gain):
         nonlocal vmb, cam_cm, cam
+        global _last_camera_model, _last_camera_serial, _last_camera_detected
         from vmbpy import VmbSystem, PersistType
-
 
         # Try up to 9 times with short delays — camera may need time to initialize
         for attempt in range(1, 10):
@@ -758,6 +763,49 @@ def frame_generator() -> Generator[bytes, None, None]:
                 except Exception as e:
                     logger.warning(f"Could not set exposure/gain: {e}")
 
+                # Cache camera info for the /api/camera/info endpoint
+                # Try multiple methods to get model/serial — VmbPy API varies by version
+                try:
+                    model = None
+                    serial = None
+                    # Method 1: device_info dict
+                    try:
+                        info = cam.get_device_info()
+                        if isinstance(info, dict):
+                            model = info.get("ModelName") or info.get("model") or info.get("Model")
+                            serial = info.get("SerialNumber") or info.get("serial") or info.get("Serial")
+                    except Exception:
+                        pass
+                    # Method 2: direct getters
+                    if not model:
+                        try:
+                            model = cam.get_model()
+                        except Exception:
+                            pass
+                    if not serial:
+                        try:
+                            serial = cam.get_serial()
+                        except Exception:
+                            pass
+                    # Method 3: cam_cm (camera wrapper)
+                    if not model or not serial:
+                        try:
+                            wrapper_info = cam_cm.get_device_info()
+                            if isinstance(wrapper_info, dict):
+                                if not model:
+                                    model = wrapper_info.get("ModelName") or wrapper_info.get("model")
+                                if not serial:
+                                    serial = wrapper_info.get("SerialNumber") or wrapper_info.get("serial")
+                        except Exception:
+                            pass
+
+                    _last_camera_model = model or "Unknown"
+                    _last_camera_serial = serial or "--"
+                    _last_camera_detected = True
+                    logger.info(f"Camera cached: model={_last_camera_model}, serial={_last_camera_serial}")
+                except Exception as e:
+                    logger.error(f"Failed to cache camera info: {e}")
+
                 logger.info(f"Camera opened successfully on attempt {attempt}")
                 return cam
             except Exception as e:
@@ -775,13 +823,18 @@ def frame_generator() -> Generator[bytes, None, None]:
         return None
 
     try:
-        # Use global camera settings
+        # Reset frame counter at start of streaming session
+        global stream_frame_count
+        stream_frame_count = 0
+
+        # Use global camera settings (exposure/gain are only needed when opening)
         exposure = camera_settings["exposure"]
         gain = camera_settings["gain"]
-        downscale = camera_settings.get("stream_downscale", STREAM_DOWNSCALE)
-        zoom = camera_settings.get("stream_zoom", STREAM_ZOOM)
 
         while True:
+            # Re-read downscale/zoom every frame so slider changes take effect immediately
+            downscale = camera_settings.get("stream_downscale", STREAM_DOWNSCALE)
+            zoom = camera_settings.get("stream_zoom", STREAM_ZOOM)
             '''
             state = get_capturing_state()
 
@@ -833,6 +886,8 @@ def frame_generator() -> Generator[bytes, None, None]:
                 continue
 
             if frame is not None:
+                stream_frame_count += 1
+
                 # 1) Center-crop zoom first (before downscale, for accuracy)
                 if zoom > 1:
                     h, w = frame.shape[:2]
@@ -870,7 +925,7 @@ def frame_generator() -> Generator[bytes, None, None]:
                 # Add information area below the image
 
                 h, w = stretched.shape[:2]
-                text_area_height = 100
+                text_area_height = 120
                 text_area = np.zeros(
                     (text_area_height, w, 3),
                     dtype=stretched.dtype
@@ -883,10 +938,13 @@ def frame_generator() -> Generator[bytes, None, None]:
                     (10, h + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
                 cv2.putText(stretched, f"Brightness: {brightness:.1f}",
-                    (10, h + 60), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                    (10, h + 55), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
                 cv2.putText(stretched, f"Zoom: {zoom}, Downscale: {downscale}",
-                    (10, h + 90), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                    (10, h + 80), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+
+                cv2.putText(stretched, f"Frame: {stream_frame_count}",
+                    (10, h + 105), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
                                 
                 current_frame = stretched
@@ -908,7 +966,7 @@ def frame_generator() -> Generator[bytes, None, None]:
                 continue
             
             # Frame rate control (~5 FPS for preview)
-            time.sleep(0.2)
+            time.sleep(0.5)
             
     except GeneratorExit:
         logger.info("Stream consumer disconnected")
@@ -1226,18 +1284,42 @@ async def request_focus_stop():
 
 @app.get("/api/camera/info")
 async def camera_info():
-    """Get camera information."""
+    """Get camera information.
+
+    Prefers cached info from an active streaming session.
+    Falls back to probing the VmbSystem directly when the stream is idle.
+    """
+    global _last_camera_model, _last_camera_serial, _last_camera_detected
+
+    # Path 1: use cached info from the streaming session
+    if _last_camera_detected and _last_camera_model:
+        return {
+            "available": True,
+            "model": _last_camera_model,
+            "serial": _last_camera_serial or "--",
+            "interface_id": "--",
+            "is_detected": True
+        }
+
+    # Path 2: probe the camera directly
     try:
         from vmbpy import VmbSystem
-        
+
         with VmbSystem.get_instance() as vmb:
             cams = vmb.get_all_cameras()
             if cams:
                 with cams[0] as cam:
+                    # Update cache so future calls use the fast path
+                    try:
+                        _last_camera_model = cam.get_model()
+                        _last_camera_serial = cam.get_serial()
+                        _last_camera_detected = True
+                    except Exception:
+                        pass
                     return {
                         "available": True,
-                        "model": cam.get_model(),
-                        "serial": cam.get_serial(),
+                        "model": _last_camera_model or "Unknown",
+                        "serial": _last_camera_serial or "--",
                         "interface_id": cam.get_interface_id(),
                         "is_detected": True
                     }
@@ -1246,19 +1328,24 @@ async def camera_info():
     except ImportError:
         return {"available": False, "error": "VmbPy SDK not installed", "is_detected": False}
     except Exception as e:
+        logger.warning(f"Camera info probe failed: {e}")
         return {"available": False, "error": str(e), "is_detected": False}
 
 
 @app.get("/api/focus")
 async def get_focus_score():
     """Get current focus score without capturing a new frame."""
-    global current_frame
-    
-    if current_frame is not None:
-        score = calculate_focus_score(current_frame)
-        return {"focus_score": score, "is_sharp": score >= 225.0}
-    else:
-        return {"focus_score": 0.0, "is_sharp": False, "error": "No frame available"}
+    try:
+        global current_frame
+
+        if current_frame is not None:
+            score = calculate_focus_score(current_frame)
+            return {"focus_score": score, "is_sharp": score >= 225.0}
+        else:
+            return {"focus_score": 0.0, "is_sharp": False, "error": "No frame available"}
+    except Exception as e:
+        logger.error(f"Focus endpoint error: {e}")
+        return {"focus_score": 0.0, "is_sharp": False, "error": str(e)}
 
 
 @app.get("/api/camera/settings")

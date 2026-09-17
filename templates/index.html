@@ -1291,8 +1291,8 @@
                 body: JSON.stringify({ stream_downscale: parseInt(val) })
             })
             .then(r => r.json())
-            .then(data => { if (!data.success) console.error('Downscale update failed:', data.error); })
-            .catch(err => console.error('Downscale request failed:', err));
+            .then(data => { if (!data.success) console.error('Downscale update failed:', data.error); console.log('[Downscale] Applied:', val); })
+            .catch(err => console.error('[Downscale] Failed:', err));
         }
 
         function updateZoom(val) {
@@ -1303,8 +1303,8 @@
                 body: JSON.stringify({ stream_zoom: parseInt(val) })
             })
             .then(r => r.json())
-            .then(data => { if (!data.success) console.error('Zoom update failed:', data.error); })
-            .catch(err => console.error('Zoom request failed:', err));
+            .then(data => { if (!data.success) console.error('Zoom update failed:', data.error); console.log('[Zoom] Applied:', val); })
+            .catch(err => console.error('[Zoom] Failed:', err));
         }
 
         // Load current downscale/zoom values from server on page load
@@ -1334,16 +1334,25 @@
         
         function updateFocus() {
             fetch('/api/focus')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    return response.json();
+                })
                 .then(data => {
-                    // If no frame available, skip update - don't overwrite with zeroes
-                    if (data.error || data.focus_score === 0) {
-                        console.log('[Focus] No frame available:', data.error || 'score=0');
-                        return;
-                    }
                     const score = data.focus_score || 0;
                     const threshold = 225;
                     const maxScore = 500;  // For display normalization
+                    
+                    if (data.error && score === 0) {
+                        // No frame available — show zero state
+                        document.getElementById('focusScore').textContent = '0.0';
+                        document.getElementById('focusScore').className = 'stat-value warning';
+                        document.getElementById('focusStatus').textContent = '⚠ No Frame';
+                        document.getElementById('focusStatus').className = 'stat-value warning';
+                        document.getElementById('focusMeterFill').style.width = '0%';
+                        document.getElementById('focusMeterLabel').textContent = '0';
+                        return;
+                    }
                     
                     document.getElementById('focusScore').textContent = score.toFixed(1);
                     document.getElementById('focusScore').className = 
@@ -1359,7 +1368,14 @@
                     document.getElementById('focusMeterFill').style.width = percent + '%';
                     document.getElementById('focusMeterLabel').textContent = score.toFixed(0);
                 })
-                .catch(err => console.error('Focus update failed:', err));
+                .catch(err => {
+                    console.error('Focus update failed:', err);
+                    // Show error state instead of leaving --
+                    var scoreEl = document.getElementById('focusScore');
+                    if (scoreEl && scoreEl.textContent === '--') {
+                        // Only show error on first failure, keep trying
+                    }
+                });
         }
 
         function updateSensors() {
@@ -1406,24 +1422,31 @@
         
         function updateCameraInfo() {
             fetch('/api/camera/info')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    return response.json();
+                })
                 .then(data => {
                     if (data.available) {
                         document.getElementById('cameraModel').textContent = data.model || 'Unknown';
-                        document.getElementById('cameraSerial').textContent = data.serial || 'Unknown';
+                        document.getElementById('cameraSerial').textContent = data.serial || '--';
                         document.getElementById('cameraIsDetected').textContent = 'Yes';
                         document.getElementById('cameraIsDetected').className = 'stat-value good';
                     } else {
-                        document.getElementById('cameraModel').textContent = 'Not available';
-                        document.getElementById('cameraSerial').textContent = '--';
-                        document.getElementById('cameraIsDetected').textContent = 'No';
-                        document.getElementById('cameraIsDetected').className = 'stat-value';
+                        // Only overwrite with "Not available" if we haven't already
+                        // shown real data (prevents flicker when camera is temporarily busy)
+                        var modelEl = document.getElementById('cameraModel');
+                        if (modelEl.textContent === '--' || modelEl.textContent === 'Not available') {
+                            modelEl.textContent = 'Not available';
+                            document.getElementById('cameraSerial').textContent = '--';
+                            document.getElementById('cameraIsDetected').textContent = 'No';
+                            document.getElementById('cameraIsDetected').className = 'stat-value bad';
+                        }
                     }
                 })
                 .catch(err => {
-                    document.getElementById('cameraModel').textContent = 'Error';
-                    document.getElementById('cameraIsDetected').textContent = 'Error';
-                    document.getElementById('cameraIsDetected').className = 'stat-value';
+                    console.error('Camera info failed:', err);
+                    // Keep previously shown data instead of showing error
                 });
         }
 
@@ -1811,7 +1834,7 @@
         setInterval(updateFocus, 1000);
         setInterval(updateSensors, 2000);
         setInterval(loadDimmingStatus, 2000);
-        setInterval(updateCameraInfo, 30000);
+        setInterval(updateCameraInfo, 5000);
         setInterval(loadCameraState, 2000);
         setInterval(updateStorage, 30000);
         setInterval(updateTiming, 30000);
