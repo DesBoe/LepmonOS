@@ -1255,6 +1255,7 @@
                         cameraPowerAlert.classList.remove('show');
                     }
 
+                    console.log('[Status] images_captured=', data.images_captured, 'stream_consumers=', data.stream_consumers, 'stream_active=', data.stream_active);
                     document.getElementById('imagesCount').textContent = data.images_captured || '0';
                     document.getElementById('viewersCount').textContent = data.stream_consumers || '0';
                     document.getElementById('timestamp').textContent = data.timestamp;
@@ -1335,6 +1336,11 @@
             fetch('/api/focus')
                 .then(response => response.json())
                 .then(data => {
+                    // If no frame available, skip update - don't overwrite with zeroes
+                    if (data.error || data.focus_score === 0) {
+                        console.log('[Focus] No frame available:', data.error || 'score=0');
+                        return;
+                    }
                     const score = data.focus_score || 0;
                     const threshold = 225;
                     const maxScore = 500;  // For display normalization
