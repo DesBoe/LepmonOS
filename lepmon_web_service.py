@@ -73,6 +73,7 @@ DIMMING_MAX_DURATION_S = 5 * 60
 DIMMING_COOLDOWN_S = 5 * 60
 dimming_remaining: int = DIMMING_MAX_DURATION_S  # seconds left after Dim Down
 dimming_lock = threading.Lock()
+frame_count = 0
 
 # Camera detection polling
 _camera_detection_thread: Optional[threading.Thread] = None
@@ -774,9 +775,16 @@ def frame_generator() -> Generator[bytes, None, None]:
             has_power = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "has_power")
             free_for_web = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "free_for_web")
 
+            if is_capturing:
+                _close_camera()
+                logger.info("Stream unavailable: camera is capturing an image")
+                frame_count = 0
+                return
+            
             if not free_for_web:
                 _close_camera()
                 logger.info("Stream unavailable: camera is not free for web streaming")
+                frame_count = 0
                 return
 
             # Capture frame from the persistent camera handle (opened once).
@@ -828,6 +836,11 @@ def frame_generator() -> Generator[bytes, None, None]:
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                 cv2.putText(stretched, f"Brightness: {brightness:.1f}", (10, 60),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                cv2.putText(stretched, f"frame: {frame_count}", (10, 90),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                cv2.putText(stretched, f"zoom: {zoom}, downscale: {downscale}", (10, 90),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                
                 
                 current_frame = stretched
                 
@@ -973,13 +986,16 @@ async def video_stream():
     try:
         free_for_web = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "free_for_web")
         web_requested = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "web_requested")
+        is_capturing = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing")
     except Exception:
         free_for_web = False
         web_requested = False
+        is_capturing = False
 
     if not (free_for_web and web_requested):
         logger.info("Stream blocked: camera not free or not requested for web")
-        return RedirectResponse(url="/Capture_Image.png")
+        placeholder = "/Capture_Image.png" if is_capturing else "/LEPMON_Logo_Circle.png"
+        return RedirectResponse(url=placeholder)
 
     return StreamingResponse(
         frame_generator(),
@@ -1090,20 +1106,22 @@ async def get_status():
     """Get current system status."""
     state = get_capturing_state()
 
-    # Camera state from config
+    # Camera state from config — single source of truth for all Camera_state fields
     try:
         camera_has_power = get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "has_power")
         camera_is_detected = get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "is_detected")
+        camera_is_capturing = get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "is_capturing")
         camera_free_for_web = get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "free_for_web")
         camera_web_requested = get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "web_requested")
     except Exception:
         camera_has_power = False
         camera_is_detected = False
+        camera_is_capturing = False
         camera_free_for_web = False
         camera_web_requested = False
 
     return {
-        "is_capturing": state.is_capturing,
+        "is_capturing": bool(camera_is_capturing),
         "capture_start_time": state.start_time.isoformat() if state.start_time else None,
         "images_captured": state.images_captured,
         "stream_active": streaming_active,

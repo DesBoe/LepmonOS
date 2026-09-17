@@ -687,7 +687,7 @@
             </div>
 
             <div class="stream-display">
-                <img id="streamImage" class="stream-video" src="Capture_Image.png" alt="Camera Stream" onload="hideStreamPlaceholderMessage()" onerror="showStreamPlaceholder()">
+                <img id="streamImage" class="stream-video" src="LEPMON_Logo_Circle.png" alt="Camera Stream" onload="hideStreamPlaceholderMessage()" onerror="showStreamPlaceholder(lastIsCapturing)">
                 <p id="streamPlaceholderMessage" class="stream-placeholder-message">Camera not available. Enable Fokus menu on ARNI.</p>
             </div>
 
@@ -731,10 +731,6 @@
             
             <div class="card">
                 <h3>📈 System Status</h3>
-                <div class="stat-row">
-                    <span class="stat-label">Capturing</span>
-                    <span id="capturingStatus" class="stat-value">--</span>
-                </div>
                 <div class="stat-row">
                     <span class="stat-label">Images Captured</span>
                     <span id="imagesCount" class="stat-value">--</span>
@@ -1053,6 +1049,7 @@
     
     <script>
         let streamEnabled = true;
+        var lastIsCapturing = false;  // synced by updateStatus() from server
         const streamImage = document.getElementById('streamImage');
 
         /* ---- Polling backoff state ---- */
@@ -1073,9 +1070,10 @@
             console.warn('Poll failure #' + pollFails + ' — next retry in ' + pollInterval + 'ms');
         }
 
-        function showStreamPlaceholder() {
+        function showStreamPlaceholder(isCapturing) {
+            if (isCapturing === undefined) isCapturing = false;
             streamImage.onerror = null;
-            streamImage.src = 'Capture_Image.png';
+            streamImage.src = isCapturing ? 'Capture_Image.png' : 'LEPMON_Logo_Circle.png';
             document.getElementById('streamPlaceholderMessage').classList.remove('hidden');
         }
 
@@ -1086,7 +1084,7 @@
         }
 
         function startStream() {
-            streamImage.onerror = showStreamPlaceholder;
+            streamImage.onerror = function() { showStreamPlaceholder(lastIsCapturing); };
             streamImage.src = '/stream?' + new Date().getTime();
             // technical setup only -- streamEnabled is controlled by toggle/updateStatus
             // UI updates handled by updateStatus()
@@ -1096,9 +1094,8 @@
         function toggleStream() {
             const toggleBtn = document.getElementById('streamToggle');
             if (streamEnabled) {
-                streamImage.src = 'Capture_Image.png';
+                showStreamPlaceholder(lastIsCapturing);
                 streamEnabled = false;
-                document.getElementById('streamPlaceholderMessage').classList.remove('hidden');
                 toggleBtn.textContent = 'Start Stream';
             } else {
                 streamEnabled = true;
@@ -1265,12 +1262,6 @@
                         cameraPresentAlert.classList.remove('show');   
                     }
 
-
-                    document.getElementById('capturingStatus').textContent =
-                        data.is_capturing ? 'Yes' : 'No';
-                    document.getElementById('capturingStatus').className =
-                        'stat-value ' + (data.is_capturing ? 'warning' : 'good');
-
                     document.getElementById('imagesCount').textContent = data.images_captured || '0';
                     document.getElementById('viewersCount').textContent = data.stream_consumers || '0';
                     document.getElementById('timestamp').textContent = data.timestamp;
@@ -1279,18 +1270,21 @@
                     //   free_for_web  -> Fokus-Session erlaubt Web-Zugriff
                     //   web_requested  -> Web-Seite hat Fokus angefragt
                     // In allen anderen Faellen (inkl. is_capturing) Platzhalter zeigen.
+                    lastIsCapturing = data.is_capturing;
                     var streamPossible = data.free_for_web && data.web_requested;
                     if (streamPossible && streamEnabled) {
+                        // Ensure placeholder reflects current capturing state before (re)starting stream
                         if (!streamImage.src.includes('/stream')) {
-                            startStream();
-                            document.getElementById('streamStatus').textContent = '\u25B6\uFE0F Stream active';
+                            showStreamPlaceholder(lastIsCapturing);
                         }
+                        startStream();
+                        document.getElementById('streamStatus').textContent = '\u25B6\uFE0F Stream active';
                     } else {
                         if (streamImage.src.includes('/stream') && streamEnabled) {
-                            showStreamPlaceholder();
+                            showStreamPlaceholder(data.is_capturing);
                             document.getElementById('streamStatus').textContent = '\u23F8\uFE0F Waiting for focus session...';
                         } else if (!streamImage.src.includes('/stream') && !streamEnabled) {
-                            showStreamPlaceholder();
+                            showStreamPlaceholder(data.is_capturing);
                             document.getElementById('streamStatus').textContent = '\u23F8\uFE0F Stream paused';
                         }
                     }
@@ -1826,6 +1820,7 @@
         // Handle stream errors
         streamImage.onerror = function() {
             if (streamEnabled) {
+                showStreamPlaceholder(lastIsCapturing);
                 setTimeout(() => {
                     streamImage.src = '/stream?' + new Date().getTime();
                 }, 2000);
