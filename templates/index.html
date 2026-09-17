@@ -682,10 +682,6 @@
                 🔌 Camera is not powered on. Stream cannot start without camera power.
             </div>
 
-            <div id="cameraPresentAlert" class="alert alert-danger">
-                ⚠️ Camera not detected. Check USB connection and camera hardware.
-            </div>
-
             <div class="stream-display">
                 <img id="streamImage" class="stream-video" src="LEPMON_Logo_Circle.png" alt="Camera Stream" onload="hideStreamPlaceholderMessage()" onerror="showStreamPlaceholder(lastIsCapturing)">
                 <p id="streamPlaceholderMessage" class="stream-placeholder-message">Camera not available. Enable Fokus menu on ARNI.</p>
@@ -1236,7 +1232,6 @@
                     const statusBadge = document.getElementById('systemStatus');
                     const captureAlert = document.getElementById('captureAlert');
                     const cameraPowerAlert = document.getElementById('cameraPowerAlert');
-                    const cameraPresentAlert = document.getElementById('cameraPresentAlert');
 
                     if (data.is_capturing) {
                         statusBadge.textContent = 'Capturing Active';
@@ -1256,12 +1251,6 @@
                         cameraPowerAlert.classList.remove('show');
                     }
 
-                    if (data.is_detected == false) {
-                        cameraPresentAlert.classList.add('show');
-                    } else {
-                        cameraPresentAlert.classList.remove('show');   
-                    }
-
                     document.getElementById('imagesCount').textContent = data.images_captured || '0';
                     document.getElementById('viewersCount').textContent = data.stream_consumers || '0';
                     document.getElementById('timestamp').textContent = data.timestamp;
@@ -1273,10 +1262,6 @@
                     lastIsCapturing = data.is_capturing;
                     var streamPossible = data.free_for_web && data.web_requested;
                     if (streamPossible && streamEnabled) {
-                        // Ensure placeholder reflects current capturing state before (re)starting stream
-                        if (!streamImage.src.includes('/stream')) {
-                            showStreamPlaceholder(lastIsCapturing);
-                        }
                         startStream();
                         document.getElementById('streamStatus').textContent = '\u25B6\uFE0F Stream active';
                     } else {

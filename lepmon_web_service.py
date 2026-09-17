@@ -73,7 +73,7 @@ DIMMING_MAX_DURATION_S = 5 * 60
 DIMMING_COOLDOWN_S = 5 * 60
 dimming_remaining: int = DIMMING_MAX_DURATION_S  # seconds left after Dim Down
 dimming_lock = threading.Lock()
-frame_count = 0
+
 
 # Camera detection polling
 _camera_detection_thread: Optional[threading.Thread] = None
@@ -728,30 +728,51 @@ def frame_generator() -> Generator[bytes, None, None]:
         nonlocal vmb, cam_cm, cam
         from vmbpy import VmbSystem, PersistType
 
-        vmb = VmbSystem.get_instance()
-        vmb.__enter__()
-        cams = vmb.get_all_cameras()
-        if not cams:
-            vmb.__exit__(None, None, None)
-            vmb = None
-            return None
 
-        cam_cm = cams[0]
-        cam = cam_cm.__enter__()
-
-        settings_file = '/home/Ento/LepmonOS/Kamera_Einstellungen_VimbaX.xml'
-        if os.path.exists(settings_file):
+        # Try up to 9 times with short delays — camera may need time to initialize
+        for attempt in range(1, 10):
             try:
-                cam.load_settings(settings_file, PersistType.All)
-            except Exception as e:
-                logger.warning(f"Could not load camera settings: {e}")
-        try:
-            cam.ExposureTime.set(exposure * 1000)
-            cam.Gain.set(gain)
-        except Exception as e:
-            logger.warning(f"Could not set exposure/gain: {e}")
+                vmb = VmbSystem.get_instance()
+                vmb.__enter__()
+                cams = vmb.get_all_cameras()
+                if not cams:
+                    vmb.__exit__(None, None, None)
+                    vmb = None
+                    logger.info(f"Camera open attempt {attempt}/5: no camera found")
+                    if attempt < 5:
+                        time.sleep(1.0)
+                    continue
 
-        return cam
+                cam_cm = cams[0]
+                cam = cam_cm.__enter__()
+
+                settings_file = '/home/Ento/LepmonOS/Kamera_Einstellungen_VimbaX.xml'
+                if os.path.exists(settings_file):
+                    try:
+                        cam.load_settings(settings_file, PersistType.All)
+                    except Exception as e:
+                        logger.warning(f"Could not load camera settings: {e}")
+                try:
+                    cam.ExposureTime.set(exposure * 1000)
+                    cam.Gain.set(gain)
+                except Exception as e:
+                    logger.warning(f"Could not set exposure/gain: {e}")
+
+                logger.info(f"Camera opened successfully on attempt {attempt}")
+                return cam
+            except Exception as e:
+                logger.warning(f"Camera open attempt {attempt}/5 failed: {e}")
+                if vmb is not None:
+                    try:
+                        vmb.__exit__(None, None, None)
+                    except Exception:
+                        pass
+                    vmb = None
+                if attempt < 5:
+                    time.sleep(1.0)
+
+        logger.error("Camera could not be opened after 5 attempts")
+        return None
 
     try:
         # Use global camera settings
@@ -778,16 +799,15 @@ def frame_generator() -> Generator[bytes, None, None]:
             if is_capturing:
                 _close_camera()
                 logger.info("Stream unavailable: camera is capturing an image")
-                frame_count = 0
                 return
             
             if not free_for_web:
                 _close_camera()
                 logger.info("Stream unavailable: camera is not free for web streaming")
-                frame_count = 0
                 return
 
             # Capture frame from the persistent camera handle (opened once).
+            # If cam handle was lost, try to re-open it.
             frame = None
             try:
                 with camera_lock:
@@ -800,6 +820,17 @@ def frame_generator() -> Generator[bytes, None, None]:
                 print("Error capturing stream frame:", e)
                 _close_camera()
                 frame = _dev_mode_frame() if DEV_MODE else None
+
+            # If no real frame, yield a "connecting" placeholder and keep the stream alive.
+            # The browser will see this instead of the stream dying and falling back to logo.
+            if cam is None and frame is None:
+                logger.info("Camera not yet available — yielding connecting frame")
+                connecting = create_status_frame("Connecting to camera…")
+                _, jpeg = cv2.imencode('.jpg', connecting, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
+                time.sleep(1.0)
+                continue
 
             if frame is not None:
                 # 1) Center-crop zoom first (before downscale, for accuracy)
@@ -836,8 +867,6 @@ def frame_generator() -> Generator[bytes, None, None]:
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                 cv2.putText(stretched, f"Brightness: {brightness:.1f}", (10, 60),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-                cv2.putText(stretched, f"frame: {frame_count}", (10, 90),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                 cv2.putText(stretched, f"zoom: {zoom}, downscale: {downscale}", (10, 90),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                 
@@ -849,8 +878,16 @@ def frame_generator() -> Generator[bytes, None, None]:
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
             else:
-                logger.error("Stream unavailable: camera returned no frame")
-                return
+                # Camera handle exists but frame capture failed — yield a reconnecting frame
+                # and try to re-open on the next iteration.
+                logger.warning("Camera handle exists but frame capture failed — reconnecting")
+                _close_camera()
+                reconnecting = create_status_frame("Reconnecting to camera…")
+                _, jpeg = cv2.imencode('.jpg', reconnecting, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
+                time.sleep(1.0)
+                continue
             
             # Frame rate control (~5 FPS for preview)
             time.sleep(0.2)
