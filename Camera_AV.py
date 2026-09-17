@@ -166,6 +166,7 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4)
 
     write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing", True)
     write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "free_for_web", False)
+    time.sleep(.5) # let webserver time to not access camera
 
     if DEV_MODE and not _av_camera_present():
         note_mock("Allied Vision camera (vmbpy)")

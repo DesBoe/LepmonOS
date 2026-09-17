@@ -342,6 +342,10 @@
         .stat-value.warning {
             color: var(--warning);
         }
+
+        .stat-value.bad {
+            color: var(--highlight);
+        }
         
         .focus-meter {
             margin-top: 1rem;
@@ -1421,23 +1425,35 @@
             fetch('/api/camera/state')
                 .then(function(response) { return response.json(); })
                 .then(function(data) {
-                    var fields = [
+                    // Has Power, Free for Web, Web Requested: Yes = green, No = red
+                    var positiveFields = [
                         { id: 'cameraHasPower', key: 'has_power' },
-                        { id: 'cameraIsCapturing', key: 'is_capturing' },
                         { id: 'cameraFreeForWeb', key: 'free_for_web' },
                         { id: 'cameraWebRequested', key: 'web_requested' },
                     ];
-                    for (var i = 0; i < fields.length; i++) {
-                        var el = document.getElementById(fields[i].id);
+                    for (var i = 0; i < positiveFields.length; i++) {
+                        var el = document.getElementById(positiveFields[i].id);
                         if (el) {
-                            var val = data[fields[i].key];
+                            var val = data[positiveFields[i].key];
                             if (val === true) {
                                 el.textContent = 'Yes';
                                 el.className = 'stat-value good';
                             } else {
                                 el.textContent = 'No';
-                                el.className = 'stat-value';
+                                el.className = 'stat-value bad';
                             }
+                        }
+                    }
+                    // Is Capturing: No = green, Yes = yellow
+                    var capturingEl = document.getElementById('cameraIsCapturing');
+                    if (capturingEl) {
+                        var isCap = data.is_capturing;
+                        if (isCap === true) {
+                            capturingEl.textContent = 'Yes';
+                            capturingEl.className = 'stat-value warning';
+                        } else {
+                            capturingEl.textContent = 'No';
+                            capturingEl.className = 'stat-value good';
                         }
                     }
                 })

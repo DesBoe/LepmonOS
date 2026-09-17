@@ -855,22 +855,40 @@ def frame_generator() -> Generator[bytes, None, None]:
                 # Calculate and overlay focus score (use original scale for accuracy)
                 focus_score = calculate_focus_score(frame)
                 brightness = calculate_brightness(frame)
-                
+
+
+
                 # Resize for streaming if still too large (> 1280px wide)
                 h, w = stretched.shape[:2]
                 if w > 1280:
                     scale = 1280 / w
-                    stretched = cv2.resize(stretched, (int(w * scale), int(h * scale)))
-                
-                # Add overlay information
-                cv2.putText(stretched, f"Focus: {focus_score:.1f}", (10, 30),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-                cv2.putText(stretched, f"Brightness: {brightness:.1f}", (10, 60),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-                cv2.putText(stretched, f"zoom: {zoom}, downscale: {downscale}", (10, 90),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-                
-                
+                    stretched = cv2.resize(
+                        stretched,
+                        (int(w * scale), int(h * scale))
+                    )
+
+                # Add information area below the image
+
+                h, w = stretched.shape[:2]
+                text_area_height = 100
+                text_area = np.zeros(
+                    (text_area_height, w, 3),
+                    dtype=stretched.dtype
+                )
+
+                stretched = np.vstack((stretched, text_area))
+
+                # Information in lower area
+                cv2.putText( stretched, f"Focus: {focus_score:.1f}",
+                    (10, h + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+
+                cv2.putText(stretched, f"Brightness: {brightness:.1f}",
+                    (10, h + 60), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+
+                cv2.putText(stretched, f"Zoom: {zoom}, Downscale: {downscale}",
+                    (10, h + 90), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+
+                                
                 current_frame = stretched
                 
                 # Encode to JPEG
