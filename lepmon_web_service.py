@@ -1154,14 +1154,26 @@ def frame_generator() -> Generator[bytes, None, None]:
                 text_area = np.zeros((text_area_height, w, 3), dtype=stretched.dtype)
                 stretched = np.vstack((stretched, text_area))
 
+                # Textgröße abhängig vom Zoom
+                text_scale = max(0.4, 0.9 - 0.15 * (zoom - 1))
+                text_thickness = max(1, int(round(text_scale * 2)))
+
+
                 cv2.putText(stretched, f"Focus: {focus_score:.1f}",
-                            (10, h + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                            (10, h + 30), cv2.FONT_HERSHEY_SIMPLEX,
+                            text_scale, (255, 255, 255), text_thickness)
+
                 cv2.putText(stretched, f"Brightness: {brightness:.1f}",
-                            (10, h + 55), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                            (10, h + 55), cv2.FONT_HERSHEY_SIMPLEX,
+                            text_scale, (255, 255, 255), text_thickness)
+
                 cv2.putText(stretched, f"Zoom: {zoom}, Downscale: {downscale}",
-                            (10, h + 80), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                            (10, h + 80), cv2.FONT_HERSHEY_SIMPLEX,
+                            text_scale, (255, 255, 255), text_thickness)
+
                 cv2.putText(stretched, f"Frame: {local_frame_count}",
-                            (10, h + 105), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                            (10, h + 105), cv2.FONT_HERSHEY_SIMPLEX,
+                            text_scale, (255, 255, 255), text_thickness)
 
                 current_frame = stretched
 
