@@ -32,15 +32,20 @@
         "adjust_ContrastShape": false,
         "flatfield_correction": false
     },
-    "Camera_state":{
+    "Camera_state": {
         "has_power": false,
         "is_detected": false,
         "is_capturing": false,
         "free_for_web": false,
-        "web_requested":false,
+        "web_requested": false,
         "web_focus_active": false
     },
-
+    "Camera_Stream": {
+        "gain": 7,
+        "exposure": 120,
+        "zoom": 1.5,
+        "downscale": 6
+    },
     "RPI_Module_3": {
         "initial_gain_10": 7,
         "minimal_gain_10": 1,

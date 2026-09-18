@@ -30,7 +30,7 @@ from contextlib import asynccontextmanager
 from typing import Optional, Generator, List
 import logging
 import glob
-from json_read_write import get_value_from_section, write_value_to_section
+from json_read_write import get_value_from_section, write_value_to_section, get_camera_state, set_camera_state
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -84,20 +84,286 @@ _last_camera_serial: Optional[str] = None
 _last_camera_detected: bool = False
 stream_frame_count: int = 0
 
-# Camera settings
-CAMERA_SETTINGS_FILE = "/home/Ento/LepmonOS/camera_web_settings.json"
-DEFAULT_EXPOSURE = 140  # ms
-DEFAULT_GAIN = 5
-STREAM_DOWNSCALE = 8  # Downscale factor for streaming (reduces bandwidth)
-STREAM_ZOOM = 1        # Center-crop zoom factor (1 = full frame, 2 = inner half, ...)
 
-# Global camera settings (loaded from file)
-camera_settings = {
-    "exposure": DEFAULT_EXPOSURE,
-    "gain": DEFAULT_GAIN,
-    "stream_downscale": STREAM_DOWNSCALE,
-    "stream_zoom": STREAM_ZOOM,
+# ─── Shared Camera Handler + Background Grabbing Thread ─────────────────────
+# vmbpy enforces that get_frame() must be called within the SAME stack frame
+# as the 'with cams[0] as cam:' block. Calling grab_frame() from another
+# thread/generator FAILS with "outside of 'with' context".
+#
+# Solution: A dedicated background thread holds the 'with cams[0] as cam:'
+# block for the entire streaming session. It grabs raw frames and stores them
+# in _latest_frame (protected by _frame_lock). All MJPEG generators read this
+# shared frame via .copy(), so no queue contention occurs.
+#
+# This eliminates ALL three error types:
+#   - "Camera already in use" (AccessMode.Full conflict)
+#   - BadHandle / BadParameter (SDK state corruption)
+#   - "get_frame() outside of 'with' context"
+#
+# Shared latest-frame pattern: background thread writes, all generators read
+# (via copy). Every consumer sees the same latest frame instead of fighting
+# over a single queue item — no starvation, no "Waiting for camera" timeouts.
+_latest_frame: Optional[np.ndarray] = None
+_frame_lock = threading.Lock()
+
+# Background grabbing thread state
+_grab_thread: Optional[threading.Thread] = None
+_grab_running = False
+
+# Lock for camera-opening coordination
+_shared_camera_lock = threading.Lock()
+
+
+class SharedCamera:
+    """Thread-safe camera handle. Stores the cam object set by the grabbing thread."""
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._cam = None
+        self._open = False
+
+    @property
+    def is_open(self) -> bool:
+        with self._lock:
+            return self._open
+
+    def set_cam(self, cam):
+        """Set the camera object (called from within 'with cams[0] as cam:')."""
+        with self._lock:
+            self._cam = cam
+            self._open = True
+
+    def close(self):
+        """Mark camera as closed."""
+        with self._lock:
+            self._cam = None
+            self._open = False
+
+
+# Module-level shared camera handler — one per streaming session.
+_shared_camera: Optional[SharedCamera] = None
+
+
+def _camera_grabbing_loop(handler: SharedCamera) -> None:
+    """Background thread: holds 'with cams[0] as cam:' and updates _latest_frame.
+
+    THIS IS THE ONLY PLACE that calls cam.get_frame(). All generators
+    read the shared _latest_frame (protected by _frame_lock, via copy()).
+    """
+    global _grab_running, _last_camera_model, _last_camera_serial, _last_camera_detected
+    global _latest_frame
+
+    _grab_running = True
+    logger.info("Camera grabbing thread started")
+
+    try:
+        if not _vmb_system_initialized:
+            _init_vmb_system()
+
+        for attempt in range(1, 20):
+            if not _grab_running:
+                logger.info("Grab thread: _grab_running=False, exiting")
+                break
+            try:
+                if _vmb_system is None:
+                    logger.debug(f"Grab thread attempt {attempt}/19: VmbSystem not ready, waiting...")
+                    time.sleep(1.0)
+                    continue
+                cams = _vmb_system.get_all_cameras()
+                if not cams:
+                    logger.warning(f"Grab thread attempt {attempt}/19: No cameras found, retrying...")
+                    time.sleep(1.0)
+                    continue
+
+                logger.info(f"Grab thread attempt {attempt}/19: found {len(cams)} camera(s), opening...")
+                from vmbpy import PersistType
+                exposure = get_camera_setting("exposure") or 140.0
+                gain = get_camera_setting("gain") or 5.0
+
+                # ─── 'with' block held for ENTIRE streaming session ───
+                with cams[0] as cam:
+                    handler.set_cam(cam)
+
+                    # Load cached camera settings
+                    settings_file = '/home/Ento/LepmonOS/Kamera_Einstellungen_VimbaX.xml'
+                    if os.path.exists(settings_file):
+                        try:
+                            cam.load_settings(settings_file, PersistType.All)
+                            logger.info("Loaded camera settings from XML file")
+                        except Exception as e:
+                            logger.warning(f"Could not load camera settings: {e}")
+
+                    try:
+                        cam.ExposureTime.set(exposure * 1000)
+                        cam.Gain.set(gain)
+                    except Exception as e:
+                        logger.warning(f"Could not set exposure/gain: {e}")
+
+                    try:
+                        model = cam.get_model()
+                        serial = cam.get_serial()
+                    except Exception:
+                        model = "Unknown"
+                        serial = "--"
+                    _last_camera_model = model
+                    _last_camera_serial = serial
+                    _last_camera_detected = True
+                    logger.info(f"Camera opened in grabbing thread: model={model}, serial={serial}")
+
+                    # ─── Frame grabbing loop — INSIDE the 'with' block ───
+                    frames_grabbed = 0
+                    while _grab_running and handler.is_open:
+                        is_capturing = get_camera_state("is_capturing") or False
+                        free_for_web = get_camera_state("free_for_web") or False
+                        if is_capturing or not free_for_web:
+                            logger.info(
+                                f"Grabbing: camera busy or not free, stopping "
+                                f"(is_capturing={is_capturing}, free_for_web={free_for_web}). "
+                                f"Frames grabbed so far: {frames_grabbed}"
+                            )
+                            break
+
+                        try:
+                            raw = cam.get_frame(timeout_ms=2000).as_opencv_image()
+                            with _frame_lock:
+                                _latest_frame = raw
+                            frames_grabbed += 1
+                            if frames_grabbed == 1:
+                                logger.info(f"Grab thread: first frame captured ({raw.shape[1]}x{raw.shape[0]})")
+                            elif frames_grabbed % 50 == 0:
+                                logger.info(f"Grab thread: {frames_grabbed} frames captured so far")
+                        except Exception as e:
+                            logger.error(f"Grab error in thread (frame #{frames_grabbed + 1}): {e}")
+                            time.sleep(0.2)
+                        time.sleep(0.5)
+
+                break  # Success: 'with' block exited, leave retry loop
+            except Exception as e:
+                logger.warning(f"Grab thread open attempt {attempt}/19 failed: {e}")
+                time.sleep(min(1.0, attempt * 0.2))
+
+        else:
+            # Loop exhausted all 19 attempts without breaking (camera never opened)
+            logger.error("Grab thread: all 19 attempts failed — camera never opened")
+
+    except Exception as e:
+        logger.error(f"Camera grabbing thread crashed: {e}")
+    finally:
+        _grab_running = False
+        handler.close()
+        logger.info("Camera grabbing thread stopped")
+
+
+# ── Camera state cache is in json_read_write.py (shared with Camera_AV.py) ──
+# Import get_camera_state / set_camera_state from json_read_write
+
+# ── VmbSystem singleton (lazy init, only when web_requested = true) ──
+# VmbSystem is a true singleton. Each 'with' block's __exit__() tears down
+# the entire SDK, which breaks streams and causes "System not ready" errors
+# when another thread is still using it.
+#
+# CRITICAL: We do NOT initialize VmbSystem at module load because lepmon-main
+# (Camera_AV.py) uses the same SDK. Two processes sharing vmbpy causes
+# BadHandle / BadParameter errors. Instead we initialize lazily ONLY when
+# web_requested becomes true (meaning the user explicitly asked for web stream).
+# When web_requested goes back to false, we shut down to release the SDK for
+# lepmon-main to use again.
+
+_vmb_system = None
+_vmb_system_initialized = False
+
+
+def _init_vmb_system() -> bool:
+    """Lazily initialize VmbSystem. Returns True on success.
+
+    Only called when web_requested transitions to true.
+    If already initialized, returns True immediately.
+    """
+    global _vmb_system, _vmb_system_initialized
+    if _vmb_system_initialized:
+        return True
+    try:
+        from vmbpy import VmbSystem as _VmbSystemInit  # noqa: PLC0415
+        _vmb_system = _VmbSystemInit.get_instance()
+        _vmb_system.__enter__()
+        _vmb_system_initialized = True
+        logger.info("VmbSystem initialized on demand (web_requested = true)")
+        return True
+    except Exception as e:
+        logger.warning(f"VmbSystem init failed (will retry on next frame): {e}")
+        return False
+
+
+def _shutdown_vmb_system() -> None:
+    """Shut down VmbSystem to release the SDK for lepmon-main.
+
+    Called when web_requested transitions to false.
+    """
+    global _vmb_system, _vmb_system_initialized
+    if not _vmb_system_initialized:
+        return
+    try:
+        _vmb_system.__exit__(None, None, None)
+        logger.info("VmbSystem shut down (web_requested = false, SDK released)")
+    except Exception as e:
+        logger.warning(f"VmbSystem shutdown failed: {e}")
+    _vmb_system = None
+    _vmb_system_initialized = False
+# All camera settings live here. The file is read ONCE at startup as a fallback,
+# but all runtime reads/writes go through this dict (thread-safe via camera_lock).
+# This eliminates the permission-denied issue and also speeds up the streaming
+# loop which previously re-read JSON on every frame (~5 FPS).
+
+_CAMERA_SETTINGS = {
+    "exposure": 140.0,    # ms  (1–10000)
+    "gain": 5.0,          # dB  (0–48)
+    "downscale": 8,       # int (1–20)
+    "zoom": 2,            # int (1–5)
 }
+
+def _load_camera_settings_from_file() -> dict:
+    """Try to load camera settings from Lepmon_config.json. Returns defaults on any error."""
+    settings = dict(_CAMERA_SETTINGS)  # start with defaults
+    try:
+        val = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_Stream", "exposure")
+        if isinstance(val, (int, float)):
+            settings["exposure"] = float(val)
+        val = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_Stream", "gain")
+        if isinstance(val, (int, float)):
+            settings["gain"] = float(val)
+        val = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_Stream", "downscale")
+        if isinstance(val, (int, float)):
+            settings["downscale"] = int(val)
+        val = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_Stream", "zoom")
+        if isinstance(val, (int, float)):
+            settings["zoom"] = int(val)
+        logger.info(f"Loaded camera settings from config: {settings}")
+    except Exception as e:
+        logger.warning(f"Could not load camera settings from config, using defaults: {e}")
+    return settings
+
+# Populate the cache at module load time
+_CAMERA_SETTINGS.update(_load_camera_settings_from_file())
+logger.info(f"Camera settings cache initialized: {_CAMERA_SETTINGS}")
+
+# -----------------------------------------------------------------------------
+# Convenience helpers (used throughout the file)
+# -----------------------------------------------------------------------------
+
+def get_camera_setting(key: str):
+    """Read a camera setting from the in-memory cache (thread-safe)."""
+    with camera_lock:
+        return _CAMERA_SETTINGS.get(key)
+
+def set_camera_setting(key: str, value):
+    """Write a camera setting into the in-memory cache (thread-safe)."""
+    with camera_lock:
+        _CAMERA_SETTINGS[key] = value
+
+# Legacy aliases for backward compatibility with existing code references
+DEFAULT_EXPOSURE = _CAMERA_SETTINGS["exposure"]
+DEFAULT_GAIN = _CAMERA_SETTINGS["gain"]
+STREAM_DOWNSCALE = _CAMERA_SETTINGS["downscale"]
+STREAM_ZOOM = _CAMERA_SETTINGS["zoom"]
 
 
 def sensor_defaults() -> dict:
@@ -426,34 +692,28 @@ def _enable_after_cooldown() -> None:
 # ---------- Camera detection polling ----------
 
 def _poll_camera_detection() -> None:
-    """Background thread: poll camera presence every 2s and update config JSON.
+    """Background thread: poll camera presence every 2s and update in-memory cache.
 
-    IMPORTANT: Do NOT use 'with VmbSystem.get_instance()' because the __exit__
-    method can shut down the VmbSystem singleton, which would break the
-    streaming thread that also relies on the same singleton.
+    Uses the module-level _vmb_system singleton directly — no 'with' blocks
+    that would tear down the SDK while the streaming thread is using it.
+
+    The detection result is written to the in-memory cache, NOT to the JSON
+    file, to avoid Permission denied errors.
     """
-    from json_read_write import write_value_to_section
-    CONFIG = "/home/Ento/LepmonOS/Lepmon_config.json"
     while True:
         detected = False
         try:
-            from vmbpy import VmbSystem  # noqa: PLC0415
-            vmb = VmbSystem.get_instance()
-            try:
-                cams = vmb.get_all_cameras()
+            if _vmb_system is not None:
+                cams = _vmb_system.get_all_cameras()
                 detected = bool(cams)
                 logger.debug(f"Camera detection poll: found {len(cams) if cams else 0} camera(s)")
-            except Exception as e:
-                logger.debug(f"Camera detection get_all_cameras() failed: {e}")
         except ImportError:
             logger.debug("vmbpy not available for camera detection polling")
         except Exception as e:
             logger.debug(f"Camera detection poll failed: {e}")
 
-        try:
-            write_value_to_section(CONFIG, "Camera_state", "is_detected", detected)
-        except Exception as e:
-            logger.error(f"Failed to write camera detection to config: {e}")
+        # Write to in-memory cache instead of JSON file (avoids Permission denied)
+        set_camera_state("is_detected", detected)
 
         time.sleep(2)
 
@@ -473,6 +733,100 @@ def _stop_camera_detection() -> None:
     """Signal the detection thread to stop (handled by daemon flag on exit)."""
     global _camera_detection_thread
     _camera_detection_thread = None
+
+
+# ---------- Camera state sync from JSON (for cross-process visibility) ----------
+
+# Keys written by other processes (trap_hmi.py, Camera_AV.py) that we must
+# re-read from the JSON file periodically.  'is_detected' is excluded because
+# the polling thread owns that key.
+_CAMERA_STATE_SYNC_KEYS = [
+    "has_power",
+    "is_capturing",
+    "free_for_web",
+    "web_requested",
+    "web_focus_active",
+]
+
+_sync_running = True
+
+
+def _sync_camera_state_from_file() -> None:
+    """Background thread: re-read Camera_state from JSON every 2 seconds.
+
+    Other programs (trap_hmi.py, Camera_AV.py) write to the JSON file directly.
+    This thread keeps the in-memory cache in sync with those external writes.
+
+    'is_detected' is NOT synced here — it is owned by the polling thread.
+
+    Transition handling:
+      - has_power True → False  : clear cached camera info
+      - web_requested False → True : initialize VmbSystem (lazy)
+      - web_requested True → False : shutdown VmbSystem (release SDK for lepmon-main)
+    """
+    global _sync_running, _last_camera_model, _last_camera_serial, _last_camera_detected
+    prev_has_power = get_camera_state("has_power")
+    prev_web_requested = get_camera_state("web_requested")
+
+    while _sync_running:
+        try:
+            with open("/home/Ento/LepmonOS/Lepmon_config.json", "r") as f:
+                data = json.load(f)
+            state = data.get("Camera_state", {})
+
+            for key in _CAMERA_STATE_SYNC_KEYS:
+                val = state.get(key)
+                if isinstance(val, bool):
+                    set_camera_state(key, val)
+
+            # --- Transition: has_power True → False ---
+            new_has_power = get_camera_state("has_power")
+            if prev_has_power is True and new_has_power is False:
+                logger.info("has_power turned off — clearing cached camera info")
+                _last_camera_model = None
+                _last_camera_serial = None
+                _last_camera_detected = False
+            prev_has_power = new_has_power
+
+            # --- Transition: web_requested False → True (init VmbSystem) ---
+            new_web_requested = get_camera_state("web_requested")
+            if prev_web_requested is False and new_web_requested is True:
+                logger.info("web_requested turned on — initializing VmbSystem")
+                _init_vmb_system()
+            # --- Transition: web_requested True → False (shutdown VmbSystem) ---
+            elif prev_web_requested is True and new_web_requested is False:
+                logger.info("web_requested turned off — shutting down VmbSystem")
+                _shutdown_vmb_system()
+            prev_web_requested = new_web_requested
+
+        except Exception as e:
+            logger.debug(f"Camera state sync failed: {e}")
+
+        time.sleep(2)
+
+
+def _start_camera_state_sync() -> None:
+    """Launch the camera state JSON-sync background thread."""
+    global _camera_sync_thread
+    if _camera_sync_thread is not None and _camera_sync_thread.is_alive():
+        return
+    _camera_sync_thread = threading.Thread(
+        target=_sync_camera_state_from_file, daemon=True
+    )
+    _camera_sync_thread.start()
+    logger.info("Camera state sync thread started")
+
+
+def _stop_camera_state_sync() -> None:
+    """Signal the sync thread to stop."""
+    global _sync_running
+    _sync_running = False
+    global _camera_sync_thread
+    _camera_sync_thread = None
+    logger.info("Camera state sync thread stopped")
+
+
+_camera_sync_thread: Optional[threading.Thread] = None
 
 
 
@@ -523,27 +877,6 @@ def _get_dimming_status() -> dict:
 
 
 
-def load_camera_settings():
-    """Load camera settings from JSON file."""
-    global camera_settings
-    try:
-        if os.path.exists(CAMERA_SETTINGS_FILE):
-            with open(CAMERA_SETTINGS_FILE, 'r') as f:
-                loaded = json.load(f)
-                camera_settings.update(loaded)
-                logger.info(f"Loaded camera settings: {camera_settings}")
-    except Exception as e:
-        logger.warning(f"Could not load camera settings: {e}")
-
-def save_camera_settings():
-    """Save camera settings to JSON file."""
-    try:
-        with open(CAMERA_SETTINGS_FILE, 'w') as f:
-            json.dump(camera_settings, f, indent=2)
-        logger.info(f"Saved camera settings: {camera_settings}")
-    except Exception as e:
-        logger.error(f"Could not save camera settings: {e}")
-
 
 def _dev_mode_frame() -> np.ndarray:
     note_mock("Allied Vision camera (vmbpy) for web streaming")
@@ -555,44 +888,56 @@ def get_vimba_frame(exposure: int = DEFAULT_EXPOSURE, gain: float = DEFAULT_GAIN
     Capture a single frame from the Allied Vision camera using VmbPy SDK.
     Returns the frame as a numpy array, a DEV_MODE mock frame if no camera is
     found and DEV_MODE is on, or None if capture fails.
+
+    If streaming is active, tries to reuse the SharedCamera to avoid
+    "camera already in use" conflicts.
     """
     try:
-        from vmbpy import VmbSystem, PixelFormat, PersistType
+        from vmbpy import PixelFormat, PersistType
 
-        with VmbSystem.get_instance() as vmb:
-            cams = vmb.get_all_cameras()
-            if not cams:
-                logger.warning("No Allied Vision camera found")
-                return _dev_mode_frame() if DEV_MODE else None
+        # If streaming is active, try to grab from the shared latest frame
+        if streaming_active:
+            with _frame_lock:
+                if _latest_frame is not None:
+                    return _latest_frame.copy()
 
-            with cams[0] as cam:
-                # Don't force pixel format - use whatever camera supports
-                # Most Allied Vision cameras default to Mono8 or BayerRG8
+        if _vmb_system is None:
+            logger.error("VmbSystem not initialized")
+            return _dev_mode_frame() if DEV_MODE else None
 
-                # Load settings if available
-                settings_file = '/home/Ento/LepmonOS/Kamera_Einstellungen_VimbaX.xml'
-                if os.path.exists(settings_file):
-                    try:
-                        cam.load_settings(settings_file, PersistType.All)
-                    except Exception as e:
-                        logger.warning(f"Could not load camera settings: {e}")
+        cams = _vmb_system.get_all_cameras()
+        if not cams:
+            logger.warning("No Allied Vision camera found")
+            return _dev_mode_frame() if DEV_MODE else None
 
-                # Set exposure and gain
+        with cams[0] as cam:
+            # Don't force pixel format - use whatever camera supports
+            # Most Allied Vision cameras default to Mono8 or BayerRG8
+
+            # Load settings if available
+            settings_file = '/home/Ento/LepmonOS/Kamera_Einstellungen_VimbaX.xml'
+            if os.path.exists(settings_file):
                 try:
-                    cam.ExposureTime.set(exposure * 1000)  # Convert to microseconds
-                    cam.Gain.set(gain)
+                    cam.load_settings(settings_file, PersistType.All)
                 except Exception as e:
-                    logger.warning(f"Could not set exposure/gain: {e}")
+                    logger.warning(f"Could not load camera settings: {e}")
 
-                #check pixelformats:
-                try:
-                    logger.info(f"Current PixelFormat: {cam.get_pixel_format()}")
-                except Exception as e:
-                    logger.warning(f"Could not query pixel formats: {e}")
+            # Set exposure and gain
+            try:
+                cam.ExposureTime.set(exposure * 1000)  # Convert to microseconds
+                cam.Gain.set(gain)
+            except Exception as e:
+                logger.warning(f"Could not set exposure/gain: {e}")
 
-                # Capture frame
-                frame = cam.get_frame(timeout_ms=5000).as_opencv_image()
-                return frame
+            #check pixelformats:
+            try:
+                logger.info(f"Current PixelFormat: {cam.get_pixel_format()}")
+            except Exception as e:
+                logger.warning(f"Could not query pixel formats: {e}")
+
+            # Capture frame
+            frame = cam.get_frame(timeout_ms=5000).as_opencv_image()
+            return frame
 
     except ImportError:
         logger.error("VmbPy SDK not available - using test pattern")
@@ -690,15 +1035,9 @@ def calculate_brightness(frame: np.ndarray) -> float:
 
 
 def frame_generator() -> Generator[bytes, None, None]:
-    """
-    Generator function for MJPEG streaming.
-    Captures frames from camera, applies min/max stretch, and yields JPEG data.
-
-    The camera is only touched while a web focus session is active
-    (set by the OLED "Web Focus" menu entry) AND no timelapse is running.
-    Otherwise the stream closes so the browser can show its placeholder.
-    """
-    global current_frame, streaming_active, stream_consumers
+    """MJPEG stream generator — reads shared _latest_frame from background thread."""
+    global current_frame, streaming_active, stream_consumers, _shared_camera
+    global _latest_frame, _grab_thread, _grab_running
 
     with stream_consumers_lock:
         stream_consumers += 1
@@ -706,187 +1045,79 @@ def frame_generator() -> Generator[bytes, None, None]:
 
     logger.info(f"Stream consumer connected. Total consumers: {stream_consumers}")
 
-    # Persistent camera handle for the lifetime of this streaming session —
-    # re-opening VmbSystem/the camera on every single frame (as get_vimba_frame
-    # does for snapshots) is far too slow for smooth MJPEG playback.
-    vmb = None
-    cam_cm = None
-    cam = None
+    # Get or create shared handler + start grabbing thread
+    with _shared_camera_lock:
+        handler = _shared_camera
+        if handler is None:
+            handler = SharedCamera()
+            _shared_camera = handler
+            _latest_frame = None
+            _grab_thread = threading.Thread(
+                target=_camera_grabbing_loop, args=(handler,), daemon=True
+            )
+            _grab_thread.start()
+            logger.info("Started camera grabbing background thread")
 
-    def _close_camera():
-        nonlocal vmb, cam_cm, cam
-        if cam_cm is not None:
-            try:
-                cam_cm.__exit__(None, None, None)
-            except Exception as e:
-                logger.warning(f"Error closing camera: {e}")
-            cam_cm = None
-            cam = None
-        if vmb is not None:
-            try:
-                vmb.__exit__(None, None, None)
-            except Exception as e:
-                logger.warning(f"Error closing VmbSystem: {e}")
-            vmb = None
+    # Wait for camera to be ready (up to 30s)
+    for wait_i in range(30):
+        if handler.is_open:
+            break
+        time.sleep(1.0)
 
-    def _open_camera(exposure, gain):
-        nonlocal vmb, cam_cm, cam
-        global _last_camera_model, _last_camera_serial, _last_camera_detected
-        from vmbpy import VmbSystem, PersistType
-
-        # Try up to 9 times with short delays — camera may need time to initialize
-        for attempt in range(1, 10):
-            try:
-                vmb = VmbSystem.get_instance()
-                vmb.__enter__()
-                cams = vmb.get_all_cameras()
-                if not cams:
-                    vmb.__exit__(None, None, None)
-                    vmb = None
-                    logger.info(f"Camera open attempt {attempt}/5: no camera found")
-                    if attempt < 5:
-                        time.sleep(1.0)
-                    continue
-
-                cam_cm = cams[0]
-                cam = cam_cm.__enter__()
-
-                settings_file = '/home/Ento/LepmonOS/Kamera_Einstellungen_VimbaX.xml'
-                if os.path.exists(settings_file):
-                    try:
-                        cam.load_settings(settings_file, PersistType.All)
-                    except Exception as e:
-                        logger.warning(f"Could not load camera settings: {e}")
-                try:
-                    cam.ExposureTime.set(exposure * 1000)
-                    cam.Gain.set(gain)
-                except Exception as e:
-                    logger.warning(f"Could not set exposure/gain: {e}")
-
-                # Cache camera info for the /api/camera/info endpoint
-                # Try multiple methods to get model/serial — VmbPy API varies by version
-                try:
-                    model = None
-                    serial = None
-                    # Method 1: device_info dict
-                    try:
-                        info = cam.get_device_info()
-                        if isinstance(info, dict):
-                            model = info.get("ModelName") or info.get("model") or info.get("Model")
-                            serial = info.get("SerialNumber") or info.get("serial") or info.get("Serial")
-                    except Exception:
-                        pass
-                    # Method 2: direct getters
-                    if not model:
-                        try:
-                            model = cam.get_model()
-                        except Exception:
-                            pass
-                    if not serial:
-                        try:
-                            serial = cam.get_serial()
-                        except Exception:
-                            pass
-                    # Method 3: cam_cm (camera wrapper)
-                    if not model or not serial:
-                        try:
-                            wrapper_info = cam_cm.get_device_info()
-                            if isinstance(wrapper_info, dict):
-                                if not model:
-                                    model = wrapper_info.get("ModelName") or wrapper_info.get("model")
-                                if not serial:
-                                    serial = wrapper_info.get("SerialNumber") or wrapper_info.get("serial")
-                        except Exception:
-                            pass
-
-                    _last_camera_model = model or "Unknown"
-                    _last_camera_serial = serial or "--"
-                    _last_camera_detected = True
-                    logger.info(f"Camera cached: model={_last_camera_model}, serial={_last_camera_serial}")
-                except Exception as e:
-                    logger.error(f"Failed to cache camera info: {e}")
-
-                logger.info(f"Camera opened successfully on attempt {attempt}")
-                return cam
-            except Exception as e:
-                logger.warning(f"Camera open attempt {attempt}/5 failed: {e}")
-                if vmb is not None:
-                    try:
-                        vmb.__exit__(None, None, None)
-                    except Exception:
-                        pass
-                    vmb = None
-                if attempt < 5:
-                    time.sleep(1.0)
-
-        logger.error("Camera could not be opened after 5 attempts")
-        return None
+    if not handler.is_open:
+        connecting = create_status_frame("Camera not available")
+        _, jpeg = cv2.imencode(".jpg", connecting, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n")
+        return
 
     try:
-        # Reset frame counter at start of streaming session
-        global stream_frame_count
-        stream_frame_count = 0
-
-        # Use global camera settings (exposure/gain are only needed when opening)
-        exposure = camera_settings["exposure"]
-        gain = camera_settings["gain"]
-
+        local_frame_count = 0
+        prev_zoom = None  # Track zoom changes for debug logging
+        waiting_count = 0  # Track how many "waiting" frames we've yielded
+        got_first_real = False  # Track transition from waiting → real frame
         while True:
-            # Re-read downscale/zoom every frame so slider changes take effect immediately
-            downscale = camera_settings.get("stream_downscale", STREAM_DOWNSCALE)
-            zoom = camera_settings.get("stream_zoom", STREAM_ZOOM)
-            '''
-            state = get_capturing_state()
-
-            # Timelapse wins — never compete with it.
-            if state.is_capturing:
-                _close_camera()
-                logger.info("Stream unavailable: capture is in progress")
-                return
-            '''
-            # Derive all camera state from Lepmon_config.json via get_value_from_section
-            is_capturing = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing")
-            has_power = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "has_power")
-            free_for_web = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "free_for_web")
-
-            if is_capturing:
-                _close_camera()
-                logger.info("Stream unavailable: camera is capturing an image")
-                return
-            
-            if not free_for_web:
-                _close_camera()
-                logger.info("Stream unavailable: camera is not free for web streaming")
-                return
-
-            # Capture frame from the persistent camera handle (opened once).
-            # If cam handle was lost, try to re-open it.
-            frame = None
             try:
-                with camera_lock:
-                    if cam is None:
-                        _open_camera(exposure, gain)
-                    if cam is not None:
-                        frame = cam.get_frame(timeout_ms=5000).as_opencv_image()
-            except Exception as e:
-                logger.error(f"Error capturing stream frame: {e}")
-                print("Error capturing stream frame:", e)
-                _close_camera()
-                frame = _dev_mode_frame() if DEV_MODE else None
+                is_capturing = get_camera_state("is_capturing") or False
+                free_for_web = get_camera_state("free_for_web") or False
+                if is_capturing or not free_for_web:
+                    logger.info("Stream: camera busy or not free for web — exiting generator")
+                    return
 
-            # If no real frame, yield a "connecting" placeholder and keep the stream alive.
-            # The browser will see this instead of the stream dying and falling back to logo.
-            if cam is None and frame is None:
-                logger.info("Camera not yet available — yielding connecting frame")
-                connecting = create_status_frame("Connecting to camera…")
-                _, jpeg = cv2.imencode('.jpg', connecting, [cv2.IMWRITE_JPEG_QUALITY, 80])
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
-                time.sleep(1.0)
-                continue
+                # Re-read downscale/zoom every frame so slider changes take effect immediately
+                zoom = get_camera_setting("zoom") or 2
+                downscale = get_camera_setting("downscale") or 8
+                if zoom != prev_zoom:
+                    logger.info(f"Stream frame generator: zoom={zoom}, downscale={downscale}")
+                    prev_zoom = zoom
 
-            if frame is not None:
-                stream_frame_count += 1
+                # Read latest frame (shared across all consumers, each copies it)
+                frame = None
+                with _frame_lock:
+                    if _latest_frame is not None:
+                        frame = _latest_frame.copy()
+                if frame is None:
+                    # Wait briefly for the next frame rather than spamming placeholders
+                    time.sleep(0.25)
+                    waiting_count += 1
+                    if waiting_count == 1 or waiting_count % 10 == 0:
+                        logger.info(
+                            f"Stream generator: no frame available yet, "
+                            f"yielding 'Waiting for camera' (attempt #{waiting_count})"
+                        )
+                    connecting = create_status_frame("Waiting for camera")
+                    _, jpeg = cv2.imencode(".jpg", connecting, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                    yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n")
+                    # Frame rate control (~2 FPS to match grab thread rate)
+                    time.sleep(0.5)
+                    continue
+
+                local_frame_count += 1
+                if not got_first_real:
+                    logger.info(
+                        f"Stream generator: FIRST real frame received after {waiting_count} waiting attempts "
+                        f"({frame.shape[1]}x{frame.shape[0]})"
+                    )
+                    got_first_real = True
 
                 # 1) Center-crop zoom first (before downscale, for accuracy)
                 if zoom > 1:
@@ -897,87 +1128,74 @@ def frame_generator() -> Generator[bytes, None, None]:
                     x_start = (w - crop_w) // 2
                     frame = frame[y_start:y_start + crop_h, x_start:x_start + crop_w]
 
-                # 2) Downscale to reduce processing time
+                # 2) Downscale to reduce processing time and bandwidth
                 h, w = frame.shape[:2]
                 if downscale > 1:
                     new_w = w // downscale
                     new_h = h // downscale
                     frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
-                
+
                 # Apply min/max stretch for better visibility
                 stretched = apply_min_max_stretch(frame)
-                
-                # Calculate and overlay focus score (use original scale for accuracy)
+
+                # Calculate and overlay metrics (use post-downscale frame for speed)
                 focus_score = calculate_focus_score(frame)
                 brightness = calculate_brightness(frame)
-
-
 
                 # Resize for streaming if still too large (> 1280px wide)
                 h, w = stretched.shape[:2]
                 if w > 1280:
                     scale = 1280 / w
-                    stretched = cv2.resize(
-                        stretched,
-                        (int(w * scale), int(h * scale))
-                    )
+                    stretched = cv2.resize(stretched, (int(w * scale), int(h * scale)))
 
                 # Add information area below the image
-
                 h, w = stretched.shape[:2]
                 text_area_height = 120
-                text_area = np.zeros(
-                    (text_area_height, w, 3),
-                    dtype=stretched.dtype
-                )
-
+                text_area = np.zeros((text_area_height, w, 3), dtype=stretched.dtype)
                 stretched = np.vstack((stretched, text_area))
 
-                # Information in lower area
-                cv2.putText( stretched, f"Focus: {focus_score:.1f}",
-                    (10, h + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-
+                cv2.putText(stretched, f"Focus: {focus_score:.1f}",
+                            (10, h + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                 cv2.putText(stretched, f"Brightness: {brightness:.1f}",
-                    (10, h + 55), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-
+                            (10, h + 55), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                 cv2.putText(stretched, f"Zoom: {zoom}, Downscale: {downscale}",
-                    (10, h + 80), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                            (10, h + 80), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                cv2.putText(stretched, f"Frame: {local_frame_count}",
+                            (10, h + 105), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
-                cv2.putText(stretched, f"Frame: {stream_frame_count}",
-                    (10, h + 105), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-
-                                
                 current_frame = stretched
-                
-                # Encode to JPEG
-                _, jpeg = cv2.imencode('.jpg', stretched, [cv2.IMWRITE_JPEG_QUALITY, 80])
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
-            else:
-                # Camera handle exists but frame capture failed — yield a reconnecting frame
-                # and try to re-open on the next iteration.
-                logger.warning("Camera handle exists but frame capture failed — reconnecting")
-                _close_camera()
-                reconnecting = create_status_frame("Reconnecting to camera…")
-                _, jpeg = cv2.imencode('.jpg', reconnecting, [cv2.IMWRITE_JPEG_QUALITY, 80])
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
-                time.sleep(1.0)
-                continue
-            
-            # Frame rate control (~5 FPS for preview)
-            time.sleep(0.5)
-            
-    except GeneratorExit:
-        logger.info("Stream consumer disconnected")
+
+                # Encode to JPEG and yield
+                _, jpeg = cv2.imencode(".jpg", stretched, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n")
+
+                # Frame rate control (~2 FPS for preview — matches grab thread interval)
+                time.sleep(0.5)
+            except GeneratorExit:
+                raise  # Let GeneratorExit propagate — triggers finally cleanup
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, ConnectionError):
+                logger.info("Stream: client disconnected (broken pipe)")
+                break
+            except Exception as e:
+                logger.error(f"Stream generator error: {e}")
+                break
     finally:
-        _close_camera()
         with stream_consumers_lock:
             stream_consumers -= 1
             if stream_consumers <= 0:
                 streaming_active = False
                 stream_consumers = 0
+                _grab_running = False
+                if _grab_thread is not None and _grab_thread.is_alive():
+                    _grab_thread.join(timeout=3.0)
+                _grab_thread = None
+                with _shared_camera_lock:
+                    if _shared_camera is not None:
+                        _shared_camera.close()
+                        _shared_camera = None
+                    _latest_frame = None
         logger.info(f"Stream consumer disconnected. Remaining consumers: {stream_consumers}")
+
 
 
 def create_status_frame(message: str) -> np.ndarray:
@@ -1001,7 +1219,6 @@ def create_status_frame(message: str) -> np.ndarray:
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     logger.info("Lepmon Web Service starting...")
-    load_camera_settings()
     yield
     logger.info("Lepmon Web Service shutting down...")
 
@@ -1097,9 +1314,9 @@ async def capture_image_placeholder():
 async def video_stream():
     """MJPEG video stream endpoint. Only served when focus session allows it."""
     try:
-        free_for_web = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "free_for_web")
-        web_requested = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "web_requested")
-        is_capturing = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing")
+        free_for_web = get_camera_state("free_for_web")
+        web_requested = get_camera_state("web_requested")
+        is_capturing = get_camera_state("is_capturing")
     except Exception:
         free_for_web = False
         web_requested = False
@@ -1120,24 +1337,24 @@ LEPMON_CONFIG_PATH = "/home/Ento/LepmonOS/Lepmon_config.json"
 
 @app.get("/api/camera/power")
 async def get_camera_power():
-    """Return Camera_state.has_power from Lepmon_config.json."""
+    """Return Camera_state.has_power from the in-memory cache."""
     try:
-        has_power = get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "has_power")
+        has_power = get_camera_state("has_power")
     except Exception:
         has_power = False
     return {"has_power": bool(has_power)}
 
 
 @app.get("/api/camera/state")
-async def get_camera_state():
-    """Return all Camera_state control parameters from Lepmon_config.json."""
+async def get_camera_state_api():
+    """Return all Camera_state control parameters from the in-memory cache."""
     try:
         return {
-            "has_power": bool(get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "has_power")),
-            "is_detected": bool(get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "is_detected")),
-            "is_capturing": bool(get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "is_capturing")),
-            "free_for_web": bool(get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "free_for_web")),
-            "web_requested": bool(get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "web_requested")),
+            "has_power": bool(get_camera_state("has_power")),
+            "is_detected": bool(get_camera_state("is_detected")),
+            "is_capturing": bool(get_camera_state("is_capturing")),
+            "free_for_web": bool(get_camera_state("free_for_web")),
+            "web_requested": bool(get_camera_state("web_requested")),
         }
     except Exception:
         return {
@@ -1196,7 +1413,10 @@ async def snapshot():
         )
     
     with camera_lock:
-        frame = get_vimba_frame()
+        frame = get_vimba_frame(
+            exposure=int(get_camera_setting("exposure") or 140),
+            gain=float(get_camera_setting("gain") or 5.0)
+        )
     
     if frame is None:
         return JSONResponse({"error": "Failed to capture frame"}, status_code=500)
@@ -1219,19 +1439,24 @@ async def get_status():
     """Get current system status."""
     state = get_capturing_state()
 
-    # Camera state from config — single source of truth for all Camera_state fields
+    # Camera state from in-memory cache (fast, no I/O)
     try:
-        camera_has_power = get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "has_power")
-        camera_is_detected = get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "is_detected")
-        camera_is_capturing = get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "is_capturing")
-        camera_free_for_web = get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "free_for_web")
-        camera_web_requested = get_value_from_section(LEPMON_CONFIG_PATH, "Camera_state", "web_requested")
+        camera_has_power = get_camera_state("has_power")
+        camera_is_detected = get_camera_state("is_detected")
+        camera_is_capturing = get_camera_state("is_capturing")
+        camera_free_for_web = get_camera_state("free_for_web")
+        camera_web_requested = get_camera_state("web_requested")
     except Exception:
         camera_has_power = False
         camera_is_detected = False
         camera_is_capturing = False
         camera_free_for_web = False
         camera_web_requested = False
+
+    # Sync: if the grab thread detected the camera, report it as detected.
+    # _last_camera_detected is set by the grabbing thread; the cache may lag.
+    if _last_camera_detected:
+        camera_is_detected = True
 
     return {
         "is_capturing": bool(camera_is_capturing),
@@ -1288,6 +1513,10 @@ async def camera_info():
 
     Prefers cached info from an active streaming session.
     Falls back to probing the VmbSystem directly when the stream is idle.
+
+    CRITICAL: Do NOT probe when streaming is active — the SharedCamera
+    already holds the camera. Opening it again causes "already in use"
+    errors that corrupt the SDK state.
     """
     global _last_camera_model, _last_camera_serial, _last_camera_detected
 
@@ -1301,32 +1530,39 @@ async def camera_info():
             "is_detected": True
         }
 
-    # Path 2: probe the camera directly
+    # Path 2: probe the camera directly (ONLY when stream is idle)
     try:
-        from vmbpy import VmbSystem
+        # DON'T probe if streaming is active — SharedCamera owns the camera
+        if streaming_active:
+            return {
+                "available": True,
+                "model": _last_camera_model or "Unknown",
+                "serial": _last_camera_serial or "--",
+                "interface_id": "--",
+                "is_detected": _last_camera_detected
+            }
 
-        with VmbSystem.get_instance() as vmb:
-            cams = vmb.get_all_cameras()
-            if cams:
-                with cams[0] as cam:
-                    # Update cache so future calls use the fast path
-                    try:
-                        _last_camera_model = cam.get_model()
-                        _last_camera_serial = cam.get_serial()
-                        _last_camera_detected = True
-                    except Exception:
-                        pass
-                    return {
-                        "available": True,
-                        "model": _last_camera_model or "Unknown",
-                        "serial": _last_camera_serial or "--",
-                        "interface_id": cam.get_interface_id(),
-                        "is_detected": True
-                    }
-            else:
-                return {"available": False, "error": "No camera found", "is_detected": False}
-    except ImportError:
-        return {"available": False, "error": "VmbPy SDK not installed", "is_detected": False}
+        if _vmb_system is None:
+            return {"available": False, "error": "VmbSystem not initialized", "is_detected": False}
+
+        cams = _vmb_system.get_all_cameras()
+        if cams:
+            with cams[0] as cam:
+                try:
+                    _last_camera_model = cam.get_model()
+                    _last_camera_serial = cam.get_serial()
+                    _last_camera_detected = True
+                except Exception:
+                    pass
+                return {
+                    "available": True,
+                    "model": _last_camera_model or "Unknown",
+                    "serial": _last_camera_serial or "--",
+                    "interface_id": cam.get_interface_id(),
+                    "is_detected": True
+                }
+        else:
+            return {"available": False, "error": "No camera found", "is_detected": False}
     except Exception as e:
         logger.warning(f"Camera info probe failed: {e}")
         return {"available": False, "error": str(e), "is_detected": False}
@@ -1350,79 +1586,87 @@ async def get_focus_score():
 
 @app.get("/api/camera/settings")
 async def get_camera_settings():
-    """Get current camera settings."""
-    return camera_settings
+    """Get current camera settings from in-memory cache."""
+    return {
+        "exposure": get_camera_setting("exposure"),
+        "gain": get_camera_setting("gain"),
+        "stream_downscale": get_camera_setting("downscale"),
+        "stream_zoom": get_camera_setting("zoom")
+    }
 
 
 @app.post("/api/camera/settings")
 async def update_camera_settings(settings: dict):
-    """Update camera settings and save to file.
+    """Update camera settings in the in-memory cache.
+
+    Settings are stored in RAM so they take effect immediately for the
+    live stream — no file I/O or permission issues.
 
     Supported keys:
-      - exposure    (float, 1-10000 ms)
-      - gain        (float, 0-48 dB)
-      - stream_downscale  (int, 1-20)
-      - stream_zoom       (int, 1-5)
+      - exposure         (float, 1–10000 ms)
+      - gain             (float, 0–48 dB)
+      - stream_downscale (int,   1–20)
+      - stream_zoom      (int,   1–5)
     """
-    global camera_settings
-
     try:
-        # Validate and update settings
-        if "exposure" in settings:
-            exposure = float(settings["exposure"])
-            if 1 <= exposure <= 10000:
-                camera_settings["exposure"] = exposure
-            else:
-                return JSONResponse(
-                    {"error": "Exposure must be between 1 and 10000 ms"},
-                    status_code=400
-                )
+        exposure = settings.get("exposure")
+        gain = settings.get("gain")
+        stream_downscale = settings.get("stream_downscale")
+        stream_zoom = settings.get("stream_zoom")
 
-        if "gain" in settings:
-            gain = float(settings["gain"])
-            if 0 <= gain <= 48:
-                camera_settings["gain"] = gain
-            else:
-                return JSONResponse(
-                    {"error": "Gain must be between 0 and 48"},
-                    status_code=400
-                )
+        # Validate and sanitize
+        if exposure is not None:
+            exposure = max(1, min(10000, float(exposure)))
+            set_camera_setting("exposure", exposure)
+        if gain is not None:
+            gain = max(0, min(48, float(gain)))
+            set_camera_setting("gain", gain)
+        if stream_downscale is not None:
+            stream_downscale = max(1, min(20, int(stream_downscale)))
+            set_camera_setting("downscale", stream_downscale)
+        if stream_zoom is not None:
+            stream_zoom = max(1, min(5, int(stream_zoom)))
+            set_camera_setting("zoom", stream_zoom)
 
-        # Stream downscale factor (1 = no downscale, up to 20)
-        if "stream_downscale" in settings:
-            ds = int(settings["stream_downscale"])
-            if 1 <= ds <= 20:
-                camera_settings["stream_downscale"] = ds
-            else:
-                return JSONResponse(
-                    {"error": "stream_downscale must be between 1 and 20"},
-                    status_code=400
-                )
-
-        # Center-crop zoom factor (1 = full frame, up to 5)
-        if "stream_zoom" in settings:
-            z = int(settings["stream_zoom"])
-            if 1 <= z <= 5:
-                camera_settings["stream_zoom"] = z
-            else:
-                return JSONResponse(
-                    {"error": "stream_zoom must be between 1 and 5"},
-                    status_code=400
-                )
-
-        # Save to file
-        save_camera_settings()
-
-        return {
-            "success": True,
-            "settings": camera_settings
-        }
-    except ValueError as e:
-        return JSONResponse(
-            {"error": f"Invalid value: {str(e)}"},
-            status_code=400
+        # Log the new values
+        logger.info(
+            f"Camera settings updated in cache: "
+            f"exposure={get_camera_setting('exposure')}, "
+            f"gain={get_camera_setting('gain')}, "
+            f"downscale={get_camera_setting('downscale')}, "
+            f"zoom={get_camera_setting('zoom')}"
         )
 
+        # Attempt to persist to JSON file (best-effort, non-blocking)
+        try:
+            _persist_camera_settings_to_file()
+        except Exception as e:
+            logger.warning(
+                f"Could not persist camera settings to Lepmon_config.json: {e}. "
+                "Settings are active in memory but will be lost on restart."
+            )
+
+        return {"success": True, "message": "Settings applied"}
+    except Exception as e:
+        logger.error(f"Failed to update camera settings: {e}")
+        return {"success": False, "error": str(e)}
+
+
+def _persist_camera_settings_to_file() -> None:
+    """Best-effort attempt to write current camera settings to Lepmon_config.json.
+
+    This may fail due to permissions — that's OK, the in-memory cache is the
+    source of truth. A restart will re-read the file, so persistent storage
+    is still desired when possible.
+    """
+    config_path = "/home/Ento/LepmonOS/Lepmon_config.json"
+    for section in ["Camera_Stream"]:
+        for key, cache_key in [("exposure", "exposure"), ("gain", "gain"),
+                               ("downscale", "downscale"), ("zoom", "zoom")]:
+            val = get_camera_setting(cache_key)
+            if val is not None:
+                write_value_to_section(config_path, section, key, val)
+    logger.info(f"Camera settings persisted to {config_path}")
 
 @app.post("/api/capture/stop")
 async def request_capture_stop():
@@ -1763,6 +2007,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     # Start camera detection polling (2s interval)
     _start_camera_detection()
+    # Start camera state JSON-sync (2s interval — keeps cache in sync with other processes)
+    _start_camera_state_sync()
 
     
     run_server(args.host, args.port)

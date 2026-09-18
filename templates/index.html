@@ -421,42 +421,6 @@
             display: block;
         }
 
-        /* Stream control sliders */
-        .stream-sliders {
-            display: flex;
-            gap: 2rem;
-            padding: 0.75rem 1.5rem;
-            background: var(--bg-card);
-            border-top: 1px solid var(--accent);
-            flex-wrap: wrap;
-        }
-
-        .slider-group {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .slider-group label {
-            font-size: 0.875rem;
-            color: var(--text-dim);
-            white-space: nowrap;
-        }
-
-        .slider-group input[type="range"] {
-            width: 140px;
-            accent-color: var(--highlight);
-        }
-
-        .slider-value {
-            font-size: 0.875rem;
-            font-weight: 600;
-            font-family: 'SF Mono', 'Consolas', monospace;
-            color: var(--success);
-            min-width: 28px;
-            text-align: center;
-        }
-        
         .settings-input {
             width: 80px;
             padding: 0.25rem 0.5rem;
@@ -695,21 +659,6 @@
                 <span id="streamStatus">▶️ Stream active</span>
                 <span id="timestamp">--:--:--</span>
             </div>
-
-            <div class="stream-sliders">
-                <div class="slider-group">
-                    <label for="downscaleSlider">🔽 Downscale:</label>
-                    <input type="range" id="downscaleSlider" min="1" max="20" value="8" step="1"
-                           oninput="updateDownscale(this.value)">
-                    <span id="downscaleValue" class="slider-value">8</span>
-                </div>
-                <div class="slider-group">
-                    <label for="zoomSlider">🔍 Zoom:</label>
-                    <input type="range" id="zoomSlider" min="1" max="5" value="1" step="1"
-                           oninput="updateZoom(this.value)">
-                    <span id="zoomValue" class="slider-value">1</span>
-                </div>
-            </div>
         </div>
         
         <aside class="sidebar">
@@ -790,7 +739,17 @@
                     <input type="number" id="gainInput" class="settings-input" 
                            min="0" max="48" step="0.5" value="5">
                 </div>
-                <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" 
+                <div class="stat-row">
+                    <span class="stat-label">Downscale</span>
+                    <input type="number" id="downscaleInput" class="settings-input"
+                           min="1" max="20" step="1" value="8">
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Zoom</span>
+                    <input type="number" id="zoomInput" class="settings-input"
+                           min="1" max="5" step="1" value="1">
+                </div>
+                <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;"
                         onclick="applyCameraSettings()">
                     Apply & Save
                 </button>
@@ -1267,14 +1226,20 @@
                     lastIsCapturing = data.is_capturing;
                     var streamPossible = data.free_for_web && data.web_requested;
                     if (streamPossible && streamEnabled) {
-                        startStream();
+                        // FIX: Only start stream if not already active.
+                        // Calling startStream() every 2s replaces <img src> with a new URL,
+                        // creating a NEW HTTP connection while the old one leaks (consumer counter explodes).
+                        if (!streamImage.src.includes('/stream')) {
+                            startStream();
+                        }
                         document.getElementById('streamStatus').textContent = '\u25B6\uFE0F Stream active';
                     } else {
-                        if (streamImage.src.includes('/stream') && streamEnabled) {
+                        if (streamImage.src.includes('/stream')) {
                             showStreamPlaceholder(data.is_capturing);
+                        }
+                        if (streamEnabled) {
                             document.getElementById('streamStatus').textContent = '\u23F8\uFE0F Waiting for focus session...';
-                        } else if (!streamImage.src.includes('/stream') && !streamEnabled) {
-                            showStreamPlaceholder(data.is_capturing);
+                        } else {
                             document.getElementById('streamStatus').textContent = '\u23F8\uFE0F Stream paused';
                         }
                     }
@@ -1283,45 +1248,6 @@
         }
 
         /* ---- Stream slider helpers ---- */
-        function updateDownscale(val) {
-            document.getElementById('downscaleValue').textContent = val;
-            fetch('/api/camera/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ stream_downscale: parseInt(val) })
-            })
-            .then(r => r.json())
-            .then(data => { if (!data.success) console.error('Downscale update failed:', data.error); console.log('[Downscale] Applied:', val); })
-            .catch(err => console.error('[Downscale] Failed:', err));
-        }
-
-        function updateZoom(val) {
-            document.getElementById('zoomValue').textContent = val;
-            fetch('/api/camera/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ stream_zoom: parseInt(val) })
-            })
-            .then(r => r.json())
-            .then(data => { if (!data.success) console.error('Zoom update failed:', data.error); console.log('[Zoom] Applied:', val); })
-            .catch(err => console.error('[Zoom] Failed:', err));
-        }
-
-        // Load current downscale/zoom values from server on page load
-        function loadStreamSettings() {
-            fetch('/api/camera/settings')
-                .then(response => response.json())
-                .then(data => {
-                    const ds = data.stream_downscale || 8;
-                    const z = data.stream_zoom || 1;
-                    document.getElementById('downscaleSlider').value = ds;
-                    document.getElementById('downscaleValue').textContent = ds;
-                    document.getElementById('zoomSlider').value = z;
-                    document.getElementById('zoomValue').textContent = z;
-                })
-                .catch(err => console.error('Failed to load stream settings:', err));
-        }
-
         function endFocusSession() {
             fetch('/api/focus/stop', { method: 'POST' })
                 .then(response => response.json())
@@ -1498,6 +1424,8 @@
                 .then(data => {
                     document.getElementById('exposureInput').value = data.exposure || 140;
                     document.getElementById('gainInput').value = data.gain || 5;
+                    document.getElementById('downscaleInput').value = data.stream_downscale || 8;
+                    document.getElementById('zoomInput').value = data.stream_zoom || 1;
                 })
                 .catch(err => console.error('Failed to load camera settings:', err));
         }
@@ -1505,6 +1433,8 @@
         function applyCameraSettings() {
             const exposure = parseFloat(document.getElementById('exposureInput').value);
             const gain = parseFloat(document.getElementById('gainInput').value);
+            const downscale = parseInt(document.getElementById('downscaleInput').value);
+            const zoom = parseInt(document.getElementById('zoomInput').value);
             const statusDiv = document.getElementById('settingsStatus');
             
             fetch('/api/camera/settings', {
@@ -1514,7 +1444,9 @@
                 },
                 body: JSON.stringify({
                     exposure: exposure,
-                    gain: gain
+                    gain: gain,
+                    stream_downscale: downscale,
+                    stream_zoom: zoom
                 })
             })
             .then(response => response.json())
@@ -1821,7 +1753,6 @@
         updateCameraInfo();
         loadCameraState();
         loadCameraSettings();
-        loadStreamSettings();
         loadGallery();
         loadLog();
         loadCSV();

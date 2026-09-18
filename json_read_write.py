@@ -1,9 +1,53 @@
 import json
+import threading
 from fram_direct import read_fram
 
 # Cache for Coordinates
 # note that there is a function which returns a global variable to be none. This triggers a reread of the cached coordinates (after a user reentered them)
 _coordinates_cache = None
+
+# ── In-memory cache for Camera_state ──
+# Shared across lepmon_web_service.py, Camera_AV.py, trap_hmi.py.
+# All reads/writes go through the cache; JSON persistence is best-effort.
+_camera_state = {
+    "has_power": False,
+    "is_detected": False,
+    "is_capturing": False,
+    "free_for_web": False,
+    "web_requested": False,
+    "web_focus_active": False,
+}
+_camera_state_lock = threading.Lock()
+
+
+def _load_camera_state_from_file():
+    """Try to load Camera_state from Lepmon_config.json. Returns defaults on any error."""
+    try:
+        with open("/home/Ento/LepmonOS/Lepmon_config.json", "r") as f:
+            data = json.load(f)
+        state = data.get("Camera_state", {})
+        for key in _camera_state:
+            val = state.get(key)
+            if isinstance(val, bool):
+                _camera_state[key] = val
+    except Exception:
+        pass  # use defaults
+
+
+def get_camera_state(key: str):
+    """Read a camera state value from the in-memory cache (thread-safe)."""
+    with _camera_state_lock:
+        return _camera_state.get(key)
+
+
+def set_camera_state(key: str, value):
+    """Write a camera state value into the in-memory cache (thread-safe)."""
+    with _camera_state_lock:
+        _camera_state[key] = value
+
+
+# Populate the cache at module load time
+_load_camera_state_from_file()
 
 
 def get_value_from_section(file_path, section_name, key_name):
@@ -116,6 +160,8 @@ def get_coordinates(force_reload=False):
 
 
 def write_value_to_section(file_path, section_name, key_name, value):
+    """Schreibt einen Wert in eine bestimmte Sektion der JSON-Datei.
+    Wirft Exceptions bei Fehlern statt Strings zurückzugeben, damit der Aufrufer den Fehler erkennt."""
     try:
         # JSON-Datei laden oder erstellen, falls sie nicht existiert
         try:
@@ -135,21 +181,30 @@ def write_value_to_section(file_path, section_name, key_name, value):
         with open(file_path, "w") as json_file:
             json.dump(data, json_file, indent=4)
 
-        return f"Wert '{value}' erfolgreich in Sektion '{section_name}' unter Schlüssel '{key_name}' geschrieben."
     except json.JSONDecodeError as e:
-        return f"Fehler beim Parsen der JSON-Datei: {e}"
+        raise RuntimeError(f"Fehler beim Parsen der JSON-Datei '{file_path}': {e}") from e
     except Exception as e:
-        return f"Ein unerwarteter Fehler ist aufgetreten: {e}"
+        raise RuntimeError(f"Fehler beim Schreiben in '{file_path}' (Sektion '{section_name}', Key '{key_name}'): {e}") from e
      
 
 def set_Camera_States_false():
-    """Setzt die Kamera-Statuswerte in der Konfigurationsdatei auf False."""
-    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "has_power", False)
-    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_detected", False)
-    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing", False)
-    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "free_for_web", False)
-    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "web_requested", False)
-    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "web_focus_active", False)
+    """Setzt die Kamera-Statuswerte im in-memory Cache (und best-effort im JSON)."""
+    set_camera_state("has_power", False)
+    set_camera_state("is_detected", False)
+    set_camera_state("is_capturing", False)
+    set_camera_state("free_for_web", False)
+    set_camera_state("web_requested", False)
+    set_camera_state("web_focus_active", False)
+    # Best-effort JSON persistence (may fail with Permission denied — that's OK)
+    try:
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "has_power", False)
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_detected", False)
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing", False)
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "free_for_web", False)
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "web_requested", False)
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "web_focus_active", False)
+    except Exception:
+        pass  # Cache is the source of truth; JSON persistence is best-effort
 
 
 
