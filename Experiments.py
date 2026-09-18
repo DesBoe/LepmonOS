@@ -184,8 +184,8 @@ def modify_ARNI_specs( log_mode= "log", gen="", Schirmbreite="", Schirmhöhe="",
         modified_gen = "Pro_Magni_1"
         modified_Schirmbreite = 180
         modified_Schirmhöhe = 120
-        modified_effective_resolution = 32
-        modified_distance = 335
+        modified_effective_resolution = 30
+        modified_distance = 365
         modified_project_name = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","Hexmon_Experiment","project_name")
 
     return modified_gen, modified_Schirmbreite, modified_Schirmhöhe, modified_effective_resolution, modified_distance, modified_project_name
