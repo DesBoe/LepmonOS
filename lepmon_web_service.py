@@ -30,10 +30,18 @@ from contextlib import asynccontextmanager
 from typing import Optional, Generator, List
 import logging
 import glob
+from hardware import get_hardware_version
+from picamera2 import Picamera2
 from json_read_write import get_value_from_section, write_value_to_section, get_camera_state, set_camera_state
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+HARDWARE_VERSION = get_hardware_version()
+
+if HARDWARE_VERSION in ["Pro_Gen_1", "Pro_Gen_2", "Pro_Gen_3", "Pro_Gen_4"]:
+    EXPECTED_CAMERA_TYPE = "AV"
+elif HARDWARE_VERSION in ["CSS_Gen_1"]:
+    EXPECTED_CAMERA_TYPE = "RPI"
 
 # Import capturing state module
 from capturing_state import (
@@ -251,6 +259,163 @@ def _camera_grabbing_loop(handler: SharedCamera) -> None:
         _grab_running = False
         handler.close()
         logger.info("Camera grabbing thread stopped")
+
+
+# ─── Shared RPI Camera Handler + Background Grabbing Thread ──────────────────
+# picamera2 allows capture_array() from the same thread that started the camera.
+# A dedicated background thread holds the Picamera2 instance for the entire
+# streaming session. It grabs frames and stores them in _latest_frame_rpi
+# (protected by _rpi_frame_lock). All MJPEG generators read this shared
+# frame via .copy(), so no queue contention occurs.
+_latest_frame_rpi: Optional[np.ndarray] = None
+_rpi_frame_lock = threading.Lock()
+
+# Background grabbing thread state for RPI
+_rpi_grab_thread: Optional[threading.Thread] = None
+_rpi_grab_running = False
+
+# Lock for RPI camera-opening coordination
+_rpi_shared_camera_lock = threading.Lock()
+
+
+class SharedRPICamera:
+    """Thread-safe RPI camera handle. Stores the Picamera2 object."""
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._cam = None
+        self._open = False
+
+    @property
+    def is_open(self) -> bool:
+        with self._lock:
+            return self._open
+
+    @property
+    def cam(self):
+        with self._lock:
+            return self._cam
+
+    def set_cam(self, cam):
+        with self._lock:
+            self._cam = cam
+            self._open = True
+
+    def close(self):
+        """Stop and close the Picamera2 camera."""
+        with self._lock:
+            if self._cam is not None:
+                try:
+                    self._cam.stop()
+                    self._cam.close()
+                except Exception as e:
+                    logger.warning(f"Error closing RPI camera: {e}")
+                self._cam = None
+            self._open = False
+
+
+# Module-level shared RPI camera handler — one per streaming session.
+_rpi_shared_camera: Optional[SharedRPICamera] = None
+
+
+def _rpi_grabbing_loop(handler: SharedRPICamera) -> None:
+    """Background thread: holds Picamera2 instance and updates _latest_frame_rpi."""
+    global _rpi_grab_running, _last_camera_model, _last_camera_detected
+    global _latest_frame_rpi
+
+    _rpi_grab_running = True
+    logger.info("RPI camera grabbing thread started")
+
+    picam2 = None
+    try:
+        # Read camera settings from config
+        exposure_gain = get_value_from_section(
+            "/home/Ento/LepmonOS/Lepmon_config.json", "RPI_Module_3", "initial_exposure_10"
+        )
+        gain_val = get_value_from_section(
+            "/home/Ento/LepmonOS/Lepmon_config.json", "RPI_Module_3", "initial_gain_10"
+        )
+        compression_quality = get_value_from_section(
+            "/home/Ento/LepmonOS/Lepmon_config.json", "RPI_Module_3", "compression_quality"
+        )
+        if exposure_gain is None:
+            exposure_gain = 20
+        if gain_val is None:
+            gain_val = 20
+        if compression_quality is None:
+            compression_quality = 90
+
+        Exposure = int(exposure_gain) / 10
+        Gain = int(gain_val) / 10
+
+        for attempt in range(1, 10):
+            if not _rpi_grab_running:
+                logger.info("RPI grab thread: _rpi_grab_running=False, exiting")
+                break
+            try:
+                logger.info(f"RPI grab thread attempt {attempt}/10: opening Picamera2...")
+                picam2 = Picamera2()
+                picam2.options["quality"] = compression_quality
+                preview_config = picam2.create_preview_configuration(
+                    main={"size": (1920, 1080)}
+                )
+                picam2.configure(preview_config)
+                picam2.set_controls({
+                    "AnalogueGain": Gain,
+                    "ExposureTime": int(Exposure * 1000),
+                })
+                picam2.start()
+                handler.set_cam(picam2)
+
+                _last_camera_model = "Raspberry Pi Camera Module 3"
+                _last_camera_detected = True
+                logger.info("RPI Camera opened in grabbing thread")
+
+                # ─── Frame grabbing loop ───
+                frames_grabbed = 0
+                while _rpi_grab_running and handler.is_open:
+                    is_capturing = get_camera_state("is_capturing") or False
+                    free_for_web = get_camera_state("free_for_web") or False
+                    if is_capturing or not free_for_web:
+                        logger.info(
+                            f"RPI grabbing: camera busy or not free, stopping "
+                            f"(is_capturing={is_capturing}, free_for_web={free_for_web}). "
+                            f"Frames grabbed so far: {frames_grabbed}"
+                        )
+                        break
+                    try:
+                        raw = picam2.capture_array("main")
+                        with _rpi_frame_lock:
+                            _latest_frame_rpi = raw
+                        frames_grabbed += 1
+                        if frames_grabbed == 1:
+                            logger.info(f"RPI grab thread: first frame captured ({raw.shape[1]}x{raw.shape[0]})")
+                        elif frames_grabbed % 50 == 0:
+                            logger.info(f"RPI grab thread: {frames_grabbed} frames captured so far")
+                    except Exception as e:
+                        logger.error(f"RPI grab error in thread (frame #{frames_grabbed + 1}): {e}")
+                        time.sleep(0.2)
+                    time.sleep(0.1)  # ~10 FPS grab rate
+                break  # Success: leave retry loop
+
+            except Exception as e:
+                logger.warning(f"RPI grab thread open attempt {attempt}/10 failed: {e}")
+                if picam2 is not None:
+                    try:
+                        picam2.stop()
+                        picam2.close()
+                    except Exception:
+                        pass
+                    picam2 = None
+                time.sleep(min(1.0, attempt * 0.2))
+        else:
+            logger.error("RPI grab thread: all 10 attempts failed — camera never opened")
+
+    except Exception as e:
+        logger.error(f"RPI camera grabbing thread crashed: {e}")
+    finally:
+        _rpi_grab_running = False
+        handler.close()
+        logger.info("RPI camera grabbing thread stopped")
 
 
 # ── Camera state cache is in json_read_write.py (shared with Camera_AV.py) ──
@@ -715,7 +880,7 @@ def _poll_camera_detection() -> None:
         # Write to in-memory cache instead of JSON file (avoids Permission denied)
         set_camera_state("is_detected", detected)
 
-        time.sleep(2)
+        time.sleep(5)
 
 
 def _start_camera_detection() -> None:
@@ -802,7 +967,7 @@ def _sync_camera_state_from_file() -> None:
         except Exception as e:
             logger.debug(f"Camera state sync failed: {e}")
 
-        time.sleep(2)
+        time.sleep(5)
 
 
 def _start_camera_state_sync() -> None:
@@ -1034,7 +1199,7 @@ def calculate_brightness(frame: np.ndarray) -> float:
     return float(gray.mean())
 
 
-def frame_generator() -> Generator[bytes, None, None]:
+def frame_generator_AV() -> Generator[bytes, None, None]:
     """MJPEG stream generator — reads shared _latest_frame from background thread."""
     global current_frame, streaming_active, stream_consumers, _shared_camera
     global _latest_frame, _grab_thread, _grab_running
@@ -1182,7 +1347,7 @@ def frame_generator() -> Generator[bytes, None, None]:
                 yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n")
 
                 # Frame rate control (~2 FPS for preview — matches grab thread interval)
-                time.sleep(0.5)
+                time.sleep(0.1)
             except GeneratorExit:
                 raise  # Let GeneratorExit propagate — triggers finally cleanup
             except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, ConnectionError):
@@ -1208,6 +1373,133 @@ def frame_generator() -> Generator[bytes, None, None]:
                     _latest_frame = None
         logger.info(f"Stream consumer disconnected. Remaining consumers: {stream_consumers}")
 
+def frame_generator_RPI() -> Generator[bytes, None, None]:
+    """MJPEG stream generator for Raspberry Pi Camera Module 3."""
+    global streaming_active, stream_consumers, _rpi_shared_camera
+    global _latest_frame_rpi, _rpi_grab_thread, _rpi_grab_running
+
+    with stream_consumers_lock:
+        stream_consumers += 1
+        streaming_active = True
+
+    logger.info(f"RPI stream consumer connected. Total: {stream_consumers}")
+
+    # Get or create shared handler + start grabbing thread
+    with _rpi_shared_camera_lock:
+        handler = _rpi_shared_camera
+        if handler is None:
+            handler = SharedRPICamera()
+            _rpi_shared_camera = handler
+            _latest_frame_rpi = None
+            _rpi_grab_thread = threading.Thread(
+                target=_rpi_grabbing_loop, args=(handler,), daemon=True
+            )
+            _rpi_grab_thread.start()
+            logger.info("Started RPI camera grabbing background thread")
+
+    # Wait for camera to be ready (up to 30s)
+    for _ in range(30):
+        if handler.is_open:
+            break
+        time.sleep(1.0)
+
+    if not handler.is_open:
+        connecting = create_status_frame("Camera not available")
+        _, jpeg = cv2.imencode(".jpg", connecting, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n")
+        return
+
+    try:
+        local_frame_count = 0
+        prev_zoom = None
+        waiting_count = 0
+        while True:
+            try:
+                is_capturing = get_camera_state("is_capturing") or False
+                free_for_web = get_camera_state("free_for_web") or False
+                if is_capturing or not free_for_web:
+                    logger.info("RPI Stream: camera busy — exiting generator")
+                    return
+
+                zoom = get_camera_setting("zoom") or 2
+                downscale = get_camera_setting("downscale") or 8
+                if zoom != prev_zoom:
+                    logger.info(f"RPI Stream: zoom={zoom}, downscale={downscale}")
+                    prev_zoom = zoom
+
+                # Read latest frame
+                frame = None
+                with _rpi_frame_lock:
+                    if _latest_frame_rpi is not None:
+                        frame = _latest_frame_rpi.copy()
+
+                if frame is None:
+                    time.sleep(0.25)
+                    waiting_count += 1
+                    connecting = create_status_frame("Waiting for camera")
+                    _, jpeg = cv2.imencode(".jpg", connecting, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                    yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n")
+                    continue
+
+                waiting_count = 0
+                local_frame_count += 1
+
+                # Apply min/max stretch
+                stretched = apply_min_max_stretch(frame)
+
+                # Downscale + zoom
+                if downscale != 1:
+                    h, w = stretched.shape[:2]
+                    stretched = cv2.resize(stretched, (max(w // downscale, 1), max(h // downscale, 1)), interpolation=cv2.INTER_AREA)
+                if zoom > 1:
+                    h, w = stretched.shape[:2]
+                    zw = max(w // zoom, 1)
+                    zh = max(h // zoom, 1)
+                    x1 = max(w // 2 - zw // 2, 0)
+                    y1 = max(h // 2 - zh // 2, 0)
+                    stretched = stretched[y1:min(y1 + zh, h), x1:min(x1 + zw, w)]
+
+                # Compute metrics
+                focus_score = calculate_focus_score(stretched)
+                brightness = calculate_brightness(stretched)
+
+                # Draw overlays
+                h, w = stretched.shape[:2]
+                ts = 0.6 if w < 400 else 0.9
+                tt = 1 if w < 400 else 2
+                cv2.putText(stretched, f"Brightness: {brightness:.1f}", (10, h - 80), cv2.FONT_HERSHEY_SIMPLEX, ts, (255, 255, 255), tt)
+                cv2.putText(stretched, f"Focus: {focus_score:.1f}", (10, h - 50), cv2.FONT_HERSHEY_SIMPLEX, ts, (255, 255, 255), tt)
+                cv2.putText(stretched, f"Zoom: {zoom}x | DS: {downscale}x", (10, h - 20), cv2.FONT_HERSHEY_SIMPLEX, ts, (255, 255, 255), tt)
+                cv2.putText(stretched, f"Frame: {local_frame_count}", (10, h - 5), cv2.FONT_HERSHEY_SIMPLEX, ts, (255, 255, 255), tt)
+
+                _, jpeg = cv2.imencode(".jpg", stretched, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n")
+                time.sleep(0.1)
+
+            except GeneratorExit:
+                raise
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                logger.info("RPI Stream: client disconnected")
+                break
+            except Exception as e:
+                logger.error(f"RPI Stream generator error: {e}")
+                break
+    finally:
+        with stream_consumers_lock:
+            stream_consumers -= 1
+            if stream_consumers <= 0:
+                streaming_active = False
+                stream_consumers = 0
+                _rpi_grab_running = False
+                if _rpi_grab_thread and _rpi_grab_thread.is_alive():
+                    _rpi_grab_thread.join(timeout=3.0)
+                _rpi_grab_thread = None
+                with _rpi_shared_camera_lock:
+                    if _rpi_shared_camera:
+                        _rpi_shared_camera.close()
+                        _rpi_shared_camera = None
+                    _latest_frame_rpi = None
+        logger.info(f"RPI stream consumer disconnected. Remaining: {stream_consumers}")
 
 
 def create_status_frame(message: str) -> np.ndarray:
@@ -1225,8 +1517,10 @@ def create_status_frame(message: str) -> np.ndarray:
     
     return frame
 
+########################################################################################################################
+######### FastAPI Application
+########################################################################################################################
 
-# FastAPI Application
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
@@ -1339,10 +1633,17 @@ async def video_stream():
         placeholder = "/Capture_Image.png" if is_capturing else "/LEPMON_Logo_Circle.png"
         return RedirectResponse(url=placeholder)
 
-    return StreamingResponse(
-        frame_generator(),
-        media_type="multipart/x-mixed-replace; boundary=frame"
-    )
+    if EXPECTED_CAMERA_TYPE == "AV":
+        return StreamingResponse(
+            frame_generator_AV(),
+            media_type="multipart/x-mixed-replace; boundary=frame"
+        )
+
+    elif EXPECTED_CAMERA_TYPE == "RPI":
+        return StreamingResponse(
+            frame_generator_RPI(),
+            media_type="multipart/x-mixed-replace; boundary=frame"
+        )
 
 LEPMON_CONFIG_PATH = "/home/Ento/LepmonOS/Lepmon_config.json"
 
