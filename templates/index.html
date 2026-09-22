@@ -436,6 +436,53 @@
             outline: none;
             border-color: var(--highlight);
         }
+
+        /* ── Slider styles ── */
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .settings-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 160px;
+            height: 6px;
+            background: var(--accent);
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .settings-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--highlight);
+            cursor: pointer;
+            border: 2px solid var(--text);
+        }
+
+        .settings-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--highlight);
+            cursor: pointer;
+            border: 2px solid var(--text);
+        }
+
+        .slider-value {
+            min-width: 28px;
+            text-align: center;
+            font-family: 'SF Mono', 'Consolas', monospace;
+            font-size: 0.875rem;
+            font-weight: bold;
+            color: var(--highlight);
+        }
         
         .settings-status {
             margin-top: 0.5rem;
@@ -696,10 +743,12 @@
                     <span class="stat-label">Camera</span>
                     <span id="cameraModel" class="stat-value">--</span>
                 </div>
+                {% if hardware_version != "CSS_Gen_1" %}
                 <div class="stat-row">
                     <span class="stat-label">Serial</span>
                     <span id="cameraSerial" class="stat-value">--</span>
                 </div>
+                {% endif %}
                 <div class="stat-row">
                     <span class="stat-label">Detected</span>
                     <span id="cameraIsDetected" class="stat-value">--</span>
@@ -708,10 +757,12 @@
 
             <div class="card">
                 <h3>📡 Camera State</h3>
+                {% if hardware_version != "CSS_Gen_1" %}
                 <div class="stat-row">
                     <span class="stat-label">Has Power</span>
                     <span id="cameraHasPower" class="stat-value">--</span>
                 </div>
+                {% endif %}
                 <div class="stat-row">
                     <span class="stat-label">Is Capturing</span>
                     <span id="cameraIsCapturing" class="stat-value">--</span>
@@ -741,14 +792,33 @@
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">Downscale</span>
-                    <input type="number" id="downscaleInput" class="settings-input"
-                           min="1" max="20" step="1" value="8">
+                    <div class="slider-row">
+                        <input type="range" id="downscaleSlider" class="settings-slider"
+                               min="1" max="20" step="1" value="8"
+                               oninput="document.getElementById('downscaleValue').textContent=this.value">
+                        <span id="downscaleValue" class="slider-value">8</span>
+                    </div>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">Zoom</span>
-                    <input type="number" id="zoomInput" class="settings-input"
-                           min="1" max="5" step="1" value="1">
+                    <div class="slider-row">
+                        <input type="range" id="zoomSlider" class="settings-slider"
+                               min="1" max="5" step="1" value="2"
+                               oninput="document.getElementById('zoomValue').textContent=this.value">
+                        <span id="zoomValue" class="slider-value">2</span>
+                    </div>
                 </div>
+                {% if hardware_version == "CSS_Gen_1" %}
+                <div class="stat-row" id="focusDiopterRow">
+                    <span class="stat-label">Focus (Dioptrien)</span>
+                    <div class="slider-row">
+                        <input type="range" id="focusSlider" class="settings-slider"
+                               min="-15" max="1" step="0.5" value="0"
+                               oninput="document.getElementById('focusValue').textContent=this.value">
+                        <span id="focusValue" class="slider-value">0</span>
+                    </div>
+                </div>
+                {% endif %}
                 <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;"
                         onclick="applyCameraSettings()">
                     Apply & Save
@@ -1010,6 +1080,11 @@
         let streamEnabled = true;
         var lastIsCapturing = false;  // synced by updateStatus() from server
         const streamImage = document.getElementById('streamImage');
+
+        // ── Hardware version (injected from backend via Jinja2) ──
+        const HARDWARE_VERSION = {{ hardware_version | tojson }};
+        const IS_CSS_GEN_1 = HARDWARE_VERSION === "CSS_Gen_1";
+        const IS_PRO = ["Pro_Gen_1", "Pro_Gen_2", "Pro_Gen_3", "Pro_Gen_4"].includes(HARDWARE_VERSION);
 
         /* ---- Polling backoff state ---- */
         var POLL_BASE   = 3000;   // normal polling interval (ms)
@@ -1354,8 +1429,15 @@
                 })
                 .then(data => {
                     if (data.available) {
-                        document.getElementById('cameraModel').textContent = data.model || 'Unknown';
-                        document.getElementById('cameraSerial').textContent = data.serial || '--';
+                        var model = data.model || 'Unknown';
+                        // CSS_Gen_1 uses Raspberry Pi Camera Module 3
+                        if (IS_CSS_GEN_1 && data.camera_type === 'RPI') {
+                            model = 'Raspberry Pi V3';
+                        }
+                        document.getElementById('cameraModel').textContent = model;
+                        if (!IS_CSS_GEN_1) {
+                            document.getElementById('cameraSerial').textContent = data.serial || '--';
+                        }
                         document.getElementById('cameraIsDetected').textContent = 'Yes';
                         document.getElementById('cameraIsDetected').className = 'stat-value good';
                     } else {
@@ -1364,7 +1446,9 @@
                         var modelEl = document.getElementById('cameraModel');
                         if (modelEl.textContent === '--' || modelEl.textContent === 'Not available') {
                             modelEl.textContent = 'Not available';
-                            document.getElementById('cameraSerial').textContent = '--';
+                            if (!IS_CSS_GEN_1) {
+                                document.getElementById('cameraSerial').textContent = '--';
+                            }
                             document.getElementById('cameraIsDetected').textContent = 'No';
                             document.getElementById('cameraIsDetected').className = 'stat-value bad';
                         }
@@ -1424,8 +1508,27 @@
                 .then(data => {
                     document.getElementById('exposureInput').value = data.exposure || 140;
                     document.getElementById('gainInput').value = data.gain || 5;
-                    document.getElementById('downscaleInput').value = data.stream_downscale || 8;
-                    document.getElementById('zoomInput').value = data.stream_zoom || 1;
+
+                    // Update Downscale slider + display
+                    const dsSlider = document.getElementById('downscaleSlider');
+                    const dsValue = document.getElementById('downscaleValue');
+                    if (dsSlider) dsSlider.value = data.stream_downscale || 8;
+                    if (dsValue) dsValue.textContent = data.stream_downscale || 8;
+
+                    // Update Zoom slider + display
+                    const zSlider = document.getElementById('zoomSlider');
+                    const zValue = document.getElementById('zoomValue');
+                    if (zSlider) zSlider.value = data.stream_zoom || 2;
+                    if (zValue) zValue.textContent = data.stream_zoom || 2;
+
+                    // CSS_Gen_1: Update Focus Diopter slider + display
+                    const fSlider = document.getElementById('focusSlider');
+                    const fValue = document.getElementById('focusValue');
+                    if (fSlider) {
+                        const focusDiopter = data.focus_diopter ?? 0;
+                        fSlider.value = focusDiopter;
+                        if (fValue) fValue.textContent = focusDiopter;
+                    }
                 })
                 .catch(err => console.error('Failed to load camera settings:', err));
         }
@@ -1433,21 +1536,29 @@
         function applyCameraSettings() {
             const exposure = parseFloat(document.getElementById('exposureInput').value);
             const gain = parseFloat(document.getElementById('gainInput').value);
-            const downscale = parseInt(document.getElementById('downscaleInput').value);
-            const zoom = parseInt(document.getElementById('zoomInput').value);
+            const downscale = parseInt(document.getElementById('downscaleSlider').value);
+            const zoom = parseInt(document.getElementById('zoomSlider').value);
             const statusDiv = document.getElementById('settingsStatus');
-            
+
+            const payload = {
+                exposure: exposure,
+                gain: gain,
+                stream_downscale: downscale,
+                stream_zoom: zoom
+            };
+
+            // CSS_Gen_1: also send focus diopter
+            const fSlider = document.getElementById('focusSlider');
+            if (fSlider) {
+                payload.focus_diopter = parseFloat(fSlider.value);
+            }
+
             fetch('/api/camera/settings', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    exposure: exposure,
-                    gain: gain,
-                    stream_downscale: downscale,
-                    stream_zoom: zoom
-                })
+                body: JSON.stringify(payload)
             })
             .then(response => response.json())
             .then(data => {

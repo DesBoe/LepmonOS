@@ -1463,14 +1463,31 @@ def frame_generator_RPI() -> Generator[bytes, None, None]:
                 focus_score = calculate_focus_score(stretched)
                 brightness = calculate_brightness(stretched)
 
-                # Draw overlays
+                # Add information area below the image (same as AV camera)
                 h, w = stretched.shape[:2]
-                ts = 0.6 if w < 400 else 0.9
-                tt = 1 if w < 400 else 2
-                cv2.putText(stretched, f"Brightness: {brightness:.1f}", (10, h - 80), cv2.FONT_HERSHEY_SIMPLEX, ts, (255, 255, 255), tt)
-                cv2.putText(stretched, f"Focus: {focus_score:.1f}", (10, h - 50), cv2.FONT_HERSHEY_SIMPLEX, ts, (255, 255, 255), tt)
-                cv2.putText(stretched, f"Zoom: {zoom}x | DS: {downscale}x", (10, h - 20), cv2.FONT_HERSHEY_SIMPLEX, ts, (255, 255, 255), tt)
-                cv2.putText(stretched, f"Frame: {local_frame_count}", (10, h - 5), cv2.FONT_HERSHEY_SIMPLEX, ts, (255, 255, 255), tt)
+                text_area_height = 120
+                text_area = np.zeros((text_area_height, w, stretched.shape[2]), dtype=stretched.dtype)
+                stretched = np.vstack((stretched, text_area))
+
+                # Textgröße abhängig vom Zoom
+                text_scale = max(0.4, 0.9 - 0.15 * (zoom - 1))
+                text_thickness = max(1, int(round(text_scale * 2)))
+
+                cv2.putText(stretched, f"Focus: {focus_score:.1f}",
+                            (10, h + 30), cv2.FONT_HERSHEY_SIMPLEX,
+                            text_scale, (255, 255, 255), text_thickness)
+
+                cv2.putText(stretched, f"Brightness: {brightness:.1f}",
+                            (10, h + 55), cv2.FONT_HERSHEY_SIMPLEX,
+                            text_scale, (255, 255, 255), text_thickness)
+
+                cv2.putText(stretched, f"Zoom: {zoom}, Downscale: {downscale}",
+                            (10, h + 80), cv2.FONT_HERSHEY_SIMPLEX,
+                            text_scale, (255, 255, 255), text_thickness)
+
+                cv2.putText(stretched, f"Frame: {local_frame_count}",
+                            (10, h + 105), cv2.FONT_HERSHEY_SIMPLEX,
+                            text_scale, (255, 255, 255), text_thickness)
 
                 _, jpeg = cv2.imencode(".jpg", stretched, [cv2.IMWRITE_JPEG_QUALITY, 80])
                 yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n")
@@ -1504,16 +1521,36 @@ def frame_generator_RPI() -> Generator[bytes, None, None]:
 
 def create_status_frame(message: str) -> np.ndarray:
     """Create a status frame with a message."""
-    frame = np.zeros((480, 640, 3), dtype=np.uint8)
-    frame[:, :] = (40, 40, 40)  # Dark gray background
+    # Load the waiting image from templates
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    img_path = os.path.join(base_dir, "templates", "Waiting_for_Camera.png")
+    status_img = cv2.imread(img_path)
     
-    # Add Lepmon branding
-    cv2.putText(frame, "LEPMON", (220, 200),
-                cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 3)
-    cv2.putText(frame, message, (50, 280),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
-    cv2.putText(frame, time.strftime("%Y-%m-%d %H:%M:%S"), (200, 320),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (128, 128, 128), 1)
+    if status_img is None:
+        # Fallback if image not found
+        status_img = np.zeros((480, 640, 3), dtype=np.uint8)
+        status_img[:, :] = (40, 40, 40)
+        cv2.putText(status_img, "LEPMON", (220, 200),
+                    cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 3)
+        cv2.putText(status_img, message, (50, 280),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+        return status_img
+
+    h, w = status_img.shape[:2]
+    
+    # Create text area below the image
+    text_area_height = 120
+    text_area = np.zeros((text_area_height, w, 3), dtype=status_img.dtype)
+    text_area[:, :] = (20, 20, 35)  # Dark blue background matching UI theme
+    
+    # Add message and timestamp
+    cv2.putText(text_area, message, (30, 50),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
+    cv2.putText(text_area, time.strftime("%Y-%m-%d %H:%M:%S"), (30, 85),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (180, 180, 180), 1)
+    
+    # Combine image and text area
+    frame = np.vstack((status_img, text_area))
     
     return frame
 
@@ -1600,7 +1637,8 @@ async def custom_redoc():
 async def index(request: Request):
     """Serve the main web interface."""
     return templates.TemplateResponse(request, "index.html", {
-        "title": "Lepmon Camera Monitor"
+        "title": "Lepmon Camera Monitor",
+        "hardware_version": HARDWARE_VERSION
     })
 
 
@@ -1724,22 +1762,33 @@ async def snapshot():
             {"error": "Cannot capture snapshot while capturing is active"},
             status_code=503
         )
-    
-    with camera_lock:
-        frame = get_vimba_frame(
-            exposure=int(get_camera_setting("exposure") or 140),
-            gain=float(get_camera_setting("gain") or 5.0)
-        )
-    
+
+    frame = None
+    if EXPECTED_CAMERA_TYPE == "RPI":
+        # For RPI cameras, grab from the shared latest frame
+        with _rpi_frame_lock:
+            if _latest_frame_rpi is not None:
+                frame = _latest_frame_rpi.copy()
+    else:
+        # For AV cameras, use the existing VmbPy path
+        with camera_lock:
+            frame = get_vimba_frame(
+                exposure=int(get_camera_setting("exposure") or 140),
+                gain=float(get_camera_setting("gain") or 5.0)
+            )
+
     if frame is None:
         return JSONResponse({"error": "Failed to capture frame"}, status_code=500)
-    
-    # Apply min/max stretch
-    stretched = apply_min_max_stretch(frame)
-    
+
+    # Apply min/max stretch (AV cameras only)
+    if EXPECTED_CAMERA_TYPE == "AV":
+        stretched = apply_min_max_stretch(frame)
+    else:
+        stretched = frame
+
     # Encode to JPEG
     _, jpeg = cv2.imencode('.jpg', stretched, [cv2.IMWRITE_JPEG_QUALITY, 95])
-    
+
     return Response(
         content=jpeg.tobytes(),
         media_type="image/jpeg",
@@ -1840,7 +1889,8 @@ async def camera_info():
             "model": _last_camera_model,
             "serial": _last_camera_serial or "--",
             "interface_id": "--",
-            "is_detected": True
+            "is_detected": True,
+            "camera_type": EXPECTED_CAMERA_TYPE
         }
 
     # Path 2: probe the camera directly (ONLY when stream is idle)
@@ -1852,11 +1902,12 @@ async def camera_info():
                 "model": _last_camera_model or "Unknown",
                 "serial": _last_camera_serial or "--",
                 "interface_id": "--",
-                "is_detected": _last_camera_detected
+                "is_detected": _last_camera_detected,
+                "camera_type": EXPECTED_CAMERA_TYPE
             }
 
         if _vmb_system is None:
-            return {"available": False, "error": "VmbSystem not initialized", "is_detected": False}
+            return {"available": False, "error": "VmbSystem not initialized", "is_detected": False, "camera_type": EXPECTED_CAMERA_TYPE}
 
         cams = _vmb_system.get_all_cameras()
         if cams:
@@ -1872,13 +1923,14 @@ async def camera_info():
                     "model": _last_camera_model or "Unknown",
                     "serial": _last_camera_serial or "--",
                     "interface_id": cam.get_interface_id(),
-                    "is_detected": True
+                    "is_detected": True,
+                    "camera_type": EXPECTED_CAMERA_TYPE
                 }
         else:
-            return {"available": False, "error": "No camera found", "is_detected": False}
+            return {"available": False, "error": "No camera found", "is_detected": False, "camera_type": EXPECTED_CAMERA_TYPE}
     except Exception as e:
         logger.warning(f"Camera info probe failed: {e}")
-        return {"available": False, "error": str(e), "is_detected": False}
+        return {"available": False, "error": str(e), "is_detected": False, "camera_type": EXPECTED_CAMERA_TYPE}
 
 
 @app.get("/api/focus")
@@ -1900,12 +1952,16 @@ async def get_focus_score():
 @app.get("/api/camera/settings")
 async def get_camera_settings():
     """Get current camera settings from in-memory cache."""
-    return {
+    result = {
         "exposure": get_camera_setting("exposure"),
         "gain": get_camera_setting("gain"),
         "stream_downscale": get_camera_setting("downscale"),
         "stream_zoom": get_camera_setting("zoom")
     }
+    # CSS_Gen_1: include focus diopter
+    if HARDWARE_VERSION == "CSS_Gen_1":
+        result["focus_diopter"] = get_camera_setting("focus_diopter")
+    return result
 
 
 @app.post("/api/camera/settings")
@@ -1920,12 +1976,14 @@ async def update_camera_settings(settings: dict):
       - gain             (float, 0–48 dB)
       - stream_downscale (int,   1–20)
       - stream_zoom      (int,   1–5)
+      - focus_diopter    (float, -15–1)  CSS_Gen_1 only
     """
     try:
         exposure = settings.get("exposure")
         gain = settings.get("gain")
         stream_downscale = settings.get("stream_downscale")
         stream_zoom = settings.get("stream_zoom")
+        focus_diopter = settings.get("focus_diopter")
 
         # Validate and sanitize
         if exposure is not None:
@@ -1940,6 +1998,9 @@ async def update_camera_settings(settings: dict):
         if stream_zoom is not None:
             stream_zoom = max(1, min(5, int(stream_zoom)))
             set_camera_setting("zoom", stream_zoom)
+        if focus_diopter is not None and HARDWARE_VERSION == "CSS_Gen_1":
+            focus_diopter = max(-15, min(1, float(focus_diopter)))
+            set_camera_setting("focus_diopter", focus_diopter)
 
         # Log the new values
         logger.info(
@@ -1948,6 +2009,7 @@ async def update_camera_settings(settings: dict):
             f"gain={get_camera_setting('gain')}, "
             f"downscale={get_camera_setting('downscale')}, "
             f"zoom={get_camera_setting('zoom')}"
+            + (f", focus_diopter={get_camera_setting('focus_diopter')}" if HARDWARE_VERSION == "CSS_Gen_1" else "")
         )
 
         # Attempt to persist to JSON file (best-effort, non-blocking)

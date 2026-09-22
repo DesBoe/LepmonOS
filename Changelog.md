@@ -9,6 +9,23 @@
 ### Behoben
 
 
+
+## [2.3.5] 2026-XX-XX
+### Geändert
+### Hinzugefügt
+- liveview auf ARNI-CS
+### Behoben
+
+## [2.3.4] 2026-09-18
+### Geändert
+
+### Hinzugefügt
+- Experimente Modul zum Überschreiben der Parameter eines Experiments
+
+### Behoben
+- liveview on ARNI Pro with reworked web Interface
+- Experiments for ARNI-Magni based on ARNI Pro with 30 px/mm
+
 ## [2.3.3] 2026-09-02
 ### Geändert
 - AV Kamera initialisierung ohne festen sleelp Befehl, stattdessen für max 10s Suche nache Kamera zum initialisieren. Bei Fehler weiterhin Fehlercode 1
