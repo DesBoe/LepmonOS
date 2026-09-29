@@ -357,7 +357,6 @@ def _rpi_grabbing_loop(handler: SharedRPICamera) -> None:
                     picam2 = Picamera2(0)
                 except Exception:
                     picam2 = Picamera2()
-                picam2.set_preview(Preview.Null)
                 preview_config = picam2.create_preview_configuration(
                     main={"size": (1920, 1080)}
                 )
@@ -375,7 +374,6 @@ def _rpi_grabbing_loop(handler: SharedRPICamera) -> None:
 
                 # ─── Frame grabbing loop ───
                 frames_grabbed = 0
-                logger.info("Debug8") # DB_Debug
                 while _rpi_grab_running and handler.is_open:
                     is_capturing = get_camera_state("is_capturing") or False
                     free_for_web = get_camera_state("free_for_web") or False
@@ -387,7 +385,6 @@ def _rpi_grabbing_loop(handler: SharedRPICamera) -> None:
                         )
                         break
                     try:
-                        logger.info("Debug9") # DB_Debug
                         raw = picam2.capture_array("main")
                         with _rpi_frame_lock:
                             _latest_frame_rpi = raw

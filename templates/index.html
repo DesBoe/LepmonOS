@@ -1082,7 +1082,8 @@
         const streamImage = document.getElementById('streamImage');
 
         // ── Hardware version (injected from backend via Jinja2) ──
-        const HARDWARE_VERSION = {{ hardware_version | tojson }};
+
+        const HARDWARE_VERSION = {{ hardware_version | default("Unknown", true) | tojson }};
         const IS_CSS_GEN_1 = HARDWARE_VERSION === "CSS_Gen_1";
         const IS_PRO = ["Pro_Gen_1", "Pro_Gen_2", "Pro_Gen_3", "Pro_Gen_4"].includes(HARDWARE_VERSION);
 
