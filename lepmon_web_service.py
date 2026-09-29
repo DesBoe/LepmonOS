@@ -31,7 +31,7 @@ from typing import Optional, Generator, List
 import logging
 import glob
 from hardware import get_hardware_version
-from picamera2 import Picamera2
+from picamera2 import Picamera2, Preview
 from json_read_write import get_value_from_section, write_value_to_section, get_camera_state, set_camera_state
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -353,17 +353,20 @@ def _rpi_grabbing_loop(handler: SharedRPICamera) -> None:
                 break
             try:
                 logger.info(f"RPI grab thread attempt {attempt}/10: opening Picamera2...")
-                picam2 = Picamera2()
-                picam2.options["quality"] = compression_quality
+                try:
+                    picam2 = Picamera2(0)
+                except Exception:
+                    picam2 = Picamera2()
+                picam2.set_preview(Preview.Null)
                 preview_config = picam2.create_preview_configuration(
                     main={"size": (1920, 1080)}
                 )
                 picam2.configure(preview_config)
+                picam2.start()
                 picam2.set_controls({
                     "AnalogueGain": Gain,
                     "ExposureTime": int(Exposure * 1000),
                 })
-                picam2.start()
                 handler.set_cam(picam2)
 
                 _last_camera_model = "Raspberry Pi Camera Module 3"
@@ -372,6 +375,7 @@ def _rpi_grabbing_loop(handler: SharedRPICamera) -> None:
 
                 # ─── Frame grabbing loop ───
                 frames_grabbed = 0
+                logger.info("Debug8") # DB_Debug
                 while _rpi_grab_running and handler.is_open:
                     is_capturing = get_camera_state("is_capturing") or False
                     free_for_web = get_camera_state("free_for_web") or False
@@ -383,6 +387,7 @@ def _rpi_grabbing_loop(handler: SharedRPICamera) -> None:
                         )
                         break
                     try:
+                        logger.info("Debug9") # DB_Debug
                         raw = picam2.capture_array("main")
                         with _rpi_frame_lock:
                             _latest_frame_rpi = raw
@@ -1224,10 +1229,12 @@ def frame_generator_AV() -> Generator[bytes, None, None]:
             logger.info("Started camera grabbing background thread")
 
     # Wait for camera to be ready (up to 30s)
+    logger.info("Waiting for camera to be ready...")
     for wait_i in range(30):
         if handler.is_open:
             break
         time.sleep(1.0)
+    logger.info(f"Camera ready status after waiting 30 s: {handler.is_open}")
 
     if not handler.is_open:
         connecting = create_status_frame("Camera not available")
@@ -1398,10 +1405,12 @@ def frame_generator_RPI() -> Generator[bytes, None, None]:
             logger.info("Started RPI camera grabbing background thread")
 
     # Wait for camera to be ready (up to 30s)
+    logger.info("Waiting for RPI camera to become available...")
     for _ in range(30):
         if handler.is_open:
             break
         time.sleep(1.0)
+    logger.info(f"RPI camera availability check after 30s: is_open={handler.is_open}")
 
     if not handler.is_open:
         connecting = create_status_frame("Camera not available")
@@ -1525,6 +1534,7 @@ def create_status_frame(message: str) -> np.ndarray:
     base_dir = os.path.dirname(os.path.abspath(__file__))
     img_path = os.path.join(base_dir, "templates", "Waiting_for_Camera.png")
     status_img = cv2.imread(img_path)
+    logger.info(f"Creating status frame with message: {message}")
     
     if status_img is None:
         # Fallback if image not found

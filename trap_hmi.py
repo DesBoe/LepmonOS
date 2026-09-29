@@ -428,6 +428,7 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                         show_message("hmi_03", lang=lang)
                                         break
                                     if button_pressed("oben"):
+                                        '''
                                         if HARDWARE_VERSION == "CSS_Gen_1":
                                             log_schreiben("Web-Fokussierhilfe noch nicht auf ARNI-CS unterstützt.", log_mode=log_mode)
                                             display_text("Web focussing",
@@ -435,7 +436,8 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                                          "use local",
                                                          sleeptime = 3)
                                             break
-
+                                        '''
+                                        
                                         mode = "web_interface"
                                         log_schreiben("Web-Fokussierhilfe geöffnet", log_mode=log_mode)
                                         run_web_focus_session(log_mode, lang)
