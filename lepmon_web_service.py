@@ -386,8 +386,10 @@ def _rpi_grabbing_loop(handler: SharedRPICamera) -> None:
                         break
                     try:
                         raw = picam2.capture_array("main")
+                        if raw.ndim == 3 and raw.shape[2] == 4:
+                            raw = cv2.cvtColor(raw, cv2.COLOR_BGRA2BGR)   
                         with _rpi_frame_lock:
-                            _latest_frame_rpi = raw
+                            _latest_frame_rpi = raw       
                         frames_grabbed += 1
                         if frames_grabbed == 1:
                             logger.info(f"RPI grab thread: first frame captured ({raw.shape[1]}x{raw.shape[0]})")
@@ -919,7 +921,7 @@ _sync_running = True
 
 
 def _sync_camera_state_from_file() -> None:
-    """Background thread: re-read Camera_state from JSON every 2 seconds.
+    """Background thread: re-read Camera_state from JSON every 5 seconds.
 
     Other programs (trap_hmi.py, Camera_AV.py) write to the JSON file directly.
     This thread keeps the in-memory cache in sync with those external writes.
@@ -1206,6 +1208,12 @@ def frame_generator_AV() -> Generator[bytes, None, None]:
     global current_frame, streaming_active, stream_consumers, _shared_camera
     global _latest_frame, _grab_thread, _grab_running
 
+    #Frame modification parameters
+    target_width = 1080
+    text_scale = 0.7
+    text_thickness = 2
+    text_area_height = 150 # Schwarzer Informationsbereich: 1080 x 150 Pixel
+
     with stream_consumers_lock:
         stream_consumers += 1
         streaming_active = True
@@ -1288,6 +1296,10 @@ def frame_generator_AV() -> Generator[bytes, None, None]:
                     )
                     got_first_real = True
 
+                # Calculate and overlay metrics (use pre-downscale frame for accuracy)
+                focus_score = calculate_focus_score(frame)
+                brightness = calculate_brightness(frame)
+
                 # 1) Center-crop zoom first (before downscale, for accuracy)
                 if zoom > 1:
                     h, w = frame.shape[:2]
@@ -1307,16 +1319,51 @@ def frame_generator_AV() -> Generator[bytes, None, None]:
                 # Apply min/max stretch for better visibility
                 stretched = apply_min_max_stretch(frame)
 
-                # Calculate and overlay metrics (use post-downscale frame for speed)
-                focus_score = calculate_focus_score(frame)
-                brightness = calculate_brightness(frame)
 
-                # Resize for streaming if still too large (> 1280px wide)
+
+
+                # Resize for streaming with target width of 1080 px width
                 h, w = stretched.shape[:2]
-                if w > 1280:
-                    scale = 1280 / w
-                    stretched = cv2.resize(stretched, (int(w * scale), int(h * scale)))
 
+                #if w > 1280:
+                #    scale = 1280 / w
+                #    stretched = cv2.resize(stretched, (int(w * scale), int(h * scale)))
+
+                if w != target_width:
+                    scale = target_width / w
+                    new_height = int(h * scale)
+
+                    interpolation = (cv2.INTER_AREA
+                        if w > target_width
+                        else cv2.INTER_LINEAR)
+
+                    stretched = cv2.resize( stretched,(target_width, new_height),interpolation=interpolation)
+
+
+                image_height = stretched.shape[0] # Höhe des eigentlichen Bildes merken
+
+                # Add information area below the image
+                text_area = np.zeros(
+                (text_area_height, target_width, 3), dtype=stretched.dtype)
+                stretched = np.vstack((stretched, text_area))
+
+
+
+                cv2.putText(stretched, f"Focus: {focus_score:.1f}", (15, image_height + 35),
+                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
+
+                cv2.putText(stretched, f"Brightness: {brightness:.1f}", (15, image_height + 70),
+                    cv2.FONT_HERSHEY_SIMPLEX,text_scale,(255, 255, 255), text_thickness, cv2.LINE_AA)
+                    
+
+                cv2.putText(stretched, f"Zoom: {zoom}, Downscale: {downscale}", (15, image_height + 105),
+                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)      
+
+                cv2.putText(stretched, f"Frame: {local_frame_count}", (15, image_height + 140),
+                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
+
+
+                '''
                 # Add information area below the image
                 h, w = stretched.shape[:2]
                 text_area_height = 120
@@ -1343,6 +1390,7 @@ def frame_generator_AV() -> Generator[bytes, None, None]:
                 cv2.putText(stretched, f"Frame: {local_frame_count}",
                             (10, h + 105), cv2.FONT_HERSHEY_SIMPLEX,
                             text_scale, (255, 255, 255), text_thickness)
+                '''
 
                 current_frame = stretched
 
@@ -1381,6 +1429,12 @@ def frame_generator_RPI() -> Generator[bytes, None, None]:
     """MJPEG stream generator for Raspberry Pi Camera Module 3."""
     global streaming_active, stream_consumers, _rpi_shared_camera
     global _latest_frame_rpi, _rpi_grab_thread, _rpi_grab_running
+    
+    #Frame modification parameters
+    target_width = 1080
+    text_scale = 0.7
+    text_thickness = 2
+    text_area_height = 150 # Schwarzer Informationsbereich: 1080 x 150 Pixel
 
     with stream_consumers_lock:
         stream_consumers += 1
@@ -1450,27 +1504,69 @@ def frame_generator_RPI() -> Generator[bytes, None, None]:
                 waiting_count = 0
                 local_frame_count += 1
 
-                # Apply min/max stretch
+                # Calculate and overlay metrics (use pre-downscale frame for accuracy)
+                focus_score = calculate_focus_score(frame)
+                brightness = calculate_brightness(frame)
+
+                # 1) Center-crop zoom first (before downscale, for accuracy)
+                if zoom > 1:
+                    h, w = frame.shape[:2]
+                    crop_h = max(1, h // zoom)
+                    crop_w = max(1, w // zoom)
+                    y_start = (h - crop_h) // 2
+                    x_start = (w - crop_w) // 2
+                    frame = frame[y_start:y_start + crop_h, x_start:x_start + crop_w]
+
+                # 2) Downscale to reduce processing time and bandwidth
+                h, w = frame.shape[:2]
+                if downscale > 1:
+                    new_w = w // downscale
+                    new_h = h // downscale
+                    frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
+
+                # Apply min/max stretch for better visibility
                 stretched = apply_min_max_stretch(frame)
 
-                # Downscale + zoom
-                if downscale != 1:
-                    h, w = stretched.shape[:2]
-                    stretched = cv2.resize(stretched, (max(w // downscale, 1), max(h // downscale, 1)), interpolation=cv2.INTER_AREA)
-                if zoom > 1:
-                    h, w = stretched.shape[:2]
-                    zw = max(w // zoom, 1)
-                    zh = max(h // zoom, 1)
-                    x1 = max(w // 2 - zw // 2, 0)
-                    y1 = max(h // 2 - zh // 2, 0)
-                    stretched = stretched[y1:min(y1 + zh, h), x1:min(x1 + zw, w)]
 
-                # Compute metrics
-                focus_score = calculate_focus_score(stretched)
-                brightness = calculate_brightness(stretched)
-
-                # Add information area below the image (same as AV camera)
+                # Resize for streaming with target width of 1080 px width
                 h, w = stretched.shape[:2]
+                if w != target_width:
+                    scale = target_width / w
+                    new_height = int(h * scale)
+
+                    interpolation = (cv2.INTER_AREA
+                        if w > target_width
+                        else cv2.INTER_LINEAR)
+
+                    stretched = cv2.resize( stretched,(target_width, new_height),interpolation=interpolation)
+
+
+                image_height = stretched.shape[0] # Höhe des eigentlichen Bildes merken
+
+
+                # Add information area below the image
+                text_area = np.zeros(
+                (text_area_height, target_width, 3), dtype=stretched.dtype)
+                stretched = np.vstack((stretched, text_area))
+
+
+
+                cv2.putText(stretched, f"Focus: {focus_score:.1f}", (15, image_height + 35),
+                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
+
+                cv2.putText(stretched, f"Brightness: {brightness:.1f}", (15, image_height + 70),
+                    cv2.FONT_HERSHEY_SIMPLEX,text_scale,(255, 255, 255), text_thickness, cv2.LINE_AA)
+                    
+
+                cv2.putText(stretched, f"Zoom: {zoom}, Downscale: {downscale}", (15, image_height + 105),
+                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)      
+
+                cv2.putText(stretched, f"Frame: {local_frame_count}", (15, image_height + 140),
+                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
+
+
+
+                '''
                 text_area_height = 120
                 text_area = np.zeros((text_area_height, w, stretched.shape[2]), dtype=stretched.dtype)
                 stretched = np.vstack((stretched, text_area))
@@ -1478,6 +1574,7 @@ def frame_generator_RPI() -> Generator[bytes, None, None]:
                 # Textgröße abhängig vom Zoom
                 text_scale = max(0.4, 0.9 - 0.15 * (zoom - 1))
                 text_thickness = max(1, int(round(text_scale * 2)))
+                
 
                 cv2.putText(stretched, f"Focus: {focus_score:.1f}",
                             (10, h + 30), cv2.FONT_HERSHEY_SIMPLEX,
@@ -1494,6 +1591,7 @@ def frame_generator_RPI() -> Generator[bytes, None, None]:
                 cv2.putText(stretched, f"Frame: {local_frame_count}",
                             (10, h + 105), cv2.FONT_HERSHEY_SIMPLEX,
                             text_scale, (255, 255, 255), text_thickness)
+                '''
 
                 _, jpeg = cv2.imencode(".jpg", stretched, [cv2.IMWRITE_JPEG_QUALITY, 80])
                 yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n")
@@ -1553,8 +1651,6 @@ def create_status_frame(message: str) -> np.ndarray:
     # Add message and timestamp
     cv2.putText(text_area, message, (30, 50),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
-    cv2.putText(text_area, time.strftime("%Y-%m-%d %H:%M:%S"), (30, 85),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (180, 180, 180), 1)
     
     # Combine image and text area
     frame = np.vstack((status_img, text_area))
