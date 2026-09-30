@@ -152,10 +152,11 @@ _shared_camera: Optional[SharedCamera] = None
 
 
 def _camera_grabbing_loop(handler: SharedCamera) -> None:
-    """Background thread: holds 'with cams[0] as cam:' and updates _latest_frame.
+    """Background thread: holds camera handle and updates _latest_frame.
 
-    THIS IS THE ONLY PLACE that calls cam.get_frame(). All generators
-    read the shared _latest_frame (protected by _frame_lock, via copy()).
+    Uses asynchronous acquisition (start_streaming) with ring buffers to avoid
+    the latency and transport-layer USB crashes of repeated synchronous get_frame() calls.
+    All generators read the shared _latest_frame (protected by _frame_lock, via copy()).
     """
     global _grab_running, _last_camera_model, _last_camera_serial, _last_camera_detected
     global _latest_frame
@@ -166,6 +167,8 @@ def _camera_grabbing_loop(handler: SharedCamera) -> None:
     try:
         if not _vmb_system_initialized:
             _init_vmb_system()
+
+        from vmbpy import PersistType, FrameStatus
 
         for attempt in range(1, 20):
             if not _grab_running:
@@ -183,11 +186,10 @@ def _camera_grabbing_loop(handler: SharedCamera) -> None:
                     continue
 
                 logger.info(f"Grab thread attempt {attempt}/19: found {len(cams)} camera(s), opening...")
-                from vmbpy import PersistType
-                exposure = get_camera_setting("exposure") or 140.0
-                gain = get_camera_setting("gain") or 5.0
+                exposure = float(get_camera_setting("exposure") or 140.0)
+                gain = float(get_camera_setting("gain") or 5.0)
 
-                # ─── 'with' block held for ENTIRE streaming session ───
+                # ─── 'with' block held for streaming session ───
                 with cams[0] as cam:
                     handler.set_cam(cam)
 
@@ -206,6 +208,23 @@ def _camera_grabbing_loop(handler: SharedCamera) -> None:
                     except Exception as e:
                         logger.warning(f"Could not set exposure/gain: {e}")
 
+                    # Enable 2x2 binning to reduce USB transfer bandwidth by 75% on Raspberry Pi
+                    try:
+                        cam.BinningSelector.set("Digital")
+                        cam.BinningHorizontal.set(2)
+                        cam.BinningVertical.set(2)
+                        logger.info("Grab thread: enabled 2x2 digital binning for web preview")
+                    except Exception as e:
+                        logger.debug(f"Could not configure binning (using sensor default): {e}")
+
+                    # Limit hardware frame rate to ~4 FPS to avoid flooding USB3 FIFO
+                    try:
+                        cam.AcquisitionFrameRateEnable.set(True)
+                        cam.AcquisitionFrameRate.set(4.0)
+                        logger.info("Grab thread: set camera frame rate to 4.0 FPS")
+                    except Exception as e:
+                        logger.debug(f"Could not set AcquisitionFrameRate: {e}")
+
                     try:
                         model = cam.get_model()
                         serial = cam.get_serial()
@@ -217,8 +236,55 @@ def _camera_grabbing_loop(handler: SharedCamera) -> None:
                     _last_camera_detected = True
                     logger.info(f"Camera opened in grabbing thread: model={model}, serial={serial}")
 
-                    # ─── Frame grabbing loop — INSIDE the 'with' block ───
                     frames_grabbed = 0
+                    last_grab_time = 0.0
+                    streaming_started = False
+                    stream_broken = False
+
+                    def frame_handler(cam_obj, stream_obj, frame_obj):
+                        global _latest_frame
+                        nonlocal last_grab_time, frames_grabbed
+                        try:
+                            status = frame_obj.get_status()
+                            if status == FrameStatus.Complete:
+                                now = time.time()
+                                # Throttle image conversion to ~2.5 FPS for preview
+                                if now - last_grab_time >= 0.35:
+                                    raw = frame_obj.as_opencv_image()
+                                    if raw is not None and raw.ndim >= 2 and raw.shape[0] > 10 and raw.shape[1] > 10:
+                                        with _frame_lock:
+                                            _latest_frame = raw
+                                        last_grab_time = now
+                                        frames_grabbed += 1
+                                        if frames_grabbed == 1:
+                                            logger.info(f"Grab thread: first frame captured ({raw.shape[1]}x{raw.shape[0]})")
+                                        elif frames_grabbed % 50 == 0:
+                                            logger.info(f"Grab thread: {frames_grabbed} frames captured so far")
+                            else:
+                                logger.warning(f"Grab thread: incomplete frame (status={status}), skipping")
+                        except Exception as h_err:
+                            logger.error(f"Error in grab thread frame handler: {h_err}")
+                        finally:
+                            try:
+                                cam_obj.queue_frame(frame_obj)
+                            except Exception:
+                                pass
+
+                    # Try asynchronous streaming first (preferred)
+                    try:
+                        cam.start_streaming(handler=frame_handler, buffer_count=5)
+                        streaming_started = True
+                        logger.info("Grab thread: asynchronous streaming started successfully")
+                    except Exception as s_err:
+                        logger.warning(f"Grab thread: start_streaming failed ({s_err}), falling back to get_frame()")
+                        streaming_started = False
+
+                    applied_exposure = exposure
+                    applied_gain = gain
+                    last_frame_count = 0
+                    stuck_seconds = 0.0
+                    sync_error_count = 0
+
                     while _grab_running and handler.is_open:
                         is_capturing = get_camera_state("is_capturing") or False
                         free_for_web = get_camera_state("free_for_web") or False
@@ -230,21 +296,77 @@ def _camera_grabbing_loop(handler: SharedCamera) -> None:
                             )
                             break
 
-                        try:
-                            raw = cam.get_frame(timeout_ms=2000).as_opencv_image()
-                            with _frame_lock:
-                                _latest_frame = raw
-                            frames_grabbed += 1
-                            if frames_grabbed == 1:
-                                logger.info(f"Grab thread: first frame captured ({raw.shape[1]}x{raw.shape[0]})")
-                            elif frames_grabbed % 50 == 0:
-                                logger.info(f"Grab thread: {frames_grabbed} frames captured so far")
-                        except Exception as e:
-                            logger.error(f"Grab error in thread (frame #{frames_grabbed + 1}): {e}")
-                            time.sleep(0.2)
-                        time.sleep(0.5)
+                        # Check for dynamic exposure/gain changes from web UI
+                        curr_exp = float(get_camera_setting("exposure") or 140.0)
+                        curr_gain = float(get_camera_setting("gain") or 5.0)
+                        if abs(curr_exp - applied_exposure) > 0.5:
+                            try:
+                                cam.ExposureTime.set(curr_exp * 1000)
+                                applied_exposure = curr_exp
+                                logger.info(f"Grab thread: updated ExposureTime to {curr_exp} ms")
+                            except Exception as e:
+                                logger.warning(f"Could not update ExposureTime: {e}")
+                        if abs(curr_gain - applied_gain) > 0.2:
+                            try:
+                                cam.Gain.set(curr_gain)
+                                applied_gain = curr_gain
+                                logger.info(f"Grab thread: updated Gain to {curr_gain}")
+                            except Exception as e:
+                                logger.warning(f"Could not update Gain: {e}")
 
-                break  # Success: 'with' block exited, leave retry loop
+                        if streaming_started:
+                            # Asynchronous mode: monitor that frames are actually arriving
+                            time.sleep(0.5)
+                            if frames_grabbed == last_frame_count:
+                                stuck_seconds += 0.5
+                                if stuck_seconds >= 5.0:
+                                    logger.warning("Grab thread: no frames received for 5s, reconnecting camera...")
+                                    stream_broken = True
+                                    break
+                            else:
+                                stuck_seconds = 0.0
+                                last_frame_count = frames_grabbed
+                        else:
+                            # Fallback synchronous mode with robust status check & error breaking
+                            try:
+                                frame_obj = cam.get_frame(timeout_ms=2500)
+                                if frame_obj.get_status() == FrameStatus.Complete:
+                                    raw = frame_obj.as_opencv_image()
+                                    if raw is not None and raw.ndim >= 2 and raw.shape[0] > 10 and raw.shape[1] > 10:
+                                        with _frame_lock:
+                                            _latest_frame = raw
+                                        frames_grabbed += 1
+                                        sync_error_count = 0
+                                        if frames_grabbed == 1:
+                                            logger.info(f"Grab thread: first frame captured ({raw.shape[1]}x{raw.shape[0]})")
+                                        elif frames_grabbed % 50 == 0:
+                                            logger.info(f"Grab thread: {frames_grabbed} frames captured so far")
+                                else:
+                                    logger.warning(f"Grab thread: incomplete frame (status={frame_obj.get_status()}), skipping")
+                            except Exception as e:
+                                sync_error_count += 1
+                                logger.error(f"Grab error in thread ({sync_error_count}/3): {e}")
+                                if sync_error_count >= 3:
+                                    logger.warning("Grab thread: 3 consecutive grab errors, reconnecting camera...")
+                                    stream_broken = True
+                                    break
+                            time.sleep(0.5)
+
+                    # Stop streaming cleanly if it was started
+                    if streaming_started:
+                        try:
+                            cam.stop_streaming()
+                            logger.info("Grab thread: asynchronous streaming stopped")
+                        except Exception as e:
+                            logger.warning(f"Grab thread: error stopping stream: {e}")
+
+                    # If stream broke while running and we should still be running, retry by continuing outer loop
+                    if stream_broken and _grab_running and handler.is_open:
+                        logger.info("Grab thread: restarting camera session after stream failure...")
+                        time.sleep(1.0)
+                        continue
+
+                break  # Success / normal exit: leave retry loop
             except Exception as e:
                 logger.warning(f"Grab thread open attempt {attempt}/19 failed: {e}")
                 time.sleep(min(1.0, attempt * 0.2))
@@ -1062,7 +1184,7 @@ def get_vimba_frame(exposure: int = DEFAULT_EXPOSURE, gain: float = DEFAULT_GAIN
     "camera already in use" conflicts.
     """
     try:
-        from vmbpy import PixelFormat, PersistType
+        from vmbpy import PixelFormat, PersistType, FrameStatus
 
         # If streaming is active, try to grab from the shared latest frame
         if streaming_active:
@@ -1105,8 +1227,13 @@ def get_vimba_frame(exposure: int = DEFAULT_EXPOSURE, gain: float = DEFAULT_GAIN
                 logger.warning(f"Could not query pixel formats: {e}")
 
             # Capture frame
-            frame = cam.get_frame(timeout_ms=5000).as_opencv_image()
-            return frame
+            frame_obj = cam.get_frame(timeout_ms=5000)
+            if frame_obj.get_status() == FrameStatus.Complete:
+                frame = frame_obj.as_opencv_image()
+                return frame
+            else:
+                logger.warning(f"get_vimba_frame: incomplete frame (status={frame_obj.get_status()})")
+                return None
 
     except ImportError:
         logger.error("VmbPy SDK not available - using test pattern")
@@ -1272,13 +1399,13 @@ def frame_generator_AV() -> Generator[bytes, None, None]:
                 with _frame_lock:
                     if _latest_frame is not None:
                         frame = _latest_frame.copy()
-                if frame is None:
+                if frame is None or frame.ndim < 2 or frame.shape[0] < 10 or frame.shape[1] < 10:
                     # Wait briefly for the next frame rather than spamming placeholders
                     time.sleep(0.25)
                     waiting_count += 1
                     if waiting_count == 1 or waiting_count % 10 == 0:
                         logger.info(
-                            f"Stream generator: no frame available yet, "
+                            f"Stream generator: no valid frame available yet, "
                             f"yielding 'Waiting for camera' (attempt #{waiting_count})"
                         )
                     connecting = create_status_frame("Waiting for camera")
@@ -1303,41 +1430,34 @@ def frame_generator_AV() -> Generator[bytes, None, None]:
                 # 1) Center-crop zoom first (before downscale, for accuracy)
                 if zoom > 1:
                     h, w = frame.shape[:2]
-                    crop_h = max(1, h // zoom)
-                    crop_w = max(1, w // zoom)
-                    y_start = (h - crop_h) // 2
-                    x_start = (w - crop_w) // 2
+                    crop_h = max(1, int(h // zoom))
+                    crop_w = max(1, int(w // zoom))
+                    y_start = max(0, int((h - crop_h) // 2))
+                    x_start = max(0, int((w - crop_w) // 2))
                     frame = frame[y_start:y_start + crop_h, x_start:x_start + crop_w]
 
                 # 2) Downscale to reduce processing time and bandwidth
                 h, w = frame.shape[:2]
                 if downscale > 1:
-                    new_w = w // downscale
-                    new_h = h // downscale
+                    new_w = max(1, int(w // downscale))
+                    new_h = max(1, int(h // downscale))
                     frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
                 # Apply min/max stretch for better visibility
                 stretched = apply_min_max_stretch(frame)
 
-
-
-
                 # Resize for streaming with target width of 1080 px width
                 h, w = stretched.shape[:2]
 
-                #if w > 1280:
-                #    scale = 1280 / w
-                #    stretched = cv2.resize(stretched, (int(w * scale), int(h * scale)))
-
                 if w != target_width:
                     scale = target_width / w
-                    new_height = int(h * scale)
+                    new_height = max(1, int(h * scale))
 
                     interpolation = (cv2.INTER_AREA
                         if w > target_width
                         else cv2.INTER_LINEAR)
 
-                    stretched = cv2.resize( stretched,(target_width, new_height),interpolation=interpolation)
+                    stretched = cv2.resize(stretched, (target_width, new_height), interpolation=interpolation)
 
 
                 image_height = stretched.shape[0] # Höhe des eigentlichen Bildes merken
@@ -1493,7 +1613,7 @@ def frame_generator_RPI() -> Generator[bytes, None, None]:
                     if _latest_frame_rpi is not None:
                         frame = _latest_frame_rpi.copy()
 
-                if frame is None:
+                if frame is None or frame.ndim < 2 or frame.shape[0] < 10 or frame.shape[1] < 10:
                     time.sleep(0.25)
                     waiting_count += 1
                     connecting = create_status_frame("Waiting for camera")
@@ -1511,17 +1631,17 @@ def frame_generator_RPI() -> Generator[bytes, None, None]:
                 # 1) Center-crop zoom first (before downscale, for accuracy)
                 if zoom > 1:
                     h, w = frame.shape[:2]
-                    crop_h = max(1, h // zoom)
-                    crop_w = max(1, w // zoom)
-                    y_start = (h - crop_h) // 2
-                    x_start = (w - crop_w) // 2
+                    crop_h = max(1, int(h // zoom))
+                    crop_w = max(1, int(w // zoom))
+                    y_start = max(0, int((h - crop_h) // 2))
+                    x_start = max(0, int((w - crop_w) // 2))
                     frame = frame[y_start:y_start + crop_h, x_start:x_start + crop_w]
 
                 # 2) Downscale to reduce processing time and bandwidth
                 h, w = frame.shape[:2]
                 if downscale > 1:
-                    new_w = w // downscale
-                    new_h = h // downscale
+                    new_w = max(1, int(w // downscale))
+                    new_h = max(1, int(h // downscale))
                     frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
                 # Apply min/max stretch for better visibility
@@ -1532,13 +1652,13 @@ def frame_generator_RPI() -> Generator[bytes, None, None]:
                 h, w = stretched.shape[:2]
                 if w != target_width:
                     scale = target_width / w
-                    new_height = int(h * scale)
+                    new_height = max(1, int(h * scale))
 
                     interpolation = (cv2.INTER_AREA
                         if w > target_width
                         else cv2.INTER_LINEAR)
 
-                    stretched = cv2.resize( stretched,(target_width, new_height),interpolation=interpolation)
+                    stretched = cv2.resize(stretched, (target_width, new_height), interpolation=interpolation)
 
 
                 image_height = stretched.shape[0] # Höhe des eigentlichen Bildes merken
