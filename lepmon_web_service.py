@@ -284,6 +284,7 @@ def _camera_grabbing_loop(handler: SharedCamera) -> None:
                     last_frame_count = 0
                     stuck_seconds = 0.0
                     sync_error_count = 0
+                    auto_frame_count = 0  # Counter for auto exposure/gain
 
                     while _grab_running and handler.is_open:
                         is_capturing = get_camera_state("is_capturing") or False
@@ -296,23 +297,57 @@ def _camera_grabbing_loop(handler: SharedCamera) -> None:
                             )
                             break
 
-                        # Check for dynamic exposure/gain changes from web UI
-                        curr_exp = float(get_camera_setting("exposure") or 140.0)
-                        curr_gain = float(get_camera_setting("gain") or 5.0)
-                        if abs(curr_exp - applied_exposure) > 0.5:
-                            try:
-                                cam.ExposureTime.set(curr_exp * 1000)
-                                applied_exposure = curr_exp
-                                logger.info(f"Grab thread: updated ExposureTime to {curr_exp} ms")
-                            except Exception as e:
-                                logger.warning(f"Could not update ExposureTime: {e}")
-                        if abs(curr_gain - applied_gain) > 0.2:
-                            try:
-                                cam.Gain.set(curr_gain)
-                                applied_gain = curr_gain
-                                logger.info(f"Grab thread: updated Gain to {curr_gain}")
-                            except Exception as e:
-                                logger.warning(f"Could not update Gain: {e}")
+                        # Check exposure mode from web UI
+                        curr_mode = get_camera_setting("_exposure_mode") or exposure_mode
+                        
+                        if curr_mode == "auto":
+                            # Auto mode: recalculate exposure/gain on frame 1 and every 10th frame
+                            auto_frame_count += 1
+                            if auto_frame_count == 1 or auto_frame_count % 10 == 0:
+                                try:
+                                    # Set continuous auto exposure for this frame
+                                    cam.ExposureAuto.set("Continuous")
+                                    cam.GainAuto.set("Continuous")
+                                    time.sleep(0.05)  # Brief delay for camera to adjust
+                                    
+                                    # Get the auto-calculated values
+                                    auto_exp = cam.ExposureTime.get() / 1000.0  # Convert from microseconds to ms
+                                    auto_gain = cam.Gain.get()
+                                    
+                                    # Save to cache
+                                    set_camera_setting("exposure", round(auto_exp, 1))
+                                    set_camera_setting("gain", round(auto_gain, 1))
+                                    
+                                    logger.info(
+                                        f"Grab thread: Auto exposure/gain - "
+                                        f"exposure={auto_exp:.1f}ms, gain={auto_gain:.1f}dB"
+                                    )
+                                    
+                                    # Apply the new values
+                                    cam.ExposureTime.set(auto_exp * 1000)
+                                    cam.Gain.set(auto_gain)
+                                    applied_exposure = auto_exp
+                                    applied_gain = auto_gain
+                                except Exception as e:
+                                    logger.warning(f"Auto exposure/gain failed: {e}")
+                        else:
+                            # Manual mode: use values from web UI
+                            curr_exp = float(get_camera_setting("exposure") or 140.0)
+                            curr_gain = float(get_camera_setting("gain") or 5.0)
+                            if abs(curr_exp - applied_exposure) > 0.5:
+                                try:
+                                    cam.ExposureTime.set(curr_exp * 1000)
+                                    applied_exposure = curr_exp
+                                    logger.info(f"Grab thread: updated ExposureTime to {curr_exp} ms")
+                                except Exception as e:
+                                    logger.warning(f"Could not update ExposureTime: {e}")
+                            if abs(curr_gain - applied_gain) > 0.2:
+                                try:
+                                    cam.Gain.set(curr_gain)
+                                    applied_gain = curr_gain
+                                    logger.info(f"Grab thread: updated Gain to {curr_gain}")
+                                except Exception as e:
+                                    logger.warning(f"Could not update Gain: {e}")
 
                         if streaming_started:
                             # Asynchronous mode: monitor that frames are actually arriving
@@ -496,6 +531,9 @@ def _rpi_grabbing_loop(handler: SharedRPICamera) -> None:
 
                 # ─── Frame grabbing loop ───
                 frames_grabbed = 0
+                auto_frame_count = 0  # Counter for auto exposure/gain
+                applied_exposure = Exposure
+                applied_gain = Gain
                 while _rpi_grab_running and handler.is_open:
                     is_capturing = get_camera_state("is_capturing") or False
                     free_for_web = get_camera_state("free_for_web") or False
@@ -506,6 +544,58 @@ def _rpi_grabbing_loop(handler: SharedRPICamera) -> None:
                             f"Frames grabbed so far: {frames_grabbed}"
                         )
                         break
+                    
+                    # Check exposure mode from web UI
+                    curr_mode = get_camera_setting("_exposure_mode") or exposure_mode
+                    
+                    if curr_mode == "auto":
+                        # Auto mode: recalculate exposure/gain on frame 1 and every 10th frame
+                        auto_frame_count += 1
+                        if auto_frame_count == 1 or auto_frame_count % 10 == 0:
+                            try:
+                                # Enable auto exposure/gain for this frame
+                                picam2.set_controls({"AeEnable": True, "AgEnable": True})
+                                time.sleep(0.05)  # Brief delay for camera to adjust
+                                
+                                # Get the auto-calculated values from camera metadata
+                                metadata = picam2.capture_metadata("main")
+                                auto_exp = metadata.get("ExposureTime", int(Exposure * 1000)) / 1000.0
+                                auto_gain = metadata.get("AnalogueGain", Gain)
+                                
+                                # Save to cache
+                                set_camera_setting("exposure", round(auto_exp, 1))
+                                set_camera_setting("gain", round(auto_gain, 1))
+                                
+                                logger.info(
+                                    f"RPI grab thread: Auto exposure/gain - "
+                                    f"exposure={auto_exp:.1f}ms, gain={auto_gain:.1f}dB"
+                                )
+                                
+                                # Apply the new values
+                                picam2.set_controls({
+                                    "ExposureTime": int(auto_exp * 1000),
+                                    "AnalogueGain": auto_gain,
+                                })
+                                applied_exposure = auto_exp
+                                applied_gain = auto_gain
+                            except Exception as e:
+                                logger.warning(f"RPI auto exposure/gain failed: {e}")
+                    else:
+                        # Manual mode: use values from web UI
+                        curr_exp = float(get_camera_setting("exposure") or Exposure)
+                        curr_gain = float(get_camera_setting("gain") or Gain)
+                        if abs(curr_exp - applied_exposure) > 0.5 or abs(curr_gain - applied_gain) > 0.2:
+                            try:
+                                picam2.set_controls({
+                                    "ExposureTime": int(curr_exp * 1000),
+                                    "AnalogueGain": curr_gain,
+                                })
+                                applied_exposure = curr_exp
+                                applied_gain = curr_gain
+                                logger.info(f"RPI grab thread: updated Exposure={curr_exp}ms, Gain={curr_gain}dB")
+                            except Exception as e:
+                                logger.warning(f"RPI could not update exposure/gain: {e}")
+                    
                     try:
                         raw = picam2.capture_array("main")
                         if raw.ndim == 3 and raw.shape[2] == 4:
@@ -609,6 +699,7 @@ _CAMERA_SETTINGS = {
     "gain": 5.0,          # dB  (0–48)
     "downscale": 8,       # int (1–20)
     "zoom": 2,            # int (1–5)
+    "_exposure_mode": "auto",  # auto or manual
 }
 
 def _load_camera_settings_from_file() -> dict:
@@ -1115,6 +1206,58 @@ def _stop_camera_state_sync() -> None:
     global _camera_sync_thread
     _camera_sync_thread = None
     logger.info("Camera state sync thread stopped")
+
+
+def _check_camera_release_loop() -> None:
+    """Periodic check (every 5s): if free_for_web is False, release camera for capturing."""
+    while True:
+        time.sleep(5)
+        free_for_web = get_camera_state("free_for_web")
+        if free_for_web == False:
+            logger.info("free_for_web is False -> forcing camera release for capturing...")
+            
+            # Release AV camera
+            with stream_consumers_lock:
+                global _grab_thread, _grab_running
+                if _grab_thread is not None and _grab_thread.is_alive() or _grab_running:
+                    _grab_running = False
+                    if _grab_thread is not None and _grab_thread.is_alive():
+                        _grab_thread.join(timeout=3.0)
+                    _grab_thread = None
+                    with _shared_camera_lock:
+                        if _shared_camera is not None:
+                            _shared_camera.close()
+                            _shared_camera = None
+                        _latest_frame = None
+                    streaming_active = False
+                    stream_consumers = 0
+            
+            # Release RPI camera
+            with stream_consumers_lock:
+                global _rpi_grab_thread, _rpi_grab_running
+                if _rpi_grab_thread is not None and _rpi_grab_thread.is_alive() or _rpi_grab_running:
+                    _rpi_grab_running = False
+                    if _rpi_grab_thread is not None and _rpi_grab_thread.is_alive():
+                        _rpi_grab_thread.join(timeout=3.0)
+                    _rpi_grab_thread = None
+                    with _rpi_shared_camera_lock:
+                        if _rpi_shared_camera is not None:
+                            _rpi_shared_camera.close()
+                            _rpi_shared_camera = None
+                        _latest_frame_rpi = None
+                    streaming_active = False
+                    stream_consumers = 0
+            
+            logger.info("Camera(s) successfully released for capturing.")
+
+
+def _start_camera_release_monitor() -> None:
+    """Launch the camera release monitor background thread."""
+    monitor_thread = threading.Thread(
+        target=_check_camera_release_loop, daemon=True
+    )
+    monitor_thread.start()
+    logger.info("Camera release monitor thread started")
 
 
 _camera_sync_thread: Optional[threading.Thread] = None
@@ -2250,6 +2393,30 @@ async def update_camera_settings(settings: dict):
         return {"success": False, "error": str(e)}
 
 
+# Exposure mode: 'auto' (default) or 'manual'
+exposure_mode = "auto"
+
+
+@app.get("/api/camera/exposure_mode")
+async def get_exposure_mode():
+    """Get current exposure mode."""
+    return {"mode": exposure_mode}
+
+
+@app.post("/api/camera/exposure_mode")
+async def set_exposure_mode(mode_data: dict):
+    """Set exposure mode (auto or manual)."""
+    global exposure_mode
+    mode = mode_data.get("mode", "auto")
+    if mode not in ("auto", "manual"):
+        mode = "auto"
+    exposure_mode = mode
+    # Also store in camera settings cache so grab_thread can read it
+    set_camera_setting("_exposure_mode", mode)
+    logger.info(f"Exposure mode set to: {exposure_mode}")
+    return {"mode": exposure_mode}
+
+
 def _persist_camera_settings_to_file() -> None:
     """Best-effort attempt to write current camera settings to Lepmon_config.json.
 
@@ -2534,6 +2701,99 @@ async def get_storage_info():
         return {"mounted": True, "error": str(e)}
 
 
+# ── USB Download ──────────────────────────────────────────────────
+# Cache of Lepmon files for streaming download
+_usb_download_files = []
+_usb_download_count = 0
+
+
+def _refresh_usb_download_files() -> list:
+    """Collect all files inside Lepmon#SN* directories on USB."""
+    global _usb_download_files, _usb_download_count
+    files = []
+    usb_path = find_usb_mount()
+    if usb_path:
+        for entry in os.listdir(usb_path):
+            if entry.startswith("Lepmon#SN"):
+                dirpath = os.path.join(usb_path, entry)
+                if os.path.isdir(dirpath):
+                    for root, dirs, filenames in os.walk(dirpath):
+                        for fname in filenames:
+                            files.append(os.path.join(root, fname))
+    _usb_download_files = files
+    _usb_download_count = len(files)
+    return files
+
+
+@app.get("/api/usb/count")
+async def get_usb_file_count():
+    """Count files in Lepmon#SN* directories on USB."""
+    _refresh_usb_download_files()
+    usb_path = find_usb_mount()
+    return {
+        "mounted": usb_path is not None,
+        "count": _usb_download_count,
+        "path": usb_path
+    }
+
+
+@app.get("/api/usb/files")
+async def get_usb_files():
+    """Get list of all Lepmon#SN* files with relative paths."""
+    global _usb_download_files
+    if not _usb_download_files:
+        _refresh_usb_download_files()
+    
+    usb_path = find_usb_mount()
+    files = []
+    for filepath in _usb_download_files:
+        if os.path.isfile(filepath):
+            rel = os.path.relpath(filepath, usb_path) if usb_path else os.path.basename(filepath)
+            files.append({
+                "path": filepath,
+                "rel": rel,
+                "name": os.path.basename(filepath),
+            })
+    return {"files": files}
+
+
+@app.get("/api/usb/raw/{rel:path}")
+async def download_usb_file(rel: str):
+    """Download a single file from USB by relative path (no Content-Disposition)."""
+    global _usb_download_files
+    if not _usb_download_files:
+        _refresh_usb_download_files()
+    
+    usb_path = find_usb_mount()
+    if not usb_path:
+        return JSONResponse({"error": "USB not mounted"}, status_code=404)
+    
+    # Sanitize path to prevent directory traversal
+    safe_rel = os.path.normpath(rel).lstrip("./\\")
+    full = os.path.join(usb_path, safe_rel)
+    
+    if not os.path.isfile(full):
+        return JSONResponse({"error": "File not found"}, status_code=404)
+    
+    try:
+        with open(full, "rb") as f:
+            content = f.read()
+    except OSError as e:
+        logger.warning(f"Failed to read {full}: {e}")
+        return JSONResponse({"error": "File read error"}, status_code=503)
+    
+    ext = os.path.splitext(full)[1].lower()
+    mime_map = {
+        '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+        '.png': 'image/png', '.tif': 'image/tiff',
+        '.tiff': 'image/tiff', '.bmp': 'image/bmp',
+        '.csv': 'text/csv', '.log': 'text/plain',
+    }
+    mime = mime_map.get(ext, 'application/octet-stream')
+    
+    return Response(content=content, media_type=mime)
+
+
 @app.get("/api/timing")
 async def get_timing_info():
     """Return full experiment timing + location + USB data object.
@@ -2607,6 +2867,8 @@ if __name__ == "__main__":
     _start_camera_detection()
     # Start camera state JSON-sync (2s interval — keeps cache in sync with other processes)
     _start_camera_state_sync()
+    # Start camera release monitor (5s interval — frees camera when free_for_web is False)
+    _start_camera_release_monitor()
 
     
     run_server(args.host, args.port)

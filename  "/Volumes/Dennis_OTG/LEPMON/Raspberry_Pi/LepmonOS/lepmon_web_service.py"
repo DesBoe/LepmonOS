@@ -1,0 +1,26 @@
+        return {\"success\": True, \"message\": \"Settings applied\"}
+    except Exception as e:
+        logger.error(f\"Failed to update camera settings: {e}\")
+        return {\"success\": False, \"error\": str(e)}
+
+
+# Exposure mode: 'auto' (default) or 'manual'
+exposure_mode = \"auto\"
+
+
+@app.get(\"/api/camera/exposure_mode\")
+async def get_exposure_mode():
+    \"\"\"Get current exposure mode.\"\"\"
+    return {\"mode\": exposure_mode}
+
+
+@app.post(\"/api/camera/exposure_mode\")
+async def set_exposure_mode(mode_data: dict):
+    \"\"\"Set exposure mode (auto or manual).\"\"\"
+    global exposure_mode
+    mode = mode_data.get(\"mode\", \"auto\")
+    if mode not in (\"auto\", \"manual\"):
+        mode = \"auto\"
+    exposure_mode = mode
+    logger.info(f\"Exposure mode set to: {exposure_mode}\")
+    return {\"mode\": exposure_mode}

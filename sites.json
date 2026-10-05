@@ -166,5 +166,31 @@
     "Umbria": ["UMB", "PG", "TR"],
     "Valle d'Aosta": ["VDA", "AO"],
     "Veneto": ["VEN", "BL", "PD", "RO", "TV", "VE", "VR", "VI"]
+   },
+   "Sweden": {
+    "Stockholms län":	["A", "A"],
+    "Uppsala län":	["C", "C"],
+    "Södermanlands län":	["D", "D"],
+    "Östergötlands län":	["E", "E"],
+    "Jönköpings län":	["F", "F"],
+    "Kronobergs län":	["G", "G"],
+    "Kalmar län":	["H", "H"],
+    "Gotlands län":	["I", "I"],
+    "Blekinge län":	["K", "K"],
+    "Kristianstads län":	["L", "L"],
+    "Malmöhus län":	["M", "M"],
+    "Hallands län":	["N", "N"],
+    "Göteborgs och Bohus län":	["O", "O"],
+    "Älvsborgs län":	["P", "P"],
+    "Skaraborgs län":	["R", "R"],
+    "Värmlands län":	["S", "S"],
+    "Örebro län":	["T", "T"],
+    "Västmanlands län":	["U", "U"],
+    "Kopparbergs län":	["W", "W"],
+    "Gävleborgs län":	["X", "X"],
+    "Västernorrlands län":	["Y", "Y"],
+    "Jämtlands län":	["Z", "Z"],
+    "Västerbottens län":	["AC", "AC"],
+    "Norrbottens län":	["BD", "BD"]
    }
 }

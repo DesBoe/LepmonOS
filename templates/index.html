@@ -111,6 +111,120 @@
             gap: 0.5rem;
         }
         
+        .light-control-bar {
+            grid-column: 1 / -1;
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            margin-bottom: 0;
+        }
+        
+        .light-control-header {
+            padding: 1rem 1.5rem;
+            background: var(--accent);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .light-control-header h2 {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+        
+        .light-control-buttons {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        .camera-mode-buttons {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .camera-mode-buttons .btn-sm {
+            padding: 0.3rem 0.8rem;
+            font-size: 0.8rem;
+        }
+        .settings-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .settings-header-row h3 {
+            margin: 0;
+        }
+        
+        /* ---- Info Button & Overlay ---- */
+        .info-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+            font-size: 0.7rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-left: 0.4rem;
+            vertical-align: middle;
+            border: none;
+            font-family: sans-serif;
+            flex-shrink: 0;
+        }
+        .info-btn:hover {
+            background: rgba(255,255,255,0.4);
+        }
+        .info-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 9998;
+            align-items: center;
+            justify-content: center;
+        }
+        .info-overlay.active {
+            display: flex;
+        }
+        .info-overlay-box {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        .info-overlay-box h4 {
+            margin: 0 0 1rem 0;
+            font-size: 1.1rem;
+            color: var(--highlight);
+        }
+        .info-overlay-box p {
+            color: var(--text-dim);
+            line-height: 1.6;
+            font-size: 0.9rem;
+        }
+        .info-close-btn {
+            position: absolute;
+            top: 0.8rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+        .info-close-btn:hover {
+            color: var(--highlight);
+        }
+        
         .btn {
             padding: 0.5rem 1rem;
             border: none;
@@ -668,20 +782,28 @@
     </header>
     
     <main class="container">
+        <div class="light-control-bar">
+            <div class="light-control-header">
+                <h2>💡 Light Control<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h2>
+                <div class="light-control-buttons">
+                    <button id="dimUpBtn" class="btn btn-success" onclick="dimUp()">
+                        💡On
+                    </button>
+                    <button id="dimDownBtn" class="btn btn-danger" onclick="dimDown()">
+                        🌑Off
+                    </button>
+                    <span id="dimTimerDisplay" class="dim-timer-display" style="display:none;">⏱ <span id="dimTimerValue">5:00</span></span>
+                </div>
+            </div>
+        </div>
+
         <div class="stream-container">
             <div class="stream-header">
-                <h2>📷 Live Camera Stream</h2>
+                <h2>📷 Live Camera Stream<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h2>
                 <div class="stream-controls">
                     <button class="btn btn-secondary" onclick="toggleStream()">
                         <span id="streamToggle">Stop Stream</span>
                     </button>
-                    <button id="dimUpBtn" class="btn btn-success" onclick="dimUp()">
-                        💡 Dim Up
-                    </button>
-                    <button id="dimDownBtn" class="btn btn-danger" onclick="dimDown()">
-                        🌑 Dim Down
-                    </button>
-                    <span id="dimTimerDisplay" class="dim-timer-display" style="display:none;">⏱ <span id="dimTimerValue">5:00</span></span>
                     <button class="btn btn-primary" onclick="takeSnapshot()">
                         📸 Snapshot
                     </button>
@@ -710,76 +832,13 @@
         
         <aside class="sidebar">
             <div class="card">
-                <h3>📊 Focus Analysis</h3>
-                <div class="stat-row">
-                    <span class="stat-label">Focus Score</span>
-                    <span id="focusScore" class="stat-value">--</span>
+                <div class="settings-header-row">
+                    <h3>⚙️ Camera Settings<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h3>
+                    <div class="camera-mode-buttons">
+                        <button id="exposureAutoBtn" class="btn btn-success btn-sm" onclick="setExposureMode('auto')">Auto</button>
+                        <button id="exposureManualBtn" class="btn btn-secondary btn-sm" onclick="setExposureMode('manual')">Manual</button>
+                    </div>
                 </div>
-                <div class="stat-row">
-                    <span class="stat-label">Status</span>
-                    <span id="focusStatus" class="stat-value">--</span>
-                </div>
-                <div class="focus-meter">
-                    <div id="focusMeterFill" class="focus-meter-fill" style="width: 0%"></div>
-                    <span id="focusMeterLabel" class="focus-meter-label">0%</span>
-                </div>
-            </div>
-            
-            <div class="card">
-                <h3>📈 System Status</h3>
-                <div class="stat-row">
-                    <span class="stat-label">Images Captured</span>
-                    <span id="imagesCount" class="stat-value">--</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Stream Viewers</span>
-                    <span id="viewersCount" class="stat-value">--</span>
-                </div>
-            </div>
-            
-            <div class="card">
-                <h3>🔧 Camera Info</h3>
-                <div class="stat-row">
-                    <span class="stat-label">Camera</span>
-                    <span id="cameraModel" class="stat-value">--</span>
-                </div>
-                {% if hardware_version != "CSS_Gen_1" %}
-                <div class="stat-row">
-                    <span class="stat-label">Serial</span>
-                    <span id="cameraSerial" class="stat-value">--</span>
-                </div>
-                {% endif %}
-                <div class="stat-row">
-                    <span class="stat-label">Detected</span>
-                    <span id="cameraIsDetected" class="stat-value">--</span>
-                </div>
-            </div>
-
-            <div class="card">
-                <h3>📡 Camera State</h3>
-                {% if hardware_version != "CSS_Gen_1" %}
-                <div class="stat-row">
-                    <span class="stat-label">Has Power</span>
-                    <span id="cameraHasPower" class="stat-value">--</span>
-                </div>
-                {% endif %}
-                <div class="stat-row">
-                    <span class="stat-label">Is Capturing</span>
-                    <span id="cameraIsCapturing" class="stat-value">--</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Free for Web</span>
-                    <span id="cameraFreeForWeb" class="stat-value">--</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Web Requested</span>
-                    <span id="cameraWebRequested" class="stat-value">--</span>
-                </div>
-            </div>
-
-            
-            <div class="card">
-                <h3>⚙️ Camera Settings</h3>
                 <div class="stat-row">
                     <span class="stat-label">Exposure (ms)</span>
                     <input type="number" id="exposureInput" class="settings-input" 
@@ -827,7 +886,76 @@
             </div>
             
             <div class="card">
-                <h3>📖 Focus Instructions</h3>
+                <h3>📊 Focus Analysis<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h3>
+                <div class="stat-row">
+                    <span class="stat-label">Focus Score</span>
+                    <span id="focusScore" class="stat-value">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Status</span>
+                    <span id="focusStatus" class="stat-value">--</span>
+                </div>
+                <div class="focus-meter">
+                    <div id="focusMeterFill" class="focus-meter-fill" style="width: 0%"></div>
+                    <span id="focusMeterLabel" class="focus-meter-label">0%</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>📈 System Status<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h3>
+                <div class="stat-row">
+                    <span class="stat-label">Images Captured</span>
+                    <span id="imagesCount" class="stat-value">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Stream Viewers</span>
+                    <span id="viewersCount" class="stat-value">--</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>🔧 Camera Info<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h3>
+                <div class="stat-row">
+                    <span class="stat-label">Camera</span>
+                    <span id="cameraModel" class="stat-value">--</span>
+                </div>
+                {% if hardware_version != "CSS_Gen_1" %}
+                <div class="stat-row">
+                    <span class="stat-label">Serial</span>
+                    <span id="cameraSerial" class="stat-value">--</span>
+                </div>
+                {% endif %}
+                <div class="stat-row">
+                    <span class="stat-label">Detected</span>
+                    <span id="cameraIsDetected" class="stat-value">--</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>📡 Camera State<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h3>
+                {% if hardware_version != "CSS_Gen_1" %}
+                <div class="stat-row">
+                    <span class="stat-label">Has Power</span>
+                    <span id="cameraHasPower" class="stat-value">--</span>
+                </div>
+                {% endif %}
+                <div class="stat-row">
+                    <span class="stat-label">Is Capturing</span>
+                    <span id="cameraIsCapturing" class="stat-value">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Free for Web</span>
+                    <span id="cameraFreeForWeb" class="stat-value">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Web Requested</span>
+                    <span id="cameraWebRequested" class="stat-value">--</span>
+                </div>
+            </div>
+
+            
+            <div class="card">
+                <h3>📖 Focus Instructions<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h3>
                 <div class="instructions">
                     <h4>Focusing Procedure</h4>
                     <ul>
@@ -845,7 +973,7 @@
     <section class="sensor-section">
         <div class="gallery-card">
             <div class="gallery-header">
-                <h3>📊 Sensor Monitoring</h3>
+                <h3>📊 Sensor Monitoring<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h3>
             </div>
             <table class="sensor-table">
                 <thead>
@@ -881,7 +1009,7 @@
     <section class="usb-section">
         <div class="gallery-card">
             <div class="gallery-header">
-                <h3>💾 USB Storage</h3>
+                <h3>💾 USB Storage<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h3>
             </div>
 
             <table class="sensor-table storage-table">
@@ -912,7 +1040,7 @@
     <section class="timing-section">
         <div class="gallery-card">
             <div class="gallery-header">
-                <h3>🌙 Experiment Timing</h3>
+                <h3>🌙 Experiment Timing<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h3>
             </div>
 
             <table class="sensor-table">
@@ -980,7 +1108,7 @@
     <section class="location-section">
         <div class="gallery-card">
             <div class="gallery-header">
-                <h3>📍 Location & LEPMON Code</h3>
+                <h3>📍 Location & LEPMON Code<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h3>
             </div>
                 <table class="sensor-table">
 
@@ -1022,7 +1150,7 @@
     <section class="gallery-section">
         <div class="gallery-card">
             <div class="gallery-header">
-                <h3>🖼️ Latest Captured Images</h3>
+                <h3>🖼️ Latest Captured Images<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h3>
                 <div>
                     <span id="usbStatus" class="usb-status usb-disconnected">USB: checking...</span>
                     <button class="btn btn-secondary" style="margin-left: 0.5rem;" onclick="loadGallery()">↻ Refresh</button>
@@ -1037,7 +1165,7 @@
     <section class="gallery-section">
         <div class="gallery-card">
             <div class="gallery-header">
-                <h3>📜 LepmonOS Log</h3>
+                <h3>📜 LepmonOS Log<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h3>
                 <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
                     <button class="btn btn-secondary" onclick="loadLog()">↻ Reload Log</button>
                     <button class="btn btn-secondary" onclick="downloadFile('/api/download/log', 'log.txt')">⬇ Download</button>
@@ -1052,7 +1180,7 @@
     <section class="gallery-section">
         <div class="gallery-card">
             <div class="gallery-header">
-                <h3>📊 CSV Data</h3>
+                <h3>📊 CSV Data<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h3>
                 <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
                     <span id="csvFilePath" style="font-size:0.7rem; color:var(--text-dim); max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title=""></span>
                     <button class="btn btn-secondary" onclick="loadCSV()">↻ Reload CSV</button>
@@ -1061,6 +1189,30 @@
             </div>
             
             <pre id="csvContent" class="log-content">Loading CSV...</pre>
+        </div>
+    </section>
+
+    <!-- Download USB -->
+    <section class="gallery-section">
+        <div class="gallery-card">
+            <div class="gallery-header">
+                <h3>📲 Download USB<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h3>
+                <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                    <span id="usbFileCount" style="font-size:0.8rem; color:var(--text-dim);">USB nicht gefunden</span>
+                    <button class="btn btn-secondary" onclick="refreshUsbCount()">↻ Aktualisieren</button>
+                    <button class="btn btn-primary" onclick="downloadUsbZip()">⬇ Download ZIP</button>
+                </div>
+            </div>
+            <div style="padding:1rem;">
+                <div class="progress-container" style="display:none;">
+                    <div class="progress-bar-bg" style="width:100%; height:24px; background:var(--bg-dark); border-radius:12px; overflow:hidden;">
+                        <div id="usbProgressBar" class="progress-bar-fill" style="width:0%; height:100%; background:var(--success); border-radius:12px; transition:width 0.3s; display:flex; align-items:center; justify-content:center;">
+                            <span id="usbProgressText" style="font-size:0.75rem; color:#000; font-weight:bold;">0%</span>
+                        </div>
+                    </div>
+                    <p id="usbProgressLabel" style="margin-top:0.5rem; font-size:0.8rem; color:var(--text-dim);">Bereit...</p>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -1262,6 +1414,98 @@
                     csvFilePath.textContent = '';
                     console.error('CSV load failed:', err);
                 });
+        }
+        
+        /* ---- USB Download ---- */
+        function refreshUsbCount() {
+            fetch('/api/usb/count')
+                .then(response => response.json())
+                .then(data => {
+                    const el = document.getElementById('usbFileCount');
+                    if (data.mounted) {
+                        el.textContent = data.count + ' Dateien gefunden';
+                        el.style.color = 'var(--success)';
+                    } else {
+                        el.textContent = 'USB nicht gefunden';
+                        el.style.color = 'var(--text-dim)';
+                    }
+                })
+                .catch(err => {
+                    document.getElementById('usbFileCount').textContent = 'Fehler';
+                    console.error('USB count failed:', err);
+                });
+        }
+        
+        async function downloadUsbZip() {
+            const progressContainer = document.querySelector('.progress-container');
+            const progressBar = document.getElementById('usbProgressBar');
+            const progressText = document.getElementById('usbProgressText');
+            const progressLabel = document.getElementById('usbProgressLabel');
+            
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+            progressText.textContent = '0%';
+            progressLabel.textContent = 'Wähle Zielordner...';
+            
+            // Ask user to pick a target directory (File System Access API)
+            if (!window.showDirectoryPicker) {
+                progressLabel.textContent = 'Browser unterstützt kein Directory-Picker. Bitte verwende Chrome/Edge.';
+                return;
+            }
+            
+            try {
+                const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                
+                // Get file list
+                const resp = await fetch('/api/usb/files');
+                const data = await resp.json();
+                const files = data.files || [];
+                
+                if (files.length === 0) {
+                    progressLabel.textContent = 'Keine Dateien gefunden';
+                    return;
+                }
+                
+                progressLabel.textContent = `Starte Download von ${files.length} Dateien...`;
+                
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    
+                    // Ensure subdirectories exist
+                    const parts = file.rel.split('/');
+                    let currentDir = dirHandle;
+                    if (parts.length > 1) {
+                        for (let j = 0; j < parts.length - 1; j++) {
+                            currentDir = await currentDir.getDirectoryHandle(parts[j], { create: true });
+                        }
+                    }
+                    
+                    // Download and write file
+                    const fileResp = await fetch(`/api/usb/raw/${encodeURIComponent(file.rel)}`);
+                    if (!fileResp.ok) continue;
+                    
+                    const blob = await fileResp.blob();
+                    const fileHandle = await currentDir.getFileHandle(parts[parts.length - 1], { create: true });
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                    
+                    const pct = Math.round(((i + 1) / files.length) * 100);
+                    progressBar.style.width = pct + '%';
+                    progressText.textContent = pct + '%';
+                    progressLabel.textContent = `Download: ${i + 1} / ${files.length} – ${file.name}`;
+                }
+                
+                progressLabel.textContent = `Fertig! ${files.length} Dateien heruntergeladen.`;
+                
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    progressLabel.textContent = 'Download abgebrochen.';
+                } else {
+                    progressLabel.textContent = 'Fehler: ' + err.message;
+                }
+                console.error('USB download failed:', err);
+            }
         }
         
         function updateStatus() {
@@ -1581,6 +1825,56 @@
             });
         }
         
+        function setExposureMode(mode) {
+            const autoBtn = document.getElementById('exposureAutoBtn');
+            const manualBtn = document.getElementById('exposureManualBtn');
+            const exposureInput = document.getElementById('exposureInput');
+            const gainInput = document.getElementById('gainInput');
+            
+            if (mode === 'auto') {
+                autoBtn.className = 'btn btn-success btn-sm';
+                manualBtn.className = 'btn btn-secondary btn-sm';
+                exposureInput.disabled = true;
+                gainInput.disabled = true;
+            } else {
+                manualBtn.className = 'btn btn-success btn-sm';
+                autoBtn.className = 'btn btn-secondary btn-sm';
+                exposureInput.disabled = false;
+                gainInput.disabled = false;
+            }
+            
+            fetch('/api/camera/exposure_mode', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({mode: mode})
+            }).catch(err => console.error('Failed to set exposure mode:', err));
+        }
+        
+        function updateExposureMode() {
+            fetch('/api/camera/exposure_mode')
+                .then(response => response.json())
+                .then(data => {
+                    const autoBtn = document.getElementById('exposureAutoBtn');
+                    const manualBtn = document.getElementById('exposureManualBtn');
+                    const exposureInput = document.getElementById('exposureInput');
+                    const gainInput = document.getElementById('gainInput');
+                    const mode = data.mode || 'auto';
+                    
+                    if (mode === 'auto') {
+                        autoBtn.className = 'btn btn-success btn-sm';
+                        manualBtn.className = 'btn btn-secondary btn-sm';
+                        exposureInput.disabled = true;
+                        gainInput.disabled = true;
+                    } else {
+                        manualBtn.className = 'btn btn-success btn-sm';
+                        autoBtn.className = 'btn btn-secondary btn-sm';
+                        exposureInput.disabled = false;
+                        gainInput.disabled = false;
+                    }
+                })
+                .catch(err => console.error('Failed to update exposure mode:', err));
+        }
+        
         function updateLocation() {
             fetch('/api/location')
                 .then(response => response.json())
@@ -1865,12 +2159,14 @@
         updateCameraInfo();
         loadCameraState();
         loadCameraSettings();
+        updateExposureMode();
         loadGallery();
         loadLog();
         loadCSV();
         updateLocation();
         updateStorage();
         updateTiming();
+        refreshUsbCount();
         
         // Periodic updates
         setInterval(updateStatus, 2000);
@@ -1878,9 +2174,11 @@
         setInterval(updateSensors, 2000);
         setInterval(loadDimmingStatus, 2000);
         setInterval(updateCameraInfo, 5000);
+        setInterval(updateExposureMode, 3000);
         setInterval(loadCameraState, 2000);
         setInterval(updateStorage, 30000);
         setInterval(updateTiming, 30000);
+        setInterval(refreshUsbCount, 30000);
 
         /* Only Gallery uses auto-polling with exponential backoff.
            Log and CSV are only reloaded on manual button click. */
@@ -1979,6 +2277,28 @@
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') closeLightbox();
         });
+
+        /* ---- Info Overlay ---- */
+        function showInfo(btn) {
+            var parent = btn.parentElement;
+            var titleText = parent.textContent.trim().replace(/\s*<button[^>]*>i<\/button>\s*/g, '').trim();
+            document.getElementById('infoTitle').textContent = titleText;
+            document.getElementById('infoText').textContent = 'Platzhalter: Hier erscheint der Info-Text.';
+            document.getElementById('infoOverlay').classList.add('active');
+        }
+        function hideInfo() {
+            document.getElementById('infoOverlay').classList.remove('active');
+        }
     </script>
+
+    <!-- Info Overlay -->
+    <div id="infoOverlay" class="info-overlay" onclick="hideInfo()">
+        <div class="info-overlay-box" onclick="event.stopPropagation()">
+            <button class="info-close-btn" onclick="hideInfo()">✕</button>
+            <h4 id="infoTitle">Info</h4>
+            <p id="infoText">Platzhalter für Info-Text.</p>
+        </div>
+    </div>
+
 </body>
 </html>

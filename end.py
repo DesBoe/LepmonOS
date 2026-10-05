@@ -187,6 +187,23 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
                 print("System würde jetzt im PV Modus neu starten (Reboot in 61 Sekunden)")
 
     elif HARDWARE_VERSION in ["Pro_Gen_4","CSS_Gen_1", "CSL_Gen_1"]:
+        if power_mode == "Netz":
+            log_schreiben("Reboot im Netzmodus in 5 Sekunden", log_mode)
+            log_schreiben("GPIO Pin für Power Control nicht schalten, ARNI startet neu ohne Power Save",log_mode)
+            log_schreiben("##################################",log_mode)
+            log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###",log_mode)
+            log_schreiben("##################################",log_mode)
+            time.sleep(5)
+            if execution == "full":
+                os.system("sudo reboot")
+                time.sleep(2)
+                print("Systembefehl zum Neustart ausgeführt.")
+            elif execution != "full":
+                print("System würde jetzt neu starten (Reboot)")
+
+
+        if power_mode == "Solar":
+            log_schreiben("Shutdown im PV Modus...", log_mode)
             log_schreiben("setze GPIO Pin für Power Control auf LOW, um ARNI herunterzufahren", log_mode)
             if execution == "anzeige":
                 print("GPIO Pin für Power Control würde auf LOW gesetzt, um ARNI herunterzufahren")

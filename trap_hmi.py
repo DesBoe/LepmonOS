@@ -156,15 +156,14 @@ def run_web_focus_session(log_mode, lang):
                     f"on phone",
                     f"Enter=stop",
                     qr_path,
-                    sleeptime=0,
-                )
-                time.sleep(3)
+                    sleeptime=0)
+                time.sleep(6)
                 display_text(
                     f"Web link",
                     f"{ip}:8080  ",
                     f"Enter=stop",
-                    sleeptime=3,
-                )
+                    sleeptime=0)
+                time.sleep(3)
             else:
                 show_message(
                     "focus_web_running", lang=lang, ip=ip, sec=""
