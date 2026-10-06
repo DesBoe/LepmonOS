@@ -11,8 +11,11 @@ The camera stream is only active when the main capturing loop is NOT running.
 """
 
 import asyncio
+import ssl
+import subprocess
 import threading
 import time
+import uuid
 import cv2
 import numpy as np
 from urllib.parse import quote as urlquote
@@ -32,7 +35,8 @@ import logging
 import glob
 from hardware import get_hardware_version
 from picamera2 import Picamera2, Preview
-from json_read_write import get_value_from_section, write_value_to_section, get_camera_state, set_camera_state
+from json_read_write import get_value_from_section, write_value_to_section, get_camera_state, set_camera_state, set_stream_viewers
+from viewer_state import set_viewer_count, get_viewer_count
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -81,6 +85,49 @@ DIMMING_MAX_DURATION_S = 5 * 60
 DIMMING_COOLDOWN_S = 5 * 60
 dimming_remaining: int = DIMMING_MAX_DURATION_S  # seconds left after Dim Down
 dimming_lock = threading.Lock()
+
+
+# ─── Stream Viewer / Client Registry ──────────────────────────────────────────
+# Tracks all active web clients (browser tabs) regardless of stream state.
+# Each client registers on page load and sends periodic heartbeats (every 5s).
+# Clients that don't send a heartbeat within HEARTBEAT_TIMEOUT are auto-removed
+# by a background cleanup thread (handles abrupt disconnect / Wi-Fi loss).
+_CLIENT_REGISTRY: dict = {}  # token (str) → last_seen (float)
+_CLIENT_REGISTRY_LOCK = threading.Lock()
+HEARTBEAT_TIMEOUT = 30  # seconds without heartbeat → client considered gone
+_CLEANUP_INTERVAL = 10  # cleanup thread runs every 10 seconds
+_cleanup_running = False
+
+
+def _viewer_cleanup_loop():
+    """Background thread: removes stale clients that lost connectivity."""
+    global _cleanup_running
+    while _cleanup_running:
+        time.sleep(_CLEANUP_INTERVAL)
+        now = time.time()
+        with _CLIENT_REGISTRY_LOCK:
+            stale_tokens = [t for t, ts in _CLIENT_REGISTRY.items() if (now - ts) > HEARTBEAT_TIMEOUT]
+            if stale_tokens:
+                for t in stale_tokens:
+                    del _CLIENT_REGISTRY[t]
+                new_count = len(_CLIENT_REGISTRY)
+                logger.info(f"Viewer cleanup: removed {len(stale_tokens)} stale viewer(s). Remaining: {new_count}")
+                set_stream_viewers(new_count)
+                set_viewer_count(new_count)
+
+
+def _start_viewer_cleanup():
+    """Start the viewer cleanup background thread."""
+    global _cleanup_running
+    _cleanup_running = True
+    t = threading.Thread(target=_viewer_cleanup_loop, daemon=True, name="viewer-cleanup")
+    t.start()
+    logger.info("Viewer heartbeat cleanup thread started")
+
+
+def _stop_viewer_cleanup():
+    global _cleanup_running
+    _cleanup_running = False
 
 
 # Camera detection polling
@@ -285,6 +332,7 @@ def _camera_grabbing_loop(handler: SharedCamera) -> None:
                     stuck_seconds = 0.0
                     sync_error_count = 0
                     auto_frame_count = 0  # Counter for auto exposure/gain
+                    last_exposure_mode = "auto"  # Track mode transitions
 
                     while _grab_running and handler.is_open:
                         is_capturing = get_camera_state("is_capturing") or False
@@ -299,7 +347,20 @@ def _camera_grabbing_loop(handler: SharedCamera) -> None:
 
                         # Check exposure mode from web UI
                         curr_mode = get_camera_setting("_exposure_mode") or exposure_mode
-                        
+
+                        # Detect mode transition → lock / unlock camera auto controls
+                        if curr_mode != last_exposure_mode:
+                            try:
+                                if curr_mode == "manual":
+                                    # Switching to manual: disable camera auto controls
+                                    # so the manual values actually stick
+                                    cam.ExposureAuto.set("Off")
+                                    cam.GainAuto.set("Off")
+                                    logger.info("Grab thread: switched to manual mode, disabled camera auto controls")
+                                last_exposure_mode = curr_mode
+                            except Exception as e:
+                                logger.warning(f"Could not set camera auto controls: {e}")
+
                         if curr_mode == "auto":
                             # Auto mode: recalculate exposure/gain on frame 1 and every 10th frame
                             auto_frame_count += 1
@@ -534,6 +595,7 @@ def _rpi_grabbing_loop(handler: SharedRPICamera) -> None:
                 auto_frame_count = 0  # Counter for auto exposure/gain
                 applied_exposure = Exposure
                 applied_gain = Gain
+                last_exposure_mode = "auto"  # Track mode transitions
                 while _rpi_grab_running and handler.is_open:
                     is_capturing = get_camera_state("is_capturing") or False
                     free_for_web = get_camera_state("free_for_web") or False
@@ -547,7 +609,19 @@ def _rpi_grabbing_loop(handler: SharedRPICamera) -> None:
                     
                     # Check exposure mode from web UI
                     curr_mode = get_camera_setting("_exposure_mode") or exposure_mode
-                    
+
+                    # Detect mode transition → lock / unlock camera auto controls
+                    if curr_mode != last_exposure_mode:
+                        try:
+                            if curr_mode == "manual":
+                                # Switching to manual: disable camera auto controls
+                                # so the manual values actually stick
+                                picam2.set_controls({"AeEnable": False, "AgEnable": False})
+                                logger.info("RPI grab thread: switched to manual mode, disabled camera auto controls")
+                            last_exposure_mode = curr_mode
+                        except Exception as e:
+                            logger.warning(f"RPI could not set camera auto controls: {e}")
+
                     if curr_mode == "auto":
                         # Auto mode: recalculate exposure/gain on frame 1 and every 10th frame
                         auto_frame_count += 1
@@ -632,6 +706,184 @@ def _rpi_grabbing_loop(handler: SharedRPICamera) -> None:
         _rpi_grab_running = False
         handler.close()
         logger.info("RPI camera grabbing thread stopped")
+
+
+def _capture_rpi_snapshot() -> Optional[np.ndarray]:
+    """Open a short-lived Picamera2 session, grab one frame, and close.
+
+    Used by the /snapshot endpoint so the snapshot works even when the
+    streaming thread is not running (i.e. _latest_frame_rpi is None).
+    """
+    # Read camera settings from config
+    exposure_gain = get_value_from_section(
+        "/home/Ento/LepmonOS/Lepmon_config.json", "RPI_Module_3", "initial_exposure_10"
+    )
+    gain_val = get_value_from_section(
+        "/home/Ento/LepmonOS/Lepmon_config.json", "RPI_Module_3", "initial_gain_10"
+    )
+    if exposure_gain is None:
+        exposure_gain = 20
+    if gain_val is None:
+        gain_val = 20
+
+    Exposure = int(exposure_gain) / 10
+    Gain = int(gain_val) / 10
+
+    picam2 = None
+    try:
+        try:
+            picam2 = Picamera2(0)
+        except Exception:
+            picam2 = Picamera2()
+        preview_config = picam2.create_preview_configuration(
+            main={"size": (1920, 1080)}
+        )
+        picam2.configure(preview_config)
+        picam2.start()
+        picam2.set_controls({
+            "AnalogueGain": Gain,
+            "ExposureTime": int(Exposure * 1000),
+        })
+
+        # Wait briefly for the camera to stabilise
+        time.sleep(0.3)
+
+        raw = picam2.capture_array("main")
+        if raw.ndim == 3 and raw.shape[2] == 4:
+            raw = cv2.cvtColor(raw, cv2.COLOR_BGRA2BGR)
+        logger.info(f"RPI snapshot captured ({raw.shape[1]}x{raw.shape[0]})")
+        return raw
+
+    except Exception as e:
+        logger.error(f"RPI snapshot failed: {e}")
+        return None
+
+    finally:
+        if picam2 is not None:
+            try:
+                picam2.stop()
+                picam2.close()
+            except Exception:
+                pass
+
+
+def _capture_av_snapshot() -> Optional[np.ndarray]:
+    """Capture a full-resolution AV snapshot by briefly pausing the stream.
+
+    The streaming grab thread uses 2x2 binning (1/4 resolution) and does not
+    allow changing camera settings while streaming. Therefore this function:
+      1. Checks whether the grab thread is running
+      2. Stops it briefly
+      3. Captures a frame at full sensor resolution (no binning)
+      4. Restarts the grab thread (if it was running)
+    """
+    global _grab_running, _grab_thread, _latest_frame
+    try:
+        from vmbpy import PersistType, FrameStatus
+
+        if _vmb_system is None:
+            logger.error("VmbSystem not initialized for AV snapshot")
+            return None
+
+        cams = _vmb_system.get_all_cameras()
+        if not cams:
+            logger.warning("No AV camera found for snapshot")
+            return None
+
+        exposure = int(get_camera_setting("exposure") or 140)
+        gain = float(get_camera_setting("gain") or 5.0)
+
+        # Check if the grab thread is running
+        was_running = _grab_running and _grab_thread is not None and _grab_thread.is_alive()
+        snapshot_frame = None
+
+        if was_running:
+            # Stop the grab thread so the camera is available for direct access
+            logger.info("AV snapshot: pausing stream grab thread...")
+            _grab_running = False
+            _grab_thread.join(timeout=3.0)
+
+        # Now capture a frame at full resolution (no binning)
+        try:
+            with cams[0] as cam:
+                # Load persisted settings
+                settings_file = "/home/Ento/LepmonOS/Kamera_Einstellungen_VimbaX.xml"
+                if os.path.exists(settings_file):
+                    try:
+                        cam.load_settings(settings_file, PersistType.All)
+                    except Exception as e:
+                        logger.warning(f"Could not load camera settings for snapshot: {e}")
+
+                # Ensure binning is disabled (1x1 = full sensor resolution)
+                try:
+                    cam.BinningHorizontal.set(1)
+                    cam.BinningVertical.set(1)
+                    logger.info("AV snapshot: binning set to 1x1 (full resolution)")
+                except Exception as e:
+                    logger.warning(f"Could not set binning for snapshot: {e}")
+
+                # Set exposure and gain
+                try:
+                    cam.ExposureTime.set(exposure * 1000)
+                    cam.Gain.set(gain)
+                except Exception as e:
+                    logger.warning(f"Could not set exposure/gain for snapshot: {e}")
+
+                # Capture frame
+                frame_obj = cam.get_frame(timeout_ms=5000)
+                if frame_obj.get_status() == FrameStatus.Complete:
+                    snapshot_frame = frame_obj.as_opencv_image()
+                    logger.info(f"AV snapshot captured ({snapshot_frame.shape[1]}x{snapshot_frame.shape[0]})")
+                else:
+                    logger.warning(f"AV snapshot: incomplete frame (status={frame_obj.get_status()})")
+        finally:
+            if was_running:
+                # Restart the grab thread
+                logger.info("AV snapshot: restarting stream grab thread...")
+                # Re-initialize the shared camera for the grab thread
+                with _shared_camera_lock:
+                    if _shared_camera is not None:
+                        _shared_camera.close()
+                        _shared_camera = None
+                    _shared_camera = SharedCamera()
+                    _latest_frame = None
+                _grab_thread = threading.Thread(
+                    target=_camera_grabbing_loop,
+                    args=(_shared_camera,),
+                    daemon=True,
+                )
+                _grab_running = True
+                _grab_thread.start()
+                logger.info("AV snapshot: grab thread restarted")
+
+        return snapshot_frame
+
+    except ImportError:
+        logger.error("VmbPy SDK not available for AV snapshot")
+        return None
+    except Exception as e:
+        logger.error(f"AV snapshot failed: {e}")
+        # Ensure the grab thread is restarted if it was running
+        try:
+            global_was_running = _grab_thread is not None and _grab_thread.is_alive()
+            if global_was_running:
+                logger.warning("AV snapshot: attempt to recover grab thread after error")
+                with _shared_camera_lock:
+                    if _shared_camera is not None:
+                        _shared_camera.close()
+                        _shared_camera = None
+                    _shared_camera = SharedCamera()
+                    _latest_frame = None
+                _grab_thread = threading.Thread(
+                    target=_camera_grabbing_loop,
+                    args=(_shared_camera,),
+                    daemon=True,
+                )
+                _grab_running = True
+                _grab_thread.start()
+        except Exception as recovery_err:
+            logger.error(f"AV snapshot: failed to recover grab thread: {recovery_err}")
+        return None
 
 
 # ── Camera state cache is in json_read_write.py (shared with Camera_AV.py) ──
@@ -1480,9 +1732,9 @@ def frame_generator_AV() -> Generator[bytes, None, None]:
 
     #Frame modification parameters
     target_width = 1080
-    text_scale = 0.7
+    text_scale = 1.2
     text_thickness = 2
-    text_area_height = 150 # Schwarzer Informationsbereich: 1080 x 150 Pixel
+    text_area_height = 160 # Schwarzer Informationsbereich: 1080 x 160 Pixel
 
     with stream_consumers_lock:
         stream_consumers += 1
@@ -1544,7 +1796,7 @@ def frame_generator_AV() -> Generator[bytes, None, None]:
                         frame = _latest_frame.copy()
                 if frame is None or frame.ndim < 2 or frame.shape[0] < 10 or frame.shape[1] < 10:
                     # Wait briefly for the next frame rather than spamming placeholders
-                    time.sleep(0.25)
+                    time.sleep(0.0125)
                     waiting_count += 1
                     if waiting_count == 1 or waiting_count % 10 == 0:
                         logger.info(
@@ -1554,8 +1806,7 @@ def frame_generator_AV() -> Generator[bytes, None, None]:
                     connecting = create_status_frame("Waiting for camera")
                     _, jpeg = cv2.imencode(".jpg", connecting, [cv2.IMWRITE_JPEG_QUALITY, 80])
                     yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n")
-                    # Frame rate control (~2 FPS to match grab thread rate)
-                    time.sleep(0.5)
+                    time.sleep(0.125)
                     continue
 
                 local_frame_count += 1
@@ -1610,50 +1861,53 @@ def frame_generator_AV() -> Generator[bytes, None, None]:
                 (text_area_height, target_width, 3), dtype=stretched.dtype)
                 stretched = np.vstack((stretched, text_area))
 
+                # Spaltenpositionen
+                col1_x = 1
+                col2_x = 361
+                col3_x = 721
 
-
-                cv2.putText(stretched, f"Focus: {focus_score:.1f}", (15, image_height + 35),
+                cv2.putText(stretched,
+                    f"Height: {h}",(col1_x, image_height + 32),
                     cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
 
-                cv2.putText(stretched, f"Brightness: {brightness:.1f}", (15, image_height + 70),
-                    cv2.FONT_HERSHEY_SIMPLEX,text_scale,(255, 255, 255), text_thickness, cv2.LINE_AA)
-                    
+                cv2.putText(stretched,
+                    f"Width: {w}", (col2_x, image_height + 32),
+                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
 
-                cv2.putText(stretched, f"Zoom: {zoom}, Downscale: {downscale}", (15, image_height + 105),
-                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)      
-
-                cv2.putText(stretched, f"Frame: {local_frame_count}", (15, image_height + 140),
+                cv2.putText(stretched,
+                    f"Frame: {local_frame_count}", (col3_x, image_height + 32),
                     cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
 
 
-                '''
-                # Add information area below the image
-                h, w = stretched.shape[:2]
-                text_area_height = 120
-                text_area = np.zeros((text_area_height, w, 3), dtype=stretched.dtype)
-                stretched = np.vstack((stretched, text_area))
+                cv2.line(stretched, (1, image_height + 53), (1079, image_height + 53), (255, 255, 255), 1, cv2.LINE_AA)
 
-                # Textgröße abhängig vom Zoom
-                text_scale = max(0.4, 0.9 - 0.15 * (zoom - 1))
-                text_thickness = max(1, int(round(text_scale * 2)))
+                cv2.putText(stretched,
+                    f"Zoom: {zoom:.1f}", (col1_x, image_height + 90),
+                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
+
+                cv2.putText(stretched,
+                    f"Downscale: {downscale:.1f}", (col2_x, image_height + 90),
+                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
+
+                cv2.putText(stretched,
+                    f"Focus: {focus_score:.1f}", (col3_x, image_height + 90),
+                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
 
 
-                cv2.putText(stretched, f"Focus: {focus_score:.1f}",
-                            (10, h + 30), cv2.FONT_HERSHEY_SIMPLEX,
-                            text_scale, (255, 255, 255), text_thickness)
+                cv2.line(stretched, (1, image_height + 108), (1079, image_height + 108), (255, 255, 255), 1, cv2.LINE_AA)
 
-                cv2.putText(stretched, f"Brightness: {brightness:.1f}",
-                            (10, h + 55), cv2.FONT_HERSHEY_SIMPLEX,
-                            text_scale, (255, 255, 255), text_thickness)
+                cv2.putText(stretched,
+                    f"Exposure: {get_camera_setting('exposure')}", (col1_x, image_height + 145),
+                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
 
-                cv2.putText(stretched, f"Zoom: {zoom}, Downscale: {downscale}",
-                            (10, h + 80), cv2.FONT_HERSHEY_SIMPLEX,
-                            text_scale, (255, 255, 255), text_thickness)
+                cv2.putText(stretched,
+                    f"Gain: {get_camera_setting('gain')}", (col2_x, image_height + 145),
+                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
 
-                cv2.putText(stretched, f"Frame: {local_frame_count}",
-                            (10, h + 105), cv2.FONT_HERSHEY_SIMPLEX,
-                            text_scale, (255, 255, 255), text_thickness)
-                '''
+                cv2.putText(stretched,
+                    f"Brightness: {brightness:.1f}", (col3_x, image_height + 145),
+                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
+
 
                 current_frame = stretched
 
@@ -1695,9 +1949,9 @@ def frame_generator_RPI() -> Generator[bytes, None, None]:
     
     #Frame modification parameters
     target_width = 1080
-    text_scale = 0.7
+    text_scale = 1.2
     text_thickness = 2
-    text_area_height = 150 # Schwarzer Informationsbereich: 1080 x 150 Pixel
+    text_area_height = 160 # Schwarzer Informationsbereich: 1080 x 150 Pixel
 
     with stream_consumers_lock:
         stream_consumers += 1
@@ -1928,7 +2182,15 @@ def create_status_frame(message: str) -> np.ndarray:
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     logger.info("Lepmon Web Service starting...")
+    _start_viewer_cleanup()
+    # Reset persistent viewer count — _CLIENT_REGISTRY is empty, old tokens are invalid.
+    set_viewer_count(0)
+    set_stream_viewers(0)
     yield
+    _stop_viewer_cleanup()
+    # Clean up on shutdown so no stale count persists across restarts.
+    set_viewer_count(0)
+    set_stream_viewers(0)
     logger.info("Lepmon Web Service shutting down...")
 
 
@@ -2002,9 +2264,19 @@ async def custom_redoc():
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """Serve the main web interface."""
+    try:
+        sn = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")
+        title = f"ARNI {sn} Remote"
+    except Exception:
+        title = "ARNI Remote"
+    try:
+        firmware_version = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "version")
+    except Exception:
+        firmware_version = "unknown"
     return templates.TemplateResponse(request, "index.html", {
-        "title": "Lepmon Camera Monitor",
-        "hardware_version": HARDWARE_VERSION
+        "title": title,
+        "hardware_version": HARDWARE_VERSION,
+        "firmware_version": firmware_version
     })
 
 
@@ -2121,27 +2393,57 @@ async def api_dimming_status():
 
 @app.get("/snapshot")
 async def snapshot():
-    """Capture and return a single JPEG snapshot."""
+    """Capture and return a single JPEG snapshot.
+
+    Pre-conditions (all must be true):
+      - Camera has power
+      - Capturing is NOT active
+      - Camera is free for web
+
+    If any pre-condition fails, a 503 JSON error is returned.
+    """
+    # ---- Guard: check camera state ------------------------------------------------
+    try:
+        camera_has_power      = get_camera_state("has_power")
+        camera_is_capturing   = get_camera_state("is_capturing")
+        camera_free_for_web   = get_camera_state("free_for_web")
+    except Exception:
+        camera_has_power      = False
+        camera_is_capturing   = False
+        camera_free_for_web   = False
+
+    # Also check capturing_state (cross-process)
     state = get_capturing_state()
-    if state.is_capturing:
+
+    if not camera_has_power:
+        return JSONResponse({"error 18": "Camera has no power"}, status_code=503)
+    if camera_is_capturing or state.is_capturing:
         return JSONResponse(
-            {"error": "Cannot capture snapshot while capturing is active"},
-            status_code=503
+            {"error 19": "Cannot capture snapshot while capturing is active"},
+            status_code=503,
+        )
+    if not camera_free_for_web:
+        return JSONResponse(
+            {"error 20": "Camera is not free for web"},
+            status_code=503,
         )
 
+    # ---- Capture frame ------------------------------------------------------------
     frame = None
     if EXPECTED_CAMERA_TYPE == "RPI":
-        # For RPI cameras, grab from the shared latest frame
+        # For RPI cameras, prefer the shared latest frame (if stream is running),
+        # otherwise open a short-lived Picamera2 session to grab a single frame.
         with _rpi_frame_lock:
             if _latest_frame_rpi is not None:
                 frame = _latest_frame_rpi.copy()
+        if frame is None:
+            frame = _capture_rpi_snapshot()
     else:
-        # For AV cameras, use the existing VmbPy path
-        with camera_lock:
-            frame = get_vimba_frame(
-                exposure=int(get_camera_setting("exposure") or 140),
-                gain=float(get_camera_setting("gain") or 5.0)
-            )
+        # For AV cameras, always capture a dedicated full-resolution frame.
+        # The streaming grab thread uses 2x2 binning (1/4 resolution), so we
+        # must NOT read from the shared _latest_frame. Instead we open a
+        # short-lived camera session with binning disabled (1x1).
+        frame = _capture_av_snapshot()
 
     if frame is None:
         return JSONResponse({"error": "Failed to capture frame"}, status_code=500)
@@ -2158,7 +2460,7 @@ async def snapshot():
     return Response(
         content=jpeg.tobytes(),
         media_type="image/jpeg",
-        headers={"Content-Disposition": "inline; filename=lepmon_snapshot.jpg"}
+        headers={"Content-Disposition": "inline; filename=lepmon_snapshot.jpg"},
     )
 
 
@@ -2197,8 +2499,73 @@ async def get_status():
         "is_detected": bool(camera_is_detected),
         "free_for_web": bool(camera_free_for_web),
         "web_requested": bool(camera_web_requested),
+        "stream_viewers": len(_CLIENT_REGISTRY),
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
     }
+
+
+# ─── Viewer Registration API ──────────────────────────────────────────────────
+# Every browser tab that loads the web UI registers here. On page unload it
+# unregisters. This counts ALL active viewers regardless of stream state.
+
+
+@app.post("/api/viewer/register")
+async def register_viewer():
+    """Register a new viewer. Called when the web page is loaded."""
+    token = str(uuid.uuid4())
+    with _CLIENT_REGISTRY_LOCK:
+        _CLIENT_REGISTRY[token] = time.time()
+        count = len(_CLIENT_REGISTRY)
+    set_stream_viewers(count)  # in-memory cache + JSON persistence
+    set_viewer_count(count)    # reliable /tmp file for cross-process reading
+    logger.info(f"Viewer registered. Total viewers: {count} [{token[:8]}...]")
+    return {"token": token}
+
+
+@app.post("/api/viewer/unregister")
+async def unregister_viewer(request: Request):
+    """Unregister a viewer. Called when the web page is closed/reloaded."""
+    token = ""
+    # Try query parameter first (works with sendBeacon + query string)
+    token = request.query_params.get("token", "")
+    if not token:
+        # Try JSON body
+        try:
+            body = await request.json()
+            token = body.get("token", "")
+        except Exception:
+            pass
+    if not token:
+        return {"ok": False, "reason": "no token"}
+
+    with _CLIENT_REGISTRY_LOCK:
+        removed = token in _CLIENT_REGISTRY
+        _CLIENT_REGISTRY.pop(token, None)
+        count = len(_CLIENT_REGISTRY)
+    set_stream_viewers(count)  # in-memory cache + JSON persistence
+    set_viewer_count(count)    # reliable /tmp file for cross-process reading
+    logger.info(f"Viewer {'unregistered' if removed else 'not found'}. Remaining viewers: {count}")
+    return {"ok": True}
+
+
+@app.post("/api/viewer/heartbeat")
+async def viewer_heartbeat(request: Request):
+    """Heartbeat: keeps the viewer alive. Called every 5 seconds by each active tab."""
+    token = request.query_params.get("token", "")
+    if not token:
+        try:
+            body = await request.json()
+            token = body.get("token", "")
+        except Exception:
+            pass
+    if not token:
+        return {"ok": False, "reason": "no token"}
+
+    with _CLIENT_REGISTRY_LOCK:
+        if token in _CLIENT_REGISTRY:
+            _CLIENT_REGISTRY[token] = time.time()
+            return {"ok": True}
+    return {"ok": False, "reason": "token not found"}
 
 
 @app.get("/api/sensors")
@@ -2359,7 +2726,7 @@ async def update_camera_settings(settings: dict):
             gain = max(0, min(48, float(gain)))
             set_camera_setting("gain", gain)
         if stream_downscale is not None:
-            stream_downscale = max(1, min(20, int(stream_downscale)))
+            stream_downscale = max(1.0, min(5.0, float(stream_downscale)))
             set_camera_setting("downscale", stream_downscale)
         if stream_zoom is not None:
             stream_zoom = max(1, min(5, int(stream_zoom)))
@@ -2753,6 +3120,7 @@ async def get_usb_files():
                 "path": filepath,
                 "rel": rel,
                 "name": os.path.basename(filepath),
+                "size": os.path.getsize(filepath),
             })
     return {"files": files}
 
@@ -2838,9 +3206,48 @@ async def get_location_info():
         return {"error": str(e)}
 
 
+# --- HTTPS Configuration ---
+_SSL_DIR = os.path.expanduser("~/.lepmon_ssl")
+_SSL_CERT = os.path.join(_SSL_DIR, "lepmon.crt")
+_SSL_KEY = os.path.join(_SSL_DIR, "lepmon.key")
+
+def _ensure_https_cert():
+    """Generate a self-signed certificate if it doesn't exist."""
+    if os.path.exists(_SSL_CERT) and os.path.exists(_SSL_KEY):
+        return True
+    
+    os.makedirs(_SSL_DIR, exist_ok=True)
+    try:
+        subprocess.run([
+            "openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+            "-keyout", _SSL_KEY, "-out", _SSL_CERT, "-days", "3650",
+            "-subj", "/CN=LepmonOS",
+        ], check=True, capture_output=True)
+        logger.info(f"Created self-signed SSL certificate at {_SSL_CERT}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to create SSL certificate: {e}")
+        return False
+
 def run_server(host: str = "0.0.0.0", port: int = 8080):
-    """Run the FastAPI server."""
-    uvicorn.run(app, host=host, port=port, log_level="info")
+    """Run the FastAPI server with HTTPS support."""
+    has_ssl = _ensure_https_cert()
+    
+    config = {
+        "app": app,
+        "host": host,
+        "port": port,
+        "log_level": "info",
+    }
+    
+    if has_ssl:
+        config["ssl_certfile"] = _SSL_CERT
+        config["ssl_keyfile"] = _SSL_KEY
+        logger.info(f"Starting Lepmon Web Service on https://{host}:{port}")
+    else:
+        logger.warning(f"Starting Lepmon Web Service on http://{host}:{port} (no SSL)")
+
+    uvicorn.run(**config)
 
 
 def start_background_server(host: str = "0.0.0.0", port: int = 8080):
@@ -2869,6 +3276,8 @@ if __name__ == "__main__":
     _start_camera_state_sync()
     # Start camera release monitor (5s interval — frees camera when free_for_web is False)
     _start_camera_release_monitor()
+    # Start viewer heartbeat cleanup (now handled by lifespan, no longer started here)
+    pass
 
-    
+
     run_server(args.host, args.port)

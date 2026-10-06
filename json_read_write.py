@@ -1,6 +1,7 @@
 import json
 import threading
 from fram_direct import read_fram
+import time
 
 # Cache for Coordinates
 # note that there is a function which returns a global variable to be none. This triggers a reread of the cached coordinates (after a user reentered them)
@@ -16,6 +17,7 @@ _camera_state = {
     "free_for_web": False,
     "web_requested": False,
     "web_focus_active": False,
+    "stream_viewers": 0,
 }
 _camera_state_lock = threading.Lock()
 
@@ -28,7 +30,10 @@ def _load_camera_state_from_file():
         state = data.get("Camera_state", {})
         for key in _camera_state:
             val = state.get(key)
-            if isinstance(val, bool):
+            if key == "stream_viewers":
+                if isinstance(val, int):
+                    _camera_state[key] = val
+            elif isinstance(val, bool):
                 _camera_state[key] = val
     except Exception:
         pass  # use defaults
@@ -44,6 +49,31 @@ def set_camera_state(key: str, value):
     """Write a camera state value into the in-memory cache (thread-safe)."""
     with _camera_state_lock:
         _camera_state[key] = value
+
+
+def set_stream_viewers(count: int):
+    """Update the stream viewers count in the in-memory cache and persist to JSON.
+    Only writes to JSON if the value actually changed (to avoid unnecessary I/O)."""
+    with _camera_state_lock:
+        current = _camera_state.get("stream_viewers", 0)
+        if current == count:
+            return  # nothing changed, no need to write
+        _camera_state["stream_viewers"] = count
+
+    # Best-effort JSON persistence
+    try:
+        write_value_to_section(
+            "/home/Ento/LepmonOS/Lepmon_web_viewers.json",
+            "Camera_state",
+            "stream_viewers",
+            count,
+        )
+        print(f"Updated JSON Viewer Count. New Count is {count}")
+        time.sleep(.1)
+    except Exception as e:
+        print(f"Error writing to JSON: {e}")
+        time.sleep(1)
+          # Cache is the source of truth; JSON persistence is best-effort
 
 
 # Populate the cache at module load time
@@ -195,6 +225,7 @@ def set_Camera_States_false():
     set_camera_state("free_for_web", False)
     set_camera_state("web_requested", False)
     set_camera_state("web_focus_active", False)
+    set_stream_viewers(0)
     # Best-effort JSON persistence (may fail with Permission denied — that's OK)
     try:
         write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "has_power", False)

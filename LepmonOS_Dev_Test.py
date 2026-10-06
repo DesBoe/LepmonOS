@@ -177,6 +177,7 @@ if __name__ == "__main__":
     print("############################################")
 '''
 
+'''
 ### Cam on
 from gpiozero import LED
 import time
@@ -186,3 +187,4 @@ camera.on
 time.sleep(60)
 camera.off
 print("ENDE")
+'''

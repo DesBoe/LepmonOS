@@ -41,11 +41,11 @@
         .logo {
             font-size: 1.5rem;
             font-weight: bold;
-            color: var(--highlight);
+            color: #582F18;
         }
         
         .logo span {
-            color: var(--text);
+            color: #ffffff;
         }
         
         .status-badge {
@@ -76,14 +76,8 @@
             margin: 0 auto;
             padding: 2rem;
             display: grid;
-            grid-template-columns: 1fr 320px;
+            grid-template-columns: 1fr;
             gap: 2rem;
-        }
-        
-        @media (max-width: 1024px) {
-            .container {
-                grid-template-columns: 1fr;
-            }
         }
         
         .stream-container {
@@ -143,6 +137,9 @@
             display: flex;
             gap: 0.5rem;
             align-items: center;
+        }
+        .camera-mode-buttons .btn {
+            min-height: 36px;
         }
         .camera-mode-buttons .btn-sm {
             padding: 0.3rem 0.8rem;
@@ -653,6 +650,7 @@
             font-size: 1rem;
             color: var(--highlight);
             margin: 0;
+            border-bottom: none;
         }
         
         .gallery-header .usb-status {
@@ -832,11 +830,11 @@
         
         <aside class="sidebar">
             <div class="card">
-                <div class="settings-header-row">
+                <div class="gallery-header">
                     <h3>⚙️ Camera Settings<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h3>
                     <div class="camera-mode-buttons">
-                        <button id="exposureAutoBtn" class="btn btn-success btn-sm" onclick="setExposureMode('auto')">Auto</button>
-                        <button id="exposureManualBtn" class="btn btn-secondary btn-sm" onclick="setExposureMode('manual')">Manual</button>
+                        <button id="exposureAutoBtn" class="btn btn-success" onclick="setExposureMode('auto')">Auto</button>
+                        <button id="exposureManualBtn" class="btn btn-secondary" onclick="setExposureMode('manual')">Manual</button>
                     </div>
                 </div>
                 <div class="stat-row">
@@ -853,9 +851,9 @@
                     <span class="stat-label">Downscale</span>
                     <div class="slider-row">
                         <input type="range" id="downscaleSlider" class="settings-slider"
-                               min="1" max="20" step="1" value="8"
+                               min="1" max="5" step="0.5" value="1"
                                oninput="document.getElementById('downscaleValue').textContent=this.value">
-                        <span id="downscaleValue" class="slider-value">8</span>
+                        <span id="downscaleValue" class="slider-value">1</span>
                     </div>
                 </div>
                 <div class="stat-row">
@@ -1041,16 +1039,14 @@
         <div class="gallery-card">
             <div class="gallery-header">
                 <h3>🌙 Experiment Timing<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h3>
+                <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                    <span id="currentStepHeader" style="font-size:0.9rem; color:var(--text);">⚡ Current Step: ---</span>
+                </div>
             </div>
 
             <table class="sensor-table">
 
                 <tbody id="timingTableBody">
-
-                    <tr>
-                        <td class="sensor-value-name">⚡ Current Step</td>
-                        <td id="currentStepValue">---</td>
-                    </tr>
 
                     <tr class="sensor-group-row">
                         <td>✨ Experiment Start</td>
@@ -1198,20 +1194,28 @@
             <div class="gallery-header">
                 <h3>📲 Download USB<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h3>
                 <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
-                    <span id="usbFileCount" style="font-size:0.8rem; color:var(--text-dim);">USB nicht gefunden</span>
-                    <button class="btn btn-secondary" onclick="refreshUsbCount()">↻ Aktualisieren</button>
-                    <button class="btn btn-primary" onclick="downloadUsbZip()">⬇ Download ZIP</button>
+                    <span id="usbFileCount" style="font-size:0.8rem; color:var(--text-dim);">USB not found</span>
+                    <button class="btn btn-secondary" onclick="refreshUsbCount()">↻ Reload</button>
+                    <button class="btn btn-primary" onclick="downloadUsbZip()">⬇ Start Download</button>
                 </div>
             </div>
             <div style="padding:1rem;">
-                <div class="progress-container" style="display:none;">
-                    <div class="progress-bar-bg" style="width:100%; height:24px; background:var(--bg-dark); border-radius:12px; overflow:hidden;">
-                        <div id="usbProgressBar" class="progress-bar-fill" style="width:0%; height:100%; background:var(--success); border-radius:12px; transition:width 0.3s; display:flex; align-items:center; justify-content:center;">
-                            <span id="usbProgressText" style="font-size:0.75rem; color:#000; font-weight:bold;">0%</span>
-                        </div>
-                    </div>
-                    <p id="usbProgressLabel" style="margin-top:0.5rem; font-size:0.8rem; color:var(--text-dim);">Bereit...</p>
+                <div class="focus-meter">
+                    <div id="usbProgressBar" class="focus-meter-fill" style="width: 0%"></div>
+                    <div id="usbProgressText" class="focus-meter-label">0%</div>
                 </div>
+                <table class="sensor-table" style="margin-top:0.5rem;">
+                    <tbody>
+                        <tr>
+                            <td class="sensor-value-name" style="width:120px;">Status</td>
+                            <td id="usbProgressLabel">Ready...</td>
+                        </tr>
+                        <tr>
+                            <td class="sensor-value-name">Current folder</td>
+                            <td id="usbCurrentFolder">---</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </section>
@@ -1225,13 +1229,94 @@
     </div>
     
     <footer>
-        ARNI Diagnostics | Status Interfaces
+        ARNI Diagnostics v{{ firmware_version | default("unknown", true) }}
     </footer>
     
     <script>
         let streamEnabled = true;
         var lastIsCapturing = false;  // synced by updateStatus() from server
         const streamImage = document.getElementById('streamImage');
+
+        /* ---- Viewer Registration ---- */
+        // Register this browser tab as a viewer. On page unload, unregister.
+        // Mobile-robust: wraps localStorage in try-catch, uses pagehide + sendBeacon.
+        (function registerViewer() {
+            var STORAGE_KEY = 'lepmon_viewer_token';
+            var myToken = '';
+            var heartbeatInterval = null;
+
+            // Safe storage helpers (localStorage can throw on mobile / private mode)
+            function safeGetStorage(key) {
+                try { return localStorage.getItem(key); } catch(e) { return null; }
+            }
+            function safeSetStorage(key, val) {
+                try { localStorage.setItem(key, val); } catch(e) { /* ignore */ }
+            }
+            function safeRemoveStorage(key) {
+                try { localStorage.removeItem(key); } catch(e) { /* ignore */ }
+            }
+
+            function unregisterSilent(token) {
+                if (!token) return;
+                if (navigator.sendBeacon) {
+                    navigator.sendBeacon(
+                        '/api/viewer/unregister?token=' + encodeURIComponent(token),
+                        new Blob([JSON.stringify({token: token})], {type: 'application/json'})
+                    );
+                } else {
+                    fetch('/api/viewer/unregister?token=' + encodeURIComponent(token), {method: 'POST'});
+                }
+            }
+
+            function startHeartbeat(token) {
+                // Send heartbeat every 5 seconds so the server knows we're still alive.
+                // If Wi-Fi drops, server auto-removes us after 30s (HEARTBEAT_TIMEOUT).
+                heartbeatInterval = setInterval(function() {
+                    fetch('/api/viewer/heartbeat?token=' + encodeURIComponent(token), {
+                        method: 'POST',
+                        keepalive: true
+                    }).catch(function() {
+                        // Network errors are expected when Wi-Fi drops — just keep trying.
+                    });
+                }, 5000);
+            }
+
+            function stopHeartbeat() {
+                if (heartbeatInterval) {
+                    clearInterval(heartbeatInterval);
+                    heartbeatInterval = null;
+                }
+            }
+
+            // Try to re-use a previously stored token.
+            myToken = safeGetStorage(STORAGE_KEY) || '';
+            if (myToken) {
+                // Re-use existing token and start heartbeating immediately.
+                startHeartbeat(myToken);
+            } else {
+                fetch('/api/viewer/register', {method: 'POST'})
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        myToken = data.token;
+                        safeSetStorage(STORAGE_KEY, myToken);
+                        startHeartbeat(myToken);
+                    })
+                    .catch(function(err) {
+                        // If registration fails (e.g. network offline), we silently give up.
+                        console.warn('Viewer register failed:', err);
+                    });
+            }
+
+            function doUnregister() {
+                stopHeartbeat();
+                unregisterSilent(myToken);
+                safeRemoveStorage(STORAGE_KEY);
+            }
+
+            // 'pagehide' is much more reliable on mobile (iOS/Android) than 'beforeunload'
+            window.addEventListener('beforeunload', doUnregister);
+            window.addEventListener('pagehide', doUnregister);
+        })();
 
         // ── Hardware version (injected from backend via Jinja2) ──
 
@@ -1423,33 +1508,32 @@
                 .then(data => {
                     const el = document.getElementById('usbFileCount');
                     if (data.mounted) {
-                        el.textContent = data.count + ' Dateien gefunden';
+                        el.textContent = data.count + ' files found';
                         el.style.color = 'var(--success)';
                     } else {
-                        el.textContent = 'USB nicht gefunden';
+                        el.textContent = 'USB not found';
                         el.style.color = 'var(--text-dim)';
                     }
                 })
                 .catch(err => {
-                    document.getElementById('usbFileCount').textContent = 'Fehler';
+                    document.getElementById('usbFileCount').textContent = 'Error';
                     console.error('USB count failed:', err);
                 });
         }
         
         async function downloadUsbZip() {
-            const progressContainer = document.querySelector('.progress-container');
             const progressBar = document.getElementById('usbProgressBar');
             const progressText = document.getElementById('usbProgressText');
             const progressLabel = document.getElementById('usbProgressLabel');
             
-            progressContainer.style.display = 'block';
             progressBar.style.width = '0%';
             progressText.textContent = '0%';
-            progressLabel.textContent = 'Wähle Zielordner...';
+            progressLabel.textContent = 'Select target folder...';
+            document.getElementById('usbCurrentFolder').textContent = '--';
             
             // Ask user to pick a target directory (File System Access API)
             if (!window.showDirectoryPicker) {
-                progressLabel.textContent = 'Browser unterstützt kein Directory-Picker. Bitte verwende Chrome/Edge.';
+                progressLabel.textContent = 'Browser does not support Directory Picker. Please use Chrome or Edge.';
                 return;
             }
             
@@ -1462,11 +1546,12 @@
                 const files = data.files || [];
                 
                 if (files.length === 0) {
-                    progressLabel.textContent = 'Keine Dateien gefunden';
+                    progressLabel.textContent = 'No files found';
                     return;
                 }
                 
-                progressLabel.textContent = `Starte Download von ${files.length} Dateien...`;
+                let skipped = 0;
+                progressLabel.textContent = `Starting download of ${files.length} files...`;
                 
                 for (let i = 0; i < files.length; i++) {
                     const file = files[i];
@@ -1480,12 +1565,33 @@
                         }
                     }
                     
+                    // Check if file already exists in target directory
+                    const fileName = parts[parts.length - 1];
+                    let fileAlreadyExists = false;
+                    try {
+                        await currentDir.getFileHandle(fileName, { create: false });
+                        fileAlreadyExists = true;
+                    } catch (e) {
+                        // FileNotFoundError – file does not exist yet, proceed with download
+                    }
+                    
+                    if (fileAlreadyExists) {
+                        skipped++;
+                        const pct = Math.round(((i + 1) / files.length) * 100);
+                        progressBar.style.width = pct + '%';
+                        progressText.textContent = pct + '%';
+                        progressLabel.textContent = `Skipped: ${i + 1} / ${files.length} – ${file.name} (already exists)`;
+                        const currentFolder = parts.length > 1 ? parts.slice(0, -1).join('/') : 'Root';
+                        document.getElementById('usbCurrentFolder').textContent = currentFolder;
+                        continue;
+                    }
+                    
                     // Download and write file
                     const fileResp = await fetch(`/api/usb/raw/${encodeURIComponent(file.rel)}`);
                     if (!fileResp.ok) continue;
                     
                     const blob = await fileResp.blob();
-                    const fileHandle = await currentDir.getFileHandle(parts[parts.length - 1], { create: true });
+                    const fileHandle = await currentDir.getFileHandle(fileName, { create: true });
                     const writable = await fileHandle.createWritable();
                     await writable.write(blob);
                     await writable.close();
@@ -1494,15 +1600,19 @@
                     progressBar.style.width = pct + '%';
                     progressText.textContent = pct + '%';
                     progressLabel.textContent = `Download: ${i + 1} / ${files.length} – ${file.name}`;
+                    
+                    const currentFolder = parts.length > 1 ? parts.slice(0, -1).join('/') : 'Root';
+                    document.getElementById('usbCurrentFolder').textContent = currentFolder;
                 }
                 
-                progressLabel.textContent = `Fertig! ${files.length} Dateien heruntergeladen.`;
+                const downloaded = files.length - skipped;
+                progressLabel.textContent = `Done! ${downloaded} downloaded, ${skipped} skipped (already exists).`;
                 
             } catch (err) {
                 if (err.name === 'AbortError') {
-                    progressLabel.textContent = 'Download abgebrochen.';
+                    progressLabel.textContent = 'Download cancelled.';
                 } else {
-                    progressLabel.textContent = 'Fehler: ' + err.message;
+                    progressLabel.textContent = 'Error: ' + err.message;
                 }
                 console.error('USB download failed:', err);
             }
@@ -1534,9 +1644,9 @@
                         cameraPowerAlert.classList.remove('show');
                     }
 
-                    console.log('[Status] images_captured=', data.images_captured, 'stream_consumers=', data.stream_consumers, 'stream_active=', data.stream_active);
+                    console.log('[Status] images_captured=', data.images_captured, 'stream_viewers=', data.stream_viewers, 'stream_consumers=', data.stream_consumers, 'stream_active=', data.stream_active);
                     document.getElementById('imagesCount').textContent = data.images_captured || '0';
-                    document.getElementById('viewersCount').textContent = data.stream_consumers || '0';
+                    document.getElementById('viewersCount').textContent = data.stream_viewers || '0';
                     document.getElementById('timestamp').textContent = data.timestamp;
 
                     // Show the MJPEG stream ONLY when BOTH conditions are true:
@@ -1781,7 +1891,7 @@
         function applyCameraSettings() {
             const exposure = parseFloat(document.getElementById('exposureInput').value);
             const gain = parseFloat(document.getElementById('gainInput').value);
-            const downscale = parseInt(document.getElementById('downscaleSlider').value);
+            const downscale = parseFloat(document.getElementById('downscaleSlider').value);
             const zoom = parseInt(document.getElementById('zoomSlider').value);
             const statusDiv = document.getElementById('settingsStatus');
 
@@ -1825,6 +1935,24 @@
             });
         }
         
+        let autoExposureIntervalId = null;
+
+        function pollAutoExposure() {
+            fetch('/api/camera/settings')
+                .then(response => response.json())
+                .then(data => {
+                    const exposureInput = document.getElementById('exposureInput');
+                    const gainInput = document.getElementById('gainInput');
+                    if (exposureInput && data.exposure !== undefined) {
+                        exposureInput.value = data.exposure;
+                    }
+                    if (gainInput && data.gain !== undefined) {
+                        gainInput.value = data.gain;
+                    }
+                })
+                .catch(() => {}); // Silent fail to avoid console noise
+        }
+        
         function setExposureMode(mode) {
             const autoBtn = document.getElementById('exposureAutoBtn');
             const manualBtn = document.getElementById('exposureManualBtn');
@@ -1836,11 +1964,20 @@
                 manualBtn.className = 'btn btn-secondary btn-sm';
                 exposureInput.disabled = true;
                 gainInput.disabled = true;
+                // Start polling current auto-exposure values every second
+                if (autoExposureIntervalId) clearInterval(autoExposureIntervalId);
+                pollAutoExposure(); // Immediate update
+                autoExposureIntervalId = setInterval(pollAutoExposure, 1000);
             } else {
                 manualBtn.className = 'btn btn-success btn-sm';
                 autoBtn.className = 'btn btn-secondary btn-sm';
                 exposureInput.disabled = false;
                 gainInput.disabled = false;
+                // Stop polling when switching to manual
+                if (autoExposureIntervalId) {
+                    clearInterval(autoExposureIntervalId);
+                    autoExposureIntervalId = null;
+                }
             }
             
             fetch('/api/camera/exposure_mode', {
@@ -1865,11 +2002,21 @@
                         manualBtn.className = 'btn btn-secondary btn-sm';
                         exposureInput.disabled = true;
                         gainInput.disabled = true;
+                        // Start polling if switched to auto externally
+                        if (!autoExposureIntervalId) {
+                            pollAutoExposure();
+                            autoExposureIntervalId = setInterval(pollAutoExposure, 1000);
+                        }
                     } else {
                         manualBtn.className = 'btn btn-success btn-sm';
                         autoBtn.className = 'btn btn-secondary btn-sm';
                         exposureInput.disabled = false;
                         gainInput.disabled = false;
+                        // Stop polling if switched to manual externally
+                        if (autoExposureIntervalId) {
+                            clearInterval(autoExposureIntervalId);
+                            autoExposureIntervalId = null;
+                        }
                     }
                 })
                 .catch(err => console.error('Failed to update exposure mode:', err));
@@ -1962,6 +2109,9 @@
                     else if (currentStep === "wait")      stepIcon = "⏳ Waiting";
                     else if (currentStep === "end")       stepIcon = "🏁 Ended";
                     else if (currentStep === "local_menu") stepIcon = "📟 Menu";
+                    
+                    // Update current step in header
+                    document.getElementById('currentStepHeader').textContent = `⚡ Current Step: ${stepIcon}`;
 
                     // ── Dynamic solar-based times from lepmon_web_tables.py ──
                     var sunset       = v(data.sunset);
@@ -1985,16 +2135,7 @@
                         return ts;
                     };
 
-                    // Build the Current Step row with a highlighted class
-                    var stepClass = (currentStep === "capturing") ? 'sensor-status-ok' : 'timing-step-value';
-                    var currentStepRow =
-                        '<tr>' +
-                            '<td class="sensor-value-name">⚡ Current Step</td>' +
-                            '<td class="' + stepClass + '">' + stepIcon + '</td>' +
-                        '</tr>';
-
                     table.innerHTML =
-                        currentStepRow +
                         '<tr class="sensor-group-row">' +
                             '<td>✨ Experiment Start</td>' +
                             '<td>' + sunset + '</td>' +

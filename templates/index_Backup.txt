@@ -76,14 +76,8 @@
             margin: 0 auto;
             padding: 2rem;
             display: grid;
-            grid-template-columns: 1fr 320px;
+            grid-template-columns: 1fr;
             gap: 2rem;
-        }
-        
-        @media (max-width: 1024px) {
-            .container {
-                grid-template-columns: 1fr;
-            }
         }
         
         .stream-container {

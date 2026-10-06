@@ -100,7 +100,11 @@ Logging_MESSAGES = {
     14: ("Foto hat Sanity Check nicht bestanden und wurde neu aufgenommen", "Fehler 14"),
     15: ("Pakete installation nach Update fehlgeschlagen", "Fehler 15"),
     16: ("Land/Region konnte nicht bestimmt werden", "Fehler 16"),
-    17: {"Prüfe Knopfzellen Batterie der RTC", "Fehler 17"}
+    17: {"Prüfe Knopfzellen Batterie der RTC", "Fehler 17"} 
+    ### Error codes for stream --> snapshot functionality in lepmon_web_service.py
+    #18:Camera has no power; status_code=503
+    #19:Cannot capture snapshot while capturing is active; status_code=503
+    #20:Camera is not free for web; status_code=503
 }
 
 ERROR_COUNTER_ADDR = {

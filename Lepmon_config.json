@@ -38,13 +38,14 @@
         "is_capturing": false,
         "free_for_web": false,
         "web_requested": false,
-        "web_focus_active": false
+        "web_focus_active": false,
+        "stream_viewers": 0
     },
     "Camera_Stream": {
         "gain": 7,
-        "exposure": 120,
+        "exposure": 20,
         "zoom": 1.5,
-        "downscale": 6
+        "downscale": 2.5
     },
     "RPI_Module_3": {
         "initial_gain_10": 7,
