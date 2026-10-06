@@ -586,6 +586,21 @@
             border: 2px solid var(--text);
         }
 
+        .settings-slider:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .settings-slider:disabled::-webkit-slider-thumb {
+            cursor: not-allowed;
+            background: var(--text);
+        }
+
+        .settings-slider:disabled::-moz-range-thumb {
+            cursor: not-allowed;
+            background: var(--text);
+        }
+
         .slider-value {
             min-width: 28px;
             text-align: center;
@@ -865,17 +880,22 @@
                         <span id="zoomValue" class="slider-value">2</span>
                     </div>
                 </div>
-                {% if hardware_version == "CSS_Gen_1" %}
+                <div class="stat-row" style="flex-wrap: wrap; gap: 0.25rem;">
+                    <span class="stat-label">Focus</span>
+                    <div class="camera-mode-buttons">
+                        <button id="focusAutoBtn" class="btn btn-secondary btn-sm" onclick="setFocusMode('auto')">Auto</button>
+                        <button id="focusManualBtn" class="btn btn-success btn-sm" onclick="setFocusMode('manual')">Manual</button>
+                    </div>
+                </div>
                 <div class="stat-row" id="focusDiopterRow">
                     <span class="stat-label">Focus (Dioptrien)</span>
                     <div class="slider-row">
                         <input type="range" id="focusSlider" class="settings-slider"
                                min="-15" max="1" step="0.5" value="0"
-                               oninput="document.getElementById('focusValue').textContent=this.value">
+                               oninput="document.getElementById('focusValue').textContent=this.value; sendFocusDiopter(this.value)">
                         <span id="focusValue" class="slider-value">0</span>
                     </div>
                 </div>
-                {% endif %}
                 <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;"
                         onclick="applyCameraSettings()">
                     Apply & Save
@@ -1876,7 +1896,7 @@
                     if (zSlider) zSlider.value = data.stream_zoom || 2;
                     if (zValue) zValue.textContent = data.stream_zoom || 2;
 
-                    // CSS_Gen_1: Update Focus Diopter slider + display
+                    // Update Focus Diopter slider + display
                     const fSlider = document.getElementById('focusSlider');
                     const fValue = document.getElementById('focusValue');
                     if (fSlider) {
@@ -1902,7 +1922,7 @@
                 stream_zoom: zoom
             };
 
-            // CSS_Gen_1: also send focus diopter
+            // Always send focus diopter (primary focus control)
             const fSlider = document.getElementById('focusSlider');
             if (fSlider) {
                 payload.focus_diopter = parseFloat(fSlider.value);
@@ -2022,6 +2042,51 @@
                 .catch(err => console.error('Failed to update exposure mode:', err));
         }
         
+        // ── Focus mode (auto / manual diopter) ──
+        // The diopter slider is always visible; it's disabled in auto mode
+        // and enabled in manual mode for user override.
+
+        function setFocusMode(mode) {
+            var autoBtn = document.getElementById('focusAutoBtn');
+            var manualBtn = document.getElementById('focusManualBtn');
+            var focusSlider = document.getElementById('focusSlider');
+
+            if (mode === 'auto') {
+                autoBtn.className = 'btn btn-success btn-sm';
+                manualBtn.className = 'btn btn-secondary btn-sm';
+                // Disable slider in auto mode — camera controls focus
+                if (focusSlider) focusSlider.disabled = true;
+            } else {
+                manualBtn.className = 'btn btn-success btn-sm';
+                autoBtn.className = 'btn btn-secondary btn-sm';
+                // Enable slider in manual mode — user controls focus
+                if (focusSlider) focusSlider.disabled = false;
+            }
+
+            fetch('/api/camera/focus_mode', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({mode: mode})
+            }).catch(function(err) { console.error('Failed to set focus mode:', err); });
+        }
+
+        function sendFocusDiopter(value) {
+            fetch('/api/camera/settings', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({focus_diopter: parseFloat(value)})
+            }).catch(function(err) { console.error('Failed to send focus diopter:', err); });
+        }
+
+        function updateFocusMode() {
+            fetch('/api/camera/focus_mode')
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    setFocusMode(data.mode || 'manual');
+                })
+                .catch(function(err) { console.error('Failed to update focus mode:', err); });
+        }
+
         function updateLocation() {
             fetch('/api/location')
                 .then(response => response.json())
@@ -2301,6 +2366,7 @@
         loadCameraState();
         loadCameraSettings();
         updateExposureMode();
+        updateFocusMode();
         loadGallery();
         loadLog();
         loadCSV();
@@ -2316,6 +2382,7 @@
         setInterval(loadDimmingStatus, 2000);
         setInterval(updateCameraInfo, 5000);
         setInterval(updateExposureMode, 3000);
+        setInterval(updateFocusMode, 3000);
         setInterval(loadCameraState, 2000);
         setInterval(updateStorage, 30000);
         setInterval(updateTiming, 30000);

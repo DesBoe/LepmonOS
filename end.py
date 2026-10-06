@@ -18,6 +18,7 @@ from logging_utils import *
 from times import *
 from fram_operations import store_times_power
 from runtime import *
+from viewer_state import get_viewer_count
 
 GPIO.setmode(GPIO.BCM)
 
@@ -26,6 +27,20 @@ GPIO.setup(Power_control_GPIO, GPIO.OUT, initial=GPIO.HIGH)
 
 from hardware import get_hardware_version  
 HARDWARE_VERSION = get_hardware_version()
+
+
+def check_for_viewers():
+    """Check if there are active viewers and delay if necessary."""
+    viewer_count = get_viewer_count()
+    if viewer_count > 0:
+        log_schreiben(f"Reboot angefragt, es sind noch {viewer_count} Viewer aktiv. Shutdown wird verzögert.", log_mode)
+        show_message("remove_viewers", lang=lang, viewer_count=viewer_count)
+        while viewer_count > 0:
+            time.sleep(5)
+            viewer_count = get_viewer_count()
+            show_message("remove_viewers", lang=lang, viewer_count=viewer_count)
+    if viewer_count == 0:
+        log_schreiben("Keine Viewer mehr aktiv, fahre fort.", log_mode)
 
 def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
     ''' 
@@ -54,6 +69,7 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
 
 
     if execution == "during_run":
+        check_for_viewers()
         log_schreiben("Shutdown während laufendem Experiment ausgelöst - Erwate Fortsetzung des Experiments im selben Ordner nach Neustart", log_mode)
         log_schreiben("sofortiger Reboot in 5 Sekunden", log_mode)
         log_schreiben("##################################",log_mode)
@@ -147,6 +163,7 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
 
 
     if execution == "force_reboot":
+        check_for_viewers()
         print("Setze Controlbit auf True")
         write_fram_bytes(0x07A0, b'\x01')
         write_timestamp(0x07E0)
@@ -169,6 +186,7 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
             log_schreiben("##################################",log_mode)
             time.sleep(5)
             if execution == "full":
+                check_for_viewers()
                 os.system("sudo reboot")
                 time.sleep(2)
                 print("Systembefehl zum Neustart ausgeführt.")
@@ -182,6 +200,7 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
             log_schreiben("##################################",log_mode)
             time.sleep(2)
             if execution == "full":
+                check_for_viewers()
                 os.system("sudo shutdown -r 5")
             elif execution != "full":
                 print("System würde jetzt im PV Modus neu starten (Reboot in 61 Sekunden)")
@@ -194,6 +213,7 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
             log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###",log_mode)
             log_schreiben("##################################",log_mode)
             time.sleep(5)
+            check_for_viewers()
             if execution == "full":
                 os.system("sudo reboot")
                 time.sleep(2)
@@ -210,6 +230,7 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
                 time.sleep(0.25)
                 print("System würde jetzt im Power Safe Modus herunterfahren (Attiny übernimmt Steuerung)")
             elif execution == "full" or execution == "test":
+                check_for_viewers()
                 GPIO.output(Power_control_GPIO, GPIO.LOW)
             status = GPIO.input(Power_control_GPIO)
             log_schreiben(f"Status GPIO Pin für Power Control: {status}", log_mode)

@@ -35,6 +35,7 @@ import logging
 import glob
 from hardware import get_hardware_version
 from picamera2 import Picamera2, Preview
+from libcamera import controls
 from json_read_write import get_value_from_section, write_value_to_section, get_camera_state, set_camera_state, set_stream_viewers
 from viewer_state import set_viewer_count, get_viewer_count
 # Setup logging
@@ -596,6 +597,8 @@ def _rpi_grabbing_loop(handler: SharedRPICamera) -> None:
                 applied_exposure = Exposure
                 applied_gain = Gain
                 last_exposure_mode = "auto"  # Track mode transitions
+                last_focus_mode = get_camera_setting("focus_mode") or "manual"
+                applied_focus = 5.3  # default lens position
                 while _rpi_grab_running and handler.is_open:
                     is_capturing = get_camera_state("is_capturing") or False
                     free_for_web = get_camera_state("free_for_web") or False
@@ -612,23 +615,33 @@ def _rpi_grabbing_loop(handler: SharedRPICamera) -> None:
 
                     # Detect mode transition → lock / unlock camera auto controls
                     if curr_mode != last_exposure_mode:
-                        try:
-                            if curr_mode == "manual":
-                                # Switching to manual: disable camera auto controls
-                                # so the manual values actually stick
-                                picam2.set_controls({"AeEnable": False, "AgEnable": False})
-                                logger.info("RPI grab thread: switched to manual mode, disabled camera auto controls")
-                            last_exposure_mode = curr_mode
-                        except Exception as e:
-                            logger.warning(f"RPI could not set camera auto controls: {e}")
+                        if curr_mode == "manual":
+                            # Switching to manual: disable camera auto controls
+                            # so the manual values actually stick.
+                            # Set each control individually — some cameras (e.g. RPI
+                            # Module 3) don't advertise AgEnable and would fail with a
+                            # combined set_controls() call.
+                            for ctrl_name, ctrl_val in [("AeEnable", False), ("AgEnable", False)]:
+                                try:
+                                    picam2.set_controls({ctrl_name: ctrl_val})
+                                except Exception:
+                                    pass  # Control not advertised — ignore
+                            logger.info("RPI grab thread: switched to manual mode, disabled camera auto controls")
+                        last_exposure_mode = curr_mode
 
                     if curr_mode == "auto":
                         # Auto mode: recalculate exposure/gain on frame 1 and every 10th frame
                         auto_frame_count += 1
                         if auto_frame_count == 1 or auto_frame_count % 10 == 0:
                             try:
-                                # Enable auto exposure/gain for this frame
-                                picam2.set_controls({"AeEnable": True, "AgEnable": True})
+                                # Enable auto exposure/gain for this frame.
+                                # Set each control individually — some cameras don't
+                                # advertise AgEnable and would fail with a combined call.
+                                for ctrl_name, ctrl_val in [("AeEnable", True), ("AgEnable", True)]:
+                                    try:
+                                        picam2.set_controls({ctrl_name: ctrl_val})
+                                    except Exception:
+                                        pass  # Control not advertised — ignore
                                 time.sleep(0.05)  # Brief delay for camera to adjust
                                 
                                 # Get the auto-calculated values from camera metadata
@@ -669,7 +682,53 @@ def _rpi_grabbing_loop(handler: SharedRPICamera) -> None:
                                 logger.info(f"RPI grab thread: updated Exposure={curr_exp}ms, Gain={curr_gain}dB")
                             except Exception as e:
                                 logger.warning(f"RPI could not update exposure/gain: {e}")
-                    
+
+                    # ── Focus mode handling (auto/manual lens position) ──
+                    curr_focus_mode = get_camera_setting("focus_mode") or "manual"
+                    if curr_focus_mode != last_focus_mode:
+                        try:
+                            if curr_focus_mode == "auto":
+                                picam2.set_controls({
+                                    "AfMode": controls.AfModeEnum.Continuous
+                                })
+                                logger.info("RPI grab thread: focus -> auto (continuous)")
+                            else:
+                                picam2.set_controls({
+                                    "AfMode": controls.AfModeEnum.Manual,
+                                    "LensPosition": applied_focus,
+                                })
+                                logger.info(f"RPI grab thread: focus -> manual, locked LensPosition={applied_focus:.2f}")
+                            last_focus_mode = curr_focus_mode
+                        except Exception as e:
+                            logger.warning(f"RPI could not set focus mode: {e}")
+
+                    if curr_focus_mode == "auto":
+                        if auto_frame_count % 10 == 0:
+                            try:
+                                meta = picam2.capture_metadata("main")
+                                auto_lens = meta.get("LensPosition", applied_focus)
+                                set_camera_setting("lens_position", round(auto_lens, 2))
+                                applied_focus = auto_lens
+                                logger.info(f"RPI grab thread: auto focus LensPosition={auto_lens:.2f}")
+                            except Exception as e:
+                                logger.warning(f"RPI read lens position failed: {e}")
+                    else:
+                        # Manual mode: read focus_diopter and convert to lens position.
+                        # Diopter range: -15 (macro) .. 1 (infinity)
+                        # Lens position range: 0.0 (macro) .. 10.0 (infinity)
+                        curr_diopter = float(get_camera_setting("focus_diopter") or -8)
+                        curr_focus = max(0.0, min(10.0, (curr_diopter + 15) / 16 * 10))
+                        if abs(curr_focus - applied_focus) > 0.1:
+                            try:
+                                picam2.set_controls({
+                                    "AfMode": controls.AfModeEnum.Manual,
+                                    "LensPosition": curr_focus,
+                                })
+                                applied_focus = curr_focus
+                                logger.info(f"RPI grab thread: manual LensPosition={curr_focus:.2f} (diopter={curr_diopter:.1f})")
+                            except Exception as e:
+                                logger.warning(f"RPI update lens position failed: {e}")
+
                     try:
                         raw = picam2.capture_array("main")
                         if raw.ndim == 3 and raw.shape[2] == 4:
@@ -952,6 +1011,10 @@ _CAMERA_SETTINGS = {
     "downscale": 8,       # int (1–20)
     "zoom": 2,            # int (1–5)
     "_exposure_mode": "auto",  # auto or manual
+    "focus_mode": "manual",    # auto or manual (for lens position / autofocus)
+    "lens_position": 5.3,      # current lens position read from camera (auto mode)
+    "focus_diopter_pos": 5.3,  # legacy: manual lens position 0.0 (infinity) – 10.0 (macro)
+    "focus_diopter": -8.0,     # primary focus control in diopters: -15 (macro) .. 1 (infinity)
 }
 
 def _load_camera_settings_from_file() -> dict:
@@ -2067,48 +2130,53 @@ def frame_generator_RPI() -> Generator[bytes, None, None]:
                 stretched = np.vstack((stretched, text_area))
 
 
+                # Spaltenpositionen
+                col1_x = 1
+                col2_x = 351
+                col3_x = 701
 
-                cv2.putText(stretched, f"Focus: {focus_score:.1f}", (15, image_height + 35),
+                cv2.putText(stretched,
+                    f"Height: {h}",(col1_x, image_height + 32),
                     cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
 
-                cv2.putText(stretched, f"Brightness: {brightness:.1f}", (15, image_height + 70),
-                    cv2.FONT_HERSHEY_SIMPLEX,text_scale,(255, 255, 255), text_thickness, cv2.LINE_AA)
-                    
+                cv2.putText(stretched,
+                    f"Width: {w}", (col2_x, image_height + 32),
+                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
 
-                cv2.putText(stretched, f"Zoom: {zoom}, Downscale: {downscale}", (15, image_height + 105),
-                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)      
-
-                cv2.putText(stretched, f"Frame: {local_frame_count}", (15, image_height + 140),
+                cv2.putText(stretched,
+                    f"Frame: {local_frame_count}", (col3_x, image_height + 32),
                     cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
 
 
+                cv2.line(stretched, (1, image_height + 53), (1079, image_height + 53), (255, 255, 255), 1, cv2.LINE_AA)
 
-                '''
-                text_area_height = 120
-                text_area = np.zeros((text_area_height, w, stretched.shape[2]), dtype=stretched.dtype)
-                stretched = np.vstack((stretched, text_area))
+                cv2.putText(stretched,
+                    f"Zoom: {zoom:.1f}", (col1_x, image_height + 90),
+                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
 
-                # Textgröße abhängig vom Zoom
-                text_scale = max(0.4, 0.9 - 0.15 * (zoom - 1))
-                text_thickness = max(1, int(round(text_scale * 2)))
-                
+                cv2.putText(stretched,
+                    f"Downscale: {downscale:.1f}", (col2_x, image_height + 90),
+                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
 
-                cv2.putText(stretched, f"Focus: {focus_score:.1f}",
-                            (10, h + 30), cv2.FONT_HERSHEY_SIMPLEX,
-                            text_scale, (255, 255, 255), text_thickness)
+                cv2.putText(stretched,
+                    f"Focus: {focus_score:.1f} @ {get_camera_setting('focus_diopter'):.1f}D", (col3_x, image_height + 90),
+                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
 
-                cv2.putText(stretched, f"Brightness: {brightness:.1f}",
-                            (10, h + 55), cv2.FONT_HERSHEY_SIMPLEX,
-                            text_scale, (255, 255, 255), text_thickness)
 
-                cv2.putText(stretched, f"Zoom: {zoom}, Downscale: {downscale}",
-                            (10, h + 80), cv2.FONT_HERSHEY_SIMPLEX,
-                            text_scale, (255, 255, 255), text_thickness)
+                cv2.line(stretched, (1, image_height + 108), (1079, image_height + 108), (255, 255, 255), 1, cv2.LINE_AA)
 
-                cv2.putText(stretched, f"Frame: {local_frame_count}",
-                            (10, h + 105), cv2.FONT_HERSHEY_SIMPLEX,
-                            text_scale, (255, 255, 255), text_thickness)
-                '''
+                cv2.putText(stretched,
+                    f"Exposure: {get_camera_setting('exposure')}", (col1_x, image_height + 145),
+                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
+
+                cv2.putText(stretched,
+                    f"Gain: {get_camera_setting('gain')}", (col2_x, image_height + 145),
+                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
+
+                cv2.putText(stretched,
+                    f"Brightness: {brightness:.1f}", (col3_x, image_height + 145),
+                    cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255, 255, 255), text_thickness, cv2.LINE_AA)
+
 
                 _, jpeg = cv2.imencode(".jpg", stretched, [cv2.IMWRITE_JPEG_QUALITY, 80])
                 yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n")
@@ -2689,11 +2757,12 @@ async def get_camera_settings():
         "exposure": get_camera_setting("exposure"),
         "gain": get_camera_setting("gain"),
         "stream_downscale": get_camera_setting("downscale"),
-        "stream_zoom": get_camera_setting("zoom")
+        "stream_zoom": get_camera_setting("zoom"),
+        "focus_mode": get_camera_setting("focus_mode"),
+        "lens_position": get_camera_setting("lens_position"),
+        "focus_diopter_pos": get_camera_setting("focus_diopter_pos"),
+        "focus_diopter": get_camera_setting("focus_diopter"),  # primary focus control (diopter)
     }
-    # CSS_Gen_1: include focus diopter
-    if HARDWARE_VERSION == "CSS_Gen_1":
-        result["focus_diopter"] = get_camera_setting("focus_diopter")
     return result
 
 
@@ -2717,6 +2786,7 @@ async def update_camera_settings(settings: dict):
         stream_downscale = settings.get("stream_downscale")
         stream_zoom = settings.get("stream_zoom")
         focus_diopter = settings.get("focus_diopter")
+        focus_diopter_pos = settings.get("focus_diopter_pos")  # manual lens position for non-CSS_Gen_1
 
         # Validate and sanitize
         if exposure is not None:
@@ -2731,9 +2801,12 @@ async def update_camera_settings(settings: dict):
         if stream_zoom is not None:
             stream_zoom = max(1, min(5, int(stream_zoom)))
             set_camera_setting("zoom", stream_zoom)
-        if focus_diopter is not None and HARDWARE_VERSION == "CSS_Gen_1":
+        if focus_diopter is not None:
             focus_diopter = max(-15, min(1, float(focus_diopter)))
             set_camera_setting("focus_diopter", focus_diopter)
+        if focus_diopter_pos is not None:
+            focus_diopter_pos = max(0.0, min(10.0, float(focus_diopter_pos)))
+            set_camera_setting("focus_diopter_pos", focus_diopter_pos)
 
         # Log the new values
         logger.info(
@@ -2782,6 +2855,31 @@ async def set_exposure_mode(mode_data: dict):
     set_camera_setting("_exposure_mode", mode)
     logger.info(f"Exposure mode set to: {exposure_mode}")
     return {"mode": exposure_mode}
+
+
+# ── Focus mode: 'auto' (autofocus) or 'manual' (fixed lens position) ──
+
+@app.get("/api/camera/focus_mode")
+async def get_focus_mode():
+    """Get current focus mode."""
+    return {"mode": get_camera_setting("focus_mode") or "manual"}
+
+
+@app.post("/api/camera/focus_mode")
+async def set_focus_mode(mode_data: dict):
+    """Set focus mode (auto or manual).
+
+    In auto mode the camera runs continuous autofocus and the current
+    LensPosition is reported back every 10 frames.
+    In manual mode the user-supplied focus_diopter_pos (0.0–10.0) is
+    applied as a fixed LensPosition.
+    """
+    mode = mode_data.get("mode", "manual")
+    if mode not in ("auto", "manual"):
+        mode = "manual"
+    set_camera_setting("focus_mode", mode)
+    logger.info(f"Focus mode set to: {mode}")
+    return {"mode": mode}
 
 
 def _persist_camera_settings_to_file() -> None:
@@ -3277,7 +3375,5 @@ if __name__ == "__main__":
     # Start camera release monitor (5s interval — frees camera when free_for_web is False)
     _start_camera_release_monitor()
     # Start viewer heartbeat cleanup (now handled by lifespan, no longer started here)
-    pass
-
-
     run_server(args.host, args.port)
+

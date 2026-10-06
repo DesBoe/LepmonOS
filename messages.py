@@ -621,7 +621,12 @@ MESSAGE_REGISTER = {
         "en": ("Warning: Only","Raspberry time","updated"),
         "es": ("Advertencia: Solo","hora de Raspberry","actualizada")
     },
-            
+    "remove_viewers": {
+        "sleep": 0,
+        "de": ("Bitte alle", "{viewer_count}Webverbindungen","trennen"),
+        "en": ("Please dis-","connect all {viewer_count}", "web connections"),
+        "es": ("desconecte", "todas {viewer_count} las", "conexiones web")
+    },
     ### camera ###
     "cam_1": {
         "sleep": 1,
