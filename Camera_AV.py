@@ -204,10 +204,11 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4)
                 if not cams:
                     log_schreiben("Keine Kamera gefunden (vmbpy).", log_mode=log_mode)
                     raise RuntimeError("Keine Kamera gefunden (vmbpy).")
-                model = cam.get_model()
-                serial = cam.get_serial()
-
-                log_schreiben(f"Diagnose: Kamera Modell: {model}, Seriennummer: {serial}", log_mode=log_mode)
+                with cams[0] as cam:
+                    model = cam.get_model()
+                    serial = cam.get_serial()
+                    log_schreiben(f"Diagnose: Kamera Modell: {model}, Seriennummer: {serial}", log_mode=log_mode)
+                    
         except Exception as e:
             log_schreiben(f"Fehler in der Diagnose beim ermitteln der Kamera-Daten: {e}", log_mode=log_mode)
             

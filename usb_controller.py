@@ -15,7 +15,9 @@ def find_usb_mount():
     per-user udisks/desktop automount path (/media/<user>/<LABEL>).
     """
     username = os.getenv('USER')
-    search_paths = ["/media/usb"]
+    search_paths = ["/media/usb",
+                    "/media/Ento",  # Legacy path for the 'Ento' user
+                    "/media/pi"]    # Legacy path for the 'pi' user
     if username:
         search_paths.append(f"/media/{username}")
 

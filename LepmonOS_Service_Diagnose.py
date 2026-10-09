@@ -25,7 +25,7 @@ from logging_utils import log_schreiben
 
 
 print("Check Serielnumber in line 28")
-sn = "SN010063"
+sn = "SN010140"
 
 print("\nStarte Diagnose. Schritt 1-10 frei einstellbar in Zeile 32 (1-OLED,2-LEDs,3-Sensoren,4-Uhr,5-RAM,6-RAM_löschen,7-RAM_Konfiguration,8-Knöpfe,9-Kamera,10-set_sample_times)\n")
 
@@ -43,13 +43,6 @@ selected_tests = {
         9: "Kamera", 
         10: "set_sample_times"
     }
-
-
-
-try:
-    write_fram(0x0110, sn)
-except Exception as e:
-    print(f"Fehler beim Schreiben der Seriennummer in den FRAM: {e}")
 
 
 def buttons(up, down, right, inp, oben, unten, rechts, enter):
@@ -171,28 +164,11 @@ def nehme_bild_auf(camera, log_mode, Kamera_Fehlerserie, sn):
         
         
     print(f"Leistungsaufnahme Visible LED:{power_on}")
-    log_schreiben(f"Listungsaufnahme Visible LED:{power_on}", log_mode)
+    log_schreiben(f"Leistungsaufnahme Visible LED:{power_on}", log_mode)
 
 
     
     return photo_sanity_check, code, Status_Kamera, Kamera_Fehlerserie
-
-'''
-def set_sn():
-    valid = False
-    while not valid:
-        sn_input = input("Seriennummer im Format 123456: ").strip()
-        print(f"DEBUG: Eingabe war: '{sn_input}' (Länge: {len(sn_input)})")
-        if re.match(r"^\d{6}$", sn_input):
-            sn = f"SN{sn_input}"
-            valid = True
-            print(f"Seriennummer: {sn}") 
-            write_fram(0x0110, sn)
-            return sn
-        else:
-            print("Ungültiges Format. Beispiel: 123456")
-            time.sleep(.5)
-'''
 
 
 def LEDs():
@@ -321,45 +297,48 @@ if __name__ == "__main__":
 
 
 
-
-
     print("FRAM Konfigurator und ARNI Diagnose GEN 4")
     print(f"Achtung! Verschiedene Generationen für ARNI Pro und CS. Überprüfe config.ini Einträge!\naktuelle Konfiguration:\nARNI Version:   {ARNI_version},\nBackplane Version:{backplane_version},\nLieferdatum an PMJ:    {lieferdatum_an_PMJ}\n")
     time.sleep(2)
-    '''
-    check = input("Verwende:\n"
-        "  Pro_Gen_4 für Allied Vision Variante\n"
-        "  CSS_Gen_1 für 3D Druck\n"
-        "  CSL_Gen_1 für Einbeiniges Gerät\n"
-        "\n"
-        "Eintrag ist kontrolliert und korrekt: 'ok'\n"
-        "Korrektur nötig: 'stop'\n"
-    )
-    if check.strip().lower() == "ok":
-        configuration_ok = True
+
+
+
+
+    if 0 in selected_tests:
+        try:
+            write_fram(0x0110, sn)
+            print(f"Seriennummer gesetzt auf: {sn}")
+            new_sn = True
+            sn_for_datafiles = sn
+        except Exception as e:
+            print(f"Fehler beim Schreiben der Seriennummer in den FRAM: {e}")
+            new_sn = False
     else:
-        print("Diagnose abgebrochen. Korrigiere .ini Datei und starte erneut.")
-        exit()
-    '''
+        print("Seriennummer nicht gesetzt, verwende bereits vorhandene Seriennummer aus dem FRAM")
+        new_sn = False
+        _, _, _, sn_for_datafiles = get_Lepmon_code(log_mode)
+    print("erster log in main")
+
+
+    set_paths(sn_for_datafiles)
+    
+    
+    
+    log_schreiben(f"Diagnose mit Firmware Version: {Firmware_version} vom {Firmware_date} gestartet", log_mode)
+    log_schreiben(f"{20*'-'}", log_mode)
+
+    if new_sn:
+        log_schreiben(f"Seriennummer gesetzt auf: {sn}", log_mode)
+    
+    log_schreiben("Durchzuführende Tests:", log_mode)
+    for nummer, test in selected_tests.items():
+        log_schreiben(f"{nummer}: {test}", log_mode)
+    log_schreiben(f"{20*'-'}", log_mode)
 
     
-
-    '''   
-    if 0 in selected_tests:
-        sn = set_sn()
-        
-    else:
-        sn = "SN000000"
-    '''
-    set_paths(sn)
-    print("erster log in main")
-    log_schreiben(f"Diagnose mit Firmware Version: {Firmware_version} vom {Firmware_date} gestartet", log_mode)
-    log_schreiben(f"Seriennummer gesetzt auf: {sn}","Diagnose")
-    print(f"Seriennummer gesetzt auf: {sn}")
     
 
     if 1 in selected_tests:
-        log_schreiben("---------------------------", log_mode)
         log_schreiben("Initialisiere Display", log_mode)
         print("Initialisiere Display")
         try:
@@ -624,7 +603,7 @@ if __name__ == "__main__":
         LepiLED_start("show")
         log_schreiben("Strahler und UV an", log_mode)
 
-        photo_sanity_check, code, Status_Kamera, Kamera_Fehlerserie = nehme_bild_auf(camera, log_mode, Kamera_Fehlerserie, sn)
+        photo_sanity_check, code, Status_Kamera, Kamera_Fehlerserie = nehme_bild_auf(camera, log_mode, Kamera_Fehlerserie, sn_for_datafiles)
 
         LepiLED_ende("show")
         log_schreiben("Strahler und UV aus", log_mode)

@@ -3375,5 +3375,7 @@ if __name__ == "__main__":
     # Start camera release monitor (5s interval — frees camera when free_for_web is False)
     _start_camera_release_monitor()
     # Start viewer heartbeat cleanup (now handled by lifespan, no longer started here)
+    print("run manually in Terminal:")
+    print("/home/Ento/Lepmon_env/bin/python /home/Ento/LepmonOS/lepmon_web_service.py")
     run_server(args.host, args.port)
 
