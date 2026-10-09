@@ -31,17 +31,17 @@ print("\nStarte Diagnose. Schritt 1-10 frei einstellbar in Zeile 32 (1-OLED,2-LE
 
 selected_tests = {
         
-        #0 : "Seriennummer",
-        #1: "OLED",
-        #2: "LEDs",
-        #3: "Sensoren",
-        #4: "Uhr",
+        #0: "Seriennummer",
+        1: "OLED",
+        2: "LEDs",
+        3: "Sensoren",
+        4: "Uhr",
         5: "RAM",
         6: "RAM_löschen",
         7: "RAM_Konfiguration",
-        #8: "Knöpfe",
-        #9: "Kamera", 
-        #10: "set_sample_times"
+        8: "Knöpfe",
+        9: "Kamera", 
+        10: "set_sample_times"
     }
 
 
@@ -316,6 +316,10 @@ if __name__ == "__main__":
     print("Configuration aus .ini Datei gelesen")
     zeile1, zeile2, zeile3, zeile4, zeile5, zeile6 = "", "", "", "", "", ""
 
+    Firmware_version = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "version")
+    Firmware_date = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "date")
+
+
 
 
 
@@ -349,6 +353,7 @@ if __name__ == "__main__":
     '''
     set_paths(sn)
     print("erster log in main")
+    log_schreiben(f"Diagnose mit Firmware Version: {Firmware_version} vom {Firmware_date} gestartet", log_mode)
     log_schreiben(f"Seriennummer gesetzt auf: {sn}","Diagnose")
     print(f"Seriennummer gesetzt auf: {sn}")
     
