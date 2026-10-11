@@ -398,6 +398,10 @@
             color: var(--highlight);
         }
 
+        .sensor-status-locked {
+            color: var(--warning);
+        }
+
         .sensor-group-row td {
             background: rgba(15, 52, 96, 0.35);
             color: var(--text);
@@ -932,6 +936,101 @@
             cursor: pointer;
             z-index: 1001;
         }
+        /* ---- PDF Preview Section ---- */
+        .pdf-section {
+            grid-column: 1 / -1;
+        }
+        
+        .pdf-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--accent);
+        }
+        
+        .pdf-preview-container {
+            padding: 1rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .pdf-embed-wrapper {
+            width: 100%;
+            height: 900px;
+            border: 2px solid var(--accent);
+            border-radius: 8px;
+            overflow: hidden;
+            background: #0b1020;
+        }
+        
+        .pdf-embed-wrapper embed,
+        .pdf-embed-wrapper iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        .pdf-download-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+        
+        .pdf-file-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .pdf-file-icon {
+            font-size: 1.5rem;
+        }
+        
+        .pdf-file-name {
+            font-weight: 500;
+            color: var(--text);
+        }
+        
+        .pdf-download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: var(--highlight);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.2s, transform 0.1s;
+        }
+        
+        .pdf-download-btn:hover {
+            background: #c73a52;
+            transform: translateY(-1px);
+        }
+        
+        .pdf-download-btn:active {
+            transform: translateY(0);
+        }
+        
+        @media(max-width:768px) {
+            .pdf-embed-wrapper {
+                height: 600px;
+            }
+            .pdf-download-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .pdf-download-btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1382,6 +1481,29 @@
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- PDF Manual Preview -->
+    <section class="gallery-section">
+        <div class="gallery-card">
+            <div class="gallery-header">
+                <h3>📖 ARNI Manual<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h3>
+                <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                    <a href="ARNI_Manual--ENG.pdf" download class="btn btn-primary">⬇ Download Manual</a>
+                </div>
+            </div>
+            <div style="padding:1rem;">
+                <div class="pdf-embed-wrapper">
+                    <embed src="ARNI_Manual--ENG.pdf#toolbar=0&navpanes=0" type="application/pdf">
+                </div>
+                <div class="pdf-download-row" style="margin-top:1rem;">
+                    <div class="pdf-file-info">
+                        <span class="pdf-file-icon">📄</span>
+                        <span class="pdf-file-name">ARNI_Manual--ENG.pdf</span>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -1900,46 +2022,78 @@
                 });
         }
 
+        /* ---- Cached sensor data (kept across updates) ---- */
+        var _lastSensorData = null;
+
         function updateSensors() {
             fetch('/api/sensors')
-                .then(response => response.json())
-                .then(data => {
-                    const tableBody = document.getElementById('sensorTableBody');
-                    if (data.error) {
-                        data = {
-                            values: { time_read: '--', jetzt_local: '---', LUX: '---', Temp_in: '---', bus_voltage: '---', shunt_voltage: '---', current: '---', power: '---', Temp_out: '---', air_pressure: '---', air_humidity: '---' },
-                            status: { rtc_status: 0, Light_Sensor: 0, Inner_Sensor: 0, Power_Sensor: 0, Environment_Sensor: 0 }
-                        };
+                .then(response => {
+                    // 503 → sensors locked by capturing/diagnose
+                    if (!response.ok && response.status === 503) {
+                        if (_lastSensorData) {
+                            renderSensorTable(_lastSensorData, true);
+                        }
+                        return;
                     }
-
-                    const values = data.values;
-                    const status = data.status;
-                    const groups = [
-                        ['💡 Ambient Light Sensor', 'Light_Sensor', [['Ambient Light', 'LUX', 'Lux']]],
-                        ['🌡️ Inner Sensor', 'Inner_Sensor', [['Inner Temperature', 'Temp_in', '°C']]],
-                        ['⚡ Power Sensor', 'Power_Sensor', [['Bus Voltage', 'bus_voltage', 'V'], ['Shunt Voltage', 'shunt_voltage', 'V'], ['Current', 'current', 'mA'], ['Power', 'power', 'mW']]],
-                        ['🌦️ Environment Sensor', 'Environment_Sensor', [['Temperature', 'Temp_out', '°C'], ['Air Pressure', 'air_pressure', 'hPa'], ['Air Humidity', 'air_humidity', '%']]]
-                    ];
-
-                    let rows = `<tr><td class="sensor-value-name">🕒 Time on Raspberry</td><td>${values.time_read || '---'}</td></tr>`;
-                    rows += `<tr class="sensor-group-row"><td>🕒 Real Time Clock (RTC)</td><td class="${status.rtc_status === 1 ? 'sensor-status-ok' : 'sensor-status-error'}">${status.rtc_status === 1 ? '✅' : '❌'}</td></tr>`;
-                    rows += `<tr><td class="sensor-value-name">RTC Time</td><td>${values.jetzt_local || '---'}</td></tr>`;
-                    groups.forEach(([name, statusKey, measurements]) => {
-                        const available = status[statusKey] === 1;
-                        rows += `<tr class="sensor-group-row"><td>${name}</td><td class="${available ? 'sensor-status-ok' : 'sensor-status-error'}">${available ? '✅' : '❌'}</td></tr>`;
-                        measurements.forEach(([label, key, unit]) => {
-                            const value = values[key] ?? '---';
-                            rows += `<tr><td class="sensor-value-name">${label}</td><td>${value} ${unit}</td></tr>`;
-                        });
+                    return response.json().then(data => {
+                        if (data.error) {
+                            // Generic error — clear the display
+                            data = {
+                                values: { time_read: '--', jetzt_local: '---', LUX: '---', Temp_in: '---', bus_voltage: '---', shunt_voltage: '---', current: '---', power: '---', Temp_out: '---', air_pressure: '---', air_humidity: '---' },
+                                status: { rtc_status: 0, Light_Sensor: 0, Inner_Sensor: 0, Power_Sensor: 0, Environment_Sensor: 0 }
+                            };
+                        }
+                        // Cache the good data for locked-state fallback
+                        _lastSensorData = data;
+                        renderSensorTable(data, false);
                     });
-                    tableBody.innerHTML = rows;
-                    var ts = document.getElementById('sensorTimestamp');
-                    if (ts) ts.textContent = values.time_read || '--';
                 })
                 .catch(() => {
                     var ts = document.getElementById('sensorTimestamp');
                     if (ts) ts.textContent = '--';
                 });
+        }
+
+        function renderSensorTable(data, isLocked) {
+            const tableBody = document.getElementById('sensorTableBody');
+            const values = data.values;
+            const status = data.status;
+            const groups = [
+                ['💡 Ambient Light Sensor', 'Light_Sensor', [['Ambient Light', 'LUX', 'Lux']]],
+                ['🌡️ Inner Sensor', 'Inner_Sensor', [['Inner Temperature', 'Temp_in', '°C']]],
+                ['⚡ Power Sensor', 'Power_Sensor', [['Bus Voltage', 'bus_voltage', 'V'], ['Shunt Voltage', 'shunt_voltage', 'V'], ['Current', 'current', 'mA'], ['Power', 'power', 'mW']]],
+                ['🌦️ Environment Sensor', 'Environment_Sensor', [['Temperature', 'Temp_out', '°C'], ['Air Pressure', 'air_pressure', 'hPa'], ['Air Humidity', 'air_humidity', '%']]]
+            ];
+
+            // When locked → all status cells show a yellow lock icon
+            var statusClass, statusIcon;
+            if (isLocked) {
+                statusClass = 'sensor-status-locked';
+                statusIcon = '🔒';
+            }
+
+            let rows = `<tr><td class="sensor-value-name">🕒 Time on Raspberry</td><td>${values.time_read || '---'}</td></tr>`;
+            if (isLocked) {
+                rows += `<tr class="sensor-group-row"><td>🕒 Real Time Clock (RTC)</td><td class="${statusClass}">${statusIcon}</td></tr>`;
+            } else {
+                rows += `<tr class="sensor-group-row"><td>🕒 Real Time Clock (RTC)</td><td class="${status.rtc_status === 1 ? 'sensor-status-ok' : 'sensor-status-error'}">${status.rtc_status === 1 ? '✅' : '❌'}</td></tr>`;
+            }
+            rows += `<tr><td class="sensor-value-name">RTC Time</td><td>${values.jetzt_local || '---'}</td></tr>`;
+            groups.forEach(([name, statusKey, measurements]) => {
+                if (isLocked) {
+                    rows += `<tr class="sensor-group-row"><td>${name}</td><td class="${statusClass}">${statusIcon}</td></tr>`;
+                } else {
+                    const available = status[statusKey] === 1;
+                    rows += `<tr class="sensor-group-row"><td>${name}</td><td class="${available ? 'sensor-status-ok' : 'sensor-status-error'}">${available ? '✅' : '❌'}</td></tr>`;
+                }
+                measurements.forEach(([label, key, unit]) => {
+                    const value = values[key] ?? '---';
+                    rows += `<tr><td class="sensor-value-name">${label}</td><td>${value} ${unit}</td></tr>`;
+                });
+            });
+            tableBody.innerHTML = rows;
+            var ts = document.getElementById('sensorTimestamp');
+            if (ts) ts.textContent = values.time_read || '--';
         }
         
         function updateCameraInfo() {

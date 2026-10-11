@@ -18,6 +18,7 @@ _camera_state = {
     "web_requested": False,
     "web_focus_active": False,
     "stream_viewers": 0,
+    "sensors_free_for_web": True,
 }
 _camera_state_lock = threading.Lock()
 

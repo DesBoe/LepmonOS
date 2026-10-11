@@ -233,6 +233,8 @@ def snap_image_rpi(file_extension, cam_mode, Kamera_Fehlerserie, log_mode, expec
     write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing", True)
     write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "free_for_web", False)
 
+    time.sleep(3.5)
+
     avg_brightness, good_exposure = "---", False
     image_correction = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","capture_mode","gamma_correction")
 

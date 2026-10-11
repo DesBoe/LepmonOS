@@ -211,6 +211,12 @@ def capturing(log_mode):
 
     # Schleife
     while True:
+
+        # block Camera already here to avoid webserver accessing it
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "is_capturing", True)
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "free_for_web", False)
+        write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "sensors_free_for_web", False)
+        
         _, lokale_Zeit,_ = Zeit_aktualisieren(log_mode)
         photo_sanity_check = False
         good_exposure = False
@@ -391,7 +397,8 @@ def capturing(log_mode):
                 except Exception as e:
                     log_schreiben(f"Fehler beim Erstellen/Aktualisieren der CSV Datei: {e}", log_mode)
 
-
+                #Sensoren wieder freigeben
+                write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "sensors_free_for_web", True)
 
                 last_image = datetime.strptime(lokale_Zeit, "%H:%M:%S")
                 if interval >= 1:

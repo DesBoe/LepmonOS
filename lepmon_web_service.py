@@ -1641,6 +1641,7 @@ _CAMERA_STATE_SYNC_KEYS = [
     "free_for_web",
     "web_requested",
     "web_focus_active",
+    "sensors_free_for_web",
 ]
 
 _sync_running = True
@@ -2587,6 +2588,16 @@ async def capture_image_placeholder():
     return FileResponse(templates_dir / "Capture_Image.png")
 
 
+@app.get("/ARNI_Manual--ENG.pdf")
+async def arni_manual():
+    """Serve the ARNI Manual PDF from the templates directory."""
+    return FileResponse(
+        templates_dir / "ARNI_Manual--ENG.pdf",
+        media_type="application/pdf",
+        filename="ARNI_Manual--ENG.pdf"
+    )
+
+
 @app.get("/stream")
 async def video_stream():
     """MJPEG video stream endpoint. Only served when focus session allows it."""
@@ -2865,7 +2876,24 @@ async def viewer_heartbeat(request: Request):
 
 @app.get("/api/sensors")
 async def get_sensors():
-    """Read and return the current I2C sensor values for the web monitor."""
+    """Read and return the current I2C sensor values for the web monitor.
+
+    Only served when sensors are free for web (not locked by capturing/diagnose).
+    """
+    # ---- Guard: check if sensors are free for web ----------------------------------
+    try:
+        sensors_free_for_web = get_camera_state("sensors_free_for_web")
+        logger.info(f"Sensors free for web: {sensors_free_for_web}")
+    except Exception:
+        sensors_free_for_web = False
+        logger.warning("Could not read sensors_free_for_web state; assuming False")
+
+    if not sensors_free_for_web:
+        return JSONResponse(
+            {"error": "Sensors are not free for web"},
+            status_code=503,
+        )
+
     try:
         from sensor_data import read_sensor_data
         from times import Zeit_aktualisieren

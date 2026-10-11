@@ -767,6 +767,8 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
 
                             
                     if current == "diagnose_start":
+
+                            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "sensors_free_for_web", False)
                             log_schreiben("------------------", log_mode=log_mode)
                             log_schreiben("Starte Systemcheck", log_mode=log_mode)
 
@@ -800,7 +802,7 @@ def menu_options(log_mode, set_new_location_code, lang, start_step = 0):
                                     turn_off_led("rot")
                                    
 
-                                  
+                            write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "Camera_state", "sensors_free_for_web", True)  
                             log_schreiben("starte Kameratest...", log_mode=log_mode)
                             
                             show_message("hmi_26", lang=lang)

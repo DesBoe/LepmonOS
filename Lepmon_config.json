@@ -39,7 +39,8 @@
         "free_for_web": true,
         "web_requested": false,
         "web_focus_active": false,
-        "stream_viewers": 0
+        "stream_viewers": 0,
+        "sensors_free_for_web": true
     },
     "Camera_Stream": {
         "gain": 7,
