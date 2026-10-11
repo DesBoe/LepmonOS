@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>{{ title }}</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png">
+<style>
+:root{--bg:#1a1a2e;--card:#16213e;--tile:#1e2a4a;--accent:#0f3460;--hl:#e94560;--txt:#eaeaea;--dim:#888;--green:#22c55e;--info-bg:#3b7ab8}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;padding-bottom:2rem}
+.run-header{background:var(--card);padding:1.2rem 2rem;display:flex;align-items:center;gap:1rem;border-bottom:2px solid var(--accent);position:sticky;top:0;z-index:100}
+.back-btn{background:var(--accent);color:var(--txt);border:none;padding:.5rem 1rem;border-radius:8px;text-decoration:none}
+.back-btn:hover{background:var(--hl)}
+.run-title{font-size:1.5rem;font-weight:700;color:#ff7eb3}
+.container{max-width:1400px;margin:0 auto;padding:1.5rem}
+.loading,.empty{text-align:center;padding:4rem 2rem;color:var(--dim)}
+.spinner{width:48px;height:48px;border:4px solid var(--accent);border-top-color:var(--hl);border-radius:50%;animation:s .8s linear infinite;margin:0 auto 1rem}
+@keyframes s{to{transform:rotate(360deg)}}
+.meta-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}
+.meta-tile{background:var(--tile);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-height:180px;position:relative}
+.meta-tile:hover{transform:translateY(-2px);box-shadow:0 4px 15px rgba(0,0,0,.3)}
+.meta-tile-preview{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.2rem;gap:.4rem;min-height:100px}.meta-icon{font-size:2.5rem}.meta-label{font-size:1.1rem;font-weight:600}
+.meta-info-bar{background:var(--info-bg);padding:.6rem .7rem;font-size:.75rem;color:#fff;text-align:center;line-height:1.4}
+.btns{position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:4px}
+.btns button{width:28px;height:28px;border-radius:50%;border:1px solid var(--dim);background:var(--bg);color:var(--txt);cursor:pointer;font-size:.75rem}
+.btns button:hover{background:var(--accent);border-color:var(--hl)}
+.btns button.sel{background:var(--green);border-color:var(--green);color:#000}
+.meta-tile.off{opacity:.4}
+.dl-tile{background:var(--tile);border-radius:12px;padding:1.2rem;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:140px;gap:.6rem}
+.dl-tile svg{width:72px;height:72px}
+.dl-lbl{font-size:.85rem;color:var(--dim)}.dl-ct{font-size:1.2rem;font-weight:700}
+.dl-btn{background:var(--green);color:#fff;border:none;padding:.6rem 1.5rem;border-radius:8px;cursor:pointer;font-weight:600;font-size:.9rem}
+.dl-btn:disabled{opacity:.4;cursor:not-allowed}
+.img-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+.img-tile{background:var(--tile);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.img-tile:hover{transform:translateY(-2px);box-shadow:0 4px 15px rgba(0,0,0,.3)}
+.tw{position:relative;width:100%;aspect-ratio:4/3;overflow:hidden;background:#000}
+.tw img{width:100%;height:100%;object-fit:cover;cursor:pointer;transition:transform .2s}
+.tw img:hover{transform:scale(1.05)}
+.cb{position:absolute;top:6px;right:6px;display:flex;flex-direction:column;gap:4px}
+.cb button{width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.4);background:rgba(0,0,0,.6);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.85rem;backdrop-filter:blur(4px)}
+.cb button:hover{background:rgba(233,69,96,.8)}.cb button.sel{background:var(--green);border-color:var(--green)}
+.ti{background:var(--info-bg);padding:.6rem .7rem}.tf{font-size:.8rem;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tm{font-size:.7rem;color:rgba(255,255,255,.8);margin-top:.2rem;display:flex;justify-content:space-between}
+.lbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:9999;align-items:center;justify-content:center;padding:2rem}
+.lbox.on{display:flex}.lbox img{max-width:95vw;max-height:90vh;object-fit:contain;border-radius:8px}
+.lbox-x{position:absolute;top:1rem;right:1.5rem;background:none;border:none;color:#fff;font-size:2.5rem;cursor:pointer}
+@media(max-width:1024px){.img-grid{grid-template-columns:repeat(3,1fr)}.meta-row{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:768px){.img-grid{grid-template-columns:repeat(2,1fr)}.meta-row{grid-template-columns:1fr 1fr}}
+</style></head><body>
+<div class="run-header"><a href="/" class="back-btn">&larr; Back</a><h1 class="run-title" id="runTitle">Loading...</h1></div>
+<div class="container">
+<div id="loading" class="loading"><div class="spinner"></div><p>Loading...</p></div>
+<div id="error" class="empty" style="display:none">Not found</div>
+<div id="content" style="display:none"><div class="meta-row" id="metaRow"></div><div class="img-grid" id="grid"></div></div>
+</div>
+<div class="lbox" id="lbox" onclick="closeLB()"><button class="lbox-x" onclick="closeLB()">&times;</button><img id="limg"></div>
+<script>
+function b64encode(s){try{return btoa(unescape(encodeURIComponent(s)))}catch(e){return btoa(s)}}
+const FN="{{ folder_name }}";let S=new Set();let D=null;
+document.addEventListener("DOMContentLoaded",async()=>{
+try{const e=encodeURIComponent(FN);const r=await fetch(`/api/runs/${e}`);if(!r.ok)throw 0;D=await r.json();
+document.getElementById("runTitle").textContent=D.folder_name;render();
+document.getElementById("loading").style.display="none";document.getElementById("content").style.display="block"}
+catch(e){document.getElementById("loading").style.display="none";document.getElementById("error").style.display="block"}});
+function render(){rMeta();rGrid();uC()}
+function rMeta(){
+const its=[{k:"logfile",l:"Logfile",i:"\ud83d\udccb"},{k:"csv_file",l:"CSV file",i:"\ud83d\udcca"},{k:"checksums",l:"checksums",i:"\ud83d\udd10"}];
+let h="";for(const t of its){const d=D[t.k];const ok=!!d;
+h+=`<div class="meta-tile ${ok?"":"off"}"><div class="meta-tile-preview"><div class="meta-icon">${t.i}</div><div class="meta-label">${t.l}</div></div><div class="meta-info-bar">${ok?((d.filename||"").slice(0,25)+(d.filename&&d.filename.length>20?"...":"")+"<br>"+(d.modified||"---")+"<br>"+(d.size_str||"0 KB")):"Not found"}</div>${ok?`<div class="btns"><button onclick="vF('${t.k}')">\ud83d\udd0d</button><button onclick="tM('${t.k}',this)">\u2b07</button></div>`:""}</div>`}
+h+=`<div class="dl-tile"><svg viewBox="0 0 72 72"><circle cx="36" cy="36" r="34" fill="#22c55e"/><path d="M36 16L36 40M24 30L36 42L48 30M14 52L58 52" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round"/></svg><div class="dl-lbl">download selected files...</div><div class="dl-ct" id="dlCt">0/0</div><button class="dl-btn" id="dlBtn" onclick="doDL()" disabled>Download</button></div>`;
+document.getElementById("metaRow").innerHTML=h}
+function rGrid(){
+const im=D.images||[];if(!im.length){document.getElementById("grid").innerHTML='<div class="empty">No images found.</div>';return}
+let h="";for(const i of im){const ep=encodeURIComponent(i.filepath);const bp=b64encode(i.filepath);
+h+=`<div class="img-tile"><div class="tw"><img src="/api/images/thumbnail?b64=${bp}" loading="lazy" onclick="openLB('${ep}')" onerror="this.style.display='none'"><div class="cb"><button onclick="openLB('${ep}')">\ud83d\udd0d</button><button onclick="tI('${i.filename}',this)">\u2b07</button></div></div><div class="ti"><div class="tf" title="${i.filename}">${i.filename}</div><div class="tm"><span>${i.modified}</span><span>${i.size_str}</span></div></div></div>`}
+document.getElementById("grid").innerHTML=h}
+function tI(fn,b){if(S.has(fn)){S.delete(fn);b.classList.remove("sel")}else{S.add(fn);b.classList.add("sel")}uC()}
+function tM(k,b){const d=D[k];if(!d)return;const fn=d.filename;if(S.has(fn)){S.delete(fn);b.classList.remove("sel")}else{S.add(fn);b.classList.add("sel")}uC()}
+function uC(){const t=(D?.images?.length||0)+(D?.logfile?1:0)+(D?.csv_file?1:0)+(D?.checksums?1:0);document.getElementById("dlCt").textContent=S.size+"/"+t;document.getElementById("dlBtn").disabled=S.size===0}
+async function doDL(){if(!S.size)return;const b=document.getElementById("dlBtn");b.textContent="Downloading...";b.disabled=true;const fn=encodeURIComponent(FN);const urls=[...S].map(f=>`/api/runs/${fn}/download/${encodeURIComponent(f)}`);let i=0;function next(){if(i>=urls.length){b.textContent="Download";b.disabled=false;return}const a=document.createElement("a");a.href=urls[i];a.click();a.remove();i++;setTimeout(next,400)}next()}
+function vF(k){const d=D[k];if(!d)return;window.open(`/api/runs/${encodeURIComponent(FN)}/file?file=${encodeURIComponent(d.filename)}`,"_blank")}
+function openLB(ep){document.getElementById("limg").src="/api/images/file?b64="+b64encode(decodeURIComponent(ep));document.getElementById("lbox").classList.add("on")}
+function closeLB(){document.getElementById("lbox").classList.remove("on")}
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeLB()})
+</script></body></html>

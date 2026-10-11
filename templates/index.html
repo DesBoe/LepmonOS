@@ -71,6 +71,10 @@
             50% { opacity: 0.7; }
         }
         
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
         .container {
             max-width: 1400px;
             margin: 0 auto;
@@ -638,7 +642,7 @@
             font-size: 0.875rem;
         }
         
-        /* ---- Captured Images Gallery ---- */
+        /* ---- Current Runs ---- */
         .gallery-section {
             max-width: 1400px;
             margin: 0 auto;
@@ -659,6 +663,8 @@
             margin-bottom: 1rem;
             border-bottom: 1px solid var(--accent);
             padding-bottom: 0.75rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
         }
         
         .gallery-header h3 {
@@ -684,57 +690,197 @@
             color: var(--highlight);
         }
         
-        .gallery-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        /* Current Runs List */
+        .runs-list {
+            display: flex;
+            flex-direction: column;
             gap: 1rem;
+            max-height: 750px;
+            overflow-y: auto;
+            padding-right: 0.5rem;
         }
         
-        .gallery-item {
+        .runs-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .runs-list::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+            border-radius: 3px;
+        }
+        
+        .runs-list::-webkit-scrollbar-thumb {
             background: var(--accent);
+            border-radius: 3px;
+        }
+        
+        .run-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 0.75rem;
+            padding: 1rem;
+            background: var(--accent);
+            border-radius: 10px;
+        }
+        
+        .run-row .run-info {
+            grid-column: 1;
+            grid-row: 1;
+            aspect-ratio: 3/1;
+        }
+        
+        .run-row .run-folder-btn {
+            grid-column: 2;
+            grid-row: 1;
+            aspect-ratio: 3/1;
+        }
+        
+        .run-row .run-thumb-wrapper {
+            aspect-ratio: 3/2;
+            overflow: hidden;
+            border-radius: 6px;
+            background: #111;
+        }
+        
+        .run-row .run-thumb-wrapper:first-child {
+            grid-column: 1;
+            grid-row: 2;
+        }
+        
+        .run-row .run-thumb-wrapper:nth-child(3) {
+            grid-column: 2;
+            grid-row: 2;
+        }
+        
+        .run-info {
+            background: #4a9e6e;
             border-radius: 8px;
-            overflow: hidden;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        
-        .gallery-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(233, 69, 96, 0.3);
-        }
-        
-        .gallery-item img {
+            padding: 0.8rem 1rem;
             width: 100%;
-            height: 160px;
-            object-fit: cover;
-            display: block;
-            background: #000;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            box-sizing: border-box;
         }
         
-        .gallery-item-info {
-            padding: 0.5rem 0.75rem;
-            font-size: 0.75rem;
+        .run-date {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #111;
+            margin-bottom: 0.2rem;
         }
         
-        .gallery-item-info .filename {
-            color: var(--text);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        .run-time {
+            font-size: 1.7rem;
+            font-weight: 600;
+            color: #222;
+            margin-bottom: 0.4rem;
+        }
+        
+        .run-count {
+            font-size: 1.7rem;
+            color: #111;
             font-weight: 500;
         }
         
-        .gallery-item-info .meta {
-            color: var(--text-dim);
-            margin-top: 0.25rem;
-            display: flex;
-            justify-content: space-between;
+        .run-size {
+            font-size: 1.7rem;
+            color: #111;
+            font-weight: 500;
         }
         
-        .gallery-empty {
+        .run-thumb {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .run-thumb-placeholder {
+            width: 100%;
+            height: 100%;
+            border-radius: 6px;
+            background: var(--bg-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dim);
+            font-size: 0.75rem;
+        }
+        
+        .run-folder-btn {
+            background: #22c55e;
+            border: none;
+            border-radius: 12px;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.15s;
+        }
+        
+        .run-folder-btn:hover {
+            transform: scale(1.08);
+            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.6);
+        }
+        
+        .run-folder-btn svg {
+            width: 96px;
+            height: 96px;
+        }
+        
+        .runs-empty {
             text-align: center;
             padding: 2rem;
             color: var(--text-dim);
+        }
+        
+        .runs-loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-dim);
+        }
+        
+        .runs-loading .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid var(--accent);
+            border-top-color: var(--hl);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        
+        @media(max-width:900px) {
+            .run-row {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        
+        @media(max-width:600px) {
+            .run-row {
+                grid-template-columns: 1fr;
+            }
+            .run-row .run-info {
+                grid-column: 1;
+                grid-row: 1;
+            }
+            .run-row .run-folder-btn {
+                grid-column: 1;
+                grid-row: 2;
+            }
+            .run-row .run-thumb-wrapper:first-child {
+                grid-column: 1;
+                grid-row: 3;
+            }
+            .run-row .run-thumb-wrapper:nth-child(3) {
+                grid-column: 1;
+                grid-row: 4;
+            }
         }
 
         .log-content {
@@ -1162,18 +1308,18 @@
 
 
 
-    <!-- Captured Images Gallery -->
+    <!-- Current Runs -->
     <section class="gallery-section">
         <div class="gallery-card">
             <div class="gallery-header">
-                <h3>🖼️ Latest Captured Images<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h3>
-                <div>
-                    <span id="usbStatus" class="usb-status usb-disconnected">USB: checking...</span>
-                    <button class="btn btn-secondary" style="margin-left: 0.5rem;" onclick="loadGallery()">↻ Refresh</button>
+                <h3>📁 Current Runs<button class="info-btn" onclick="showInfo(this)" title="Info">i</button></h3>
+                <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                    <span id="runsUsbStatus" class="usb-status usb-disconnected">USB: checking...</span>
+                    <button class="btn btn-secondary" onclick="loadRuns()">↻ Refresh</button>
                 </div>
             </div>
-            <div id="galleryGrid" class="gallery-grid">
-                <div class="gallery-empty">Loading images...</div>
+            <div id="runsList" class="runs-list">
+                <div class="runs-loading"><div class="spinner"></div>Loading runs...</div>
             </div>
         </div>
     </section>
@@ -2367,7 +2513,7 @@
         loadCameraSettings();
         updateExposureMode();
         updateFocusMode();
-        loadGallery();
+        loadRuns();
         loadLog();
         loadCSV();
         updateLocation();
@@ -2385,16 +2531,10 @@
         setInterval(updateFocusMode, 3000);
         setInterval(loadCameraState, 2000);
         setInterval(updateStorage, 30000);
-        setInterval(updateTiming, 30000);
-        setInterval(refreshUsbCount, 30000);
-
-        /* Only Gallery uses auto-polling with exponential backoff.
+        /* Only Runs uses auto-polling.
            Log and CSV are only reloaded on manual button click. */
-        function scheduleGallery() { setTimeout(loadGallery, pollInterval); }
-        // Gallery auto-refresh (base 60 s, but respects backoff)
-        (function pollGallery() {
-            setTimeout(function() { loadGallery(); pollGallery(); }, 60000);
-        })();
+        // Runs auto-refresh every 60s
+        setInterval(loadRuns, 60000);
         
         // Handle stream errors
         streamImage.onerror = function() {
@@ -2406,77 +2546,97 @@
             }
         };
         
-        // ---- Gallery Functions ----
-        function loadGallery() {
-            fetch('/api/images/latest?count=10')
-                .then(response => response.json())
-                .then(data => {
-                    const grid = document.getElementById('galleryGrid');
-                    const usbStatus = document.getElementById('usbStatus');
-
-                    // Update USB status badge
-                    if (data.usb_mounted) {
-                        usbStatus.textContent = 'USB: ' + (data.usb_path || 'connected');
+                // ---- Current Runs Functions ----
+        // Helper: base64 encode a string (avoids URL encoding issues with #, %, / in paths)
+        function b64encode(str) {
+            return btoa(unescape(encodeURIComponent(str)));
+        }
+        function b64decode(str) {
+            return decodeURIComponent(escape(atob(str)));
+        }
+        // Helper: double-encode folder names for URLs (prevents # from being treated as fragment)
+        function encodeRunFolder(folderName) {
+            return encodeURIComponent(folderName).replace(/%23/g, '%2523');
+        }
+        function loadRuns() {
+            fetch('/api/runs')
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    var list = document.getElementById('runsList');
+                    var usbStatus = document.getElementById('runsUsbStatus');
+                    
+                    if (data.mounted) {
+                        var pathDisplay = data.path || 'connected';
+                        if (pathDisplay.length > 30) {
+                            var parts = pathDisplay.split('/');
+                            pathDisplay = '.../' + parts.slice(-2).join('/');
+                        }
+                        usbStatus.textContent = 'USB: ' + pathDisplay;
                         usbStatus.className = 'usb-status usb-connected';
                     } else {
                         usbStatus.textContent = 'USB: not mounted';
                         usbStatus.className = 'usb-status usb-disconnected';
                     }
-
-                    if (!data.images || data.images.length === 0) {
-                        grid.innerHTML = '<div class="gallery-empty">' +
-                            (data.usb_mounted
-                                ? 'No images found on USB drive yet.'
+                    
+                    if (!data.runs || data.runs.length === 0) {
+                        list.innerHTML = '<div class="runs-empty">' +
+                            (data.mounted
+                                ? 'No runs found on USB drive yet.'
                                 : 'USB drive not connected.') +
                             '</div>';
-                        // USB is mounted but empty — still a "success" from polling perspective
-                        if (data.usb_mounted) pollOnSuccess();
-                        else pollOnFailure();
                         return;
                     }
-
-                    grid.innerHTML = '';
-                    data.images.forEach(function(img) {
-                        const item = document.createElement('div');
-                        item.className = 'gallery-item';
-                        item.onclick = function() { openLightbox(img.url); };
-
-                        const modified = new Date(img.modified);
-                        const timeStr = modified.toLocaleString();
-
-                        item.innerHTML =
-                            '<img src="' + img.thumbnail_url + '" alt="' + img.filename + '" loading="lazy">' +
-                            '<div class="gallery-item-info">' +
-                            '  <div class="filename" title="' + img.filename + '">' + img.filename + '</div>' +
-                            '  <div class="meta">' +
-                            '    <span>' + timeStr + '</span>' +
-                            '    <span>' + img.size_kb + ' KB</span>' +
-                            '  </div>' +
-                            '</div>';
-
-                        grid.appendChild(item);
+                    
+                    var folderSvg = '<svg viewBox="0 0 64 64" fill="none">' +
+                        '<path d="M4 12C4 9.8 5.8 8 8 8H24L30 14H56C58.2 14 60 15.8 60 18V52C60 54.2 58.2 56 56 56H8C5.8 56 4 54.2 4 52V12Z" fill="none" stroke="#fff" stroke-width="3"/>' +
+                        '<path d="M20 30H44M44 30L34 20M44 30L34 40" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>' +
+                        '</svg>';
+                    
+                    var html = '';
+                    data.runs.forEach(function(run) {
+                        var th1 = run.thumbnail_paths && run.thumbnail_paths[0] ?
+                            '<img class="run-thumb" src="/api/images/thumbnail?b64=' + b64encode(run.thumbnail_paths[0]) + '" loading="lazy" onerror="this.hidden=true">' :
+                            '<div class="run-thumb-placeholder">no preview</div>';
+                        
+                        var th2 = run.thumbnail_paths && run.thumbnail_paths[1] ?
+                            '<img class="run-thumb" src="/api/images/thumbnail?b64=' + b64encode(run.thumbnail_paths[1]) + '" loading="lazy" onerror="this.hidden=true">' :
+                            '<div class="run-thumb-placeholder">no preview</div>';
+                        
+                        var timeStr = run.time ? (run.time.slice(0,2) + ':' + run.time.slice(2,4)) : '';
+                        html += '<div class="run-row">' +
+                            '<div class="run-info">' +
+                                '<div class="run-date">' + run.date + '</div>' +
+                                (timeStr ? '<div class="run-time">' + timeStr + '</div>' : '') +
+                                '<div class="run-count">' + run.photo_count + ' Photos</div>' +
+                                '<div class="run-size">' + run.folder_size_str + '</div>' +
+                            '</div>' +
+                            '<a href="/run/' + encodeURIComponent(run.folder_name) + '" class="run-folder-btn" title="Open: ' + run.folder_name + '">' +
+                                folderSvg +
+                            '</a>' +
+                            '<div class="run-thumb-wrapper">' + th1 + '</div>' +
+                            '<div class="run-thumb-wrapper">' + th2 + '</div>' +
+                        '</div>';
                     });
-                    pollOnSuccess();
+                    
+                    list.innerHTML = html;
                 })
-                .catch(err => {
-                    console.error('Gallery load failed:', err);
-                    document.getElementById('galleryGrid').innerHTML =
-                        '<div class="gallery-empty">Failed to load images.</div>';
-                    pollOnFailure();
+                .catch(function(err) {
+                    console.error('Runs load failed:', err);
+                    document.getElementById('runsList').innerHTML =
+                        '<div class="runs-empty">Failed to load runs.</div>';
                 });
         }
-
-
         
+        // ---- Lightbox Functions (kept for other uses) ----
         function openLightbox(imageUrl) {
-            const lightbox = document.getElementById('lightbox');
-            const lightboxImg = document.getElementById('lightboxImage');
+            var lightbox = document.getElementById('lightbox');
+            var lightboxImg = document.getElementById('lightboxImage');
             lightboxImg.src = imageUrl;
             lightbox.classList.add('active');
         }
         
         function closeLightbox() {
-            const lightbox = document.getElementById('lightbox');
+            var lightbox = document.getElementById('lightbox');
             lightbox.classList.remove('active');
             document.getElementById('lightboxImage').src = '';
         }

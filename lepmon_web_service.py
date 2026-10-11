@@ -11,6 +11,7 @@ The camera stream is only active when the main capturing loop is NOT running.
 """
 
 import asyncio
+import base64
 import ssl
 import subprocess
 import threading
@@ -33,6 +34,7 @@ from contextlib import asynccontextmanager
 from typing import Optional, Generator, List
 import logging
 import glob
+import re
 from hardware import get_hardware_version
 from picamera2 import Picamera2, Preview
 from libcamera import controls
@@ -104,17 +106,20 @@ def _viewer_cleanup_loop():
     """Background thread: removes stale clients that lost connectivity."""
     global _cleanup_running
     while _cleanup_running:
-        time.sleep(_CLEANUP_INTERVAL)
-        now = time.time()
-        with _CLIENT_REGISTRY_LOCK:
-            stale_tokens = [t for t, ts in _CLIENT_REGISTRY.items() if (now - ts) > HEARTBEAT_TIMEOUT]
-            if stale_tokens:
-                for t in stale_tokens:
-                    del _CLIENT_REGISTRY[t]
-                new_count = len(_CLIENT_REGISTRY)
-                logger.info(f"Viewer cleanup: removed {len(stale_tokens)} stale viewer(s). Remaining: {new_count}")
-                set_stream_viewers(new_count)
-                set_viewer_count(new_count)
+        try:
+            time.sleep(_CLEANUP_INTERVAL)
+            now = time.time()
+            with _CLIENT_REGISTRY_LOCK:
+                stale_tokens = [t for t, ts in _CLIENT_REGISTRY.items() if (now - ts) > HEARTBEAT_TIMEOUT]
+                if stale_tokens:
+                    for t in stale_tokens:
+                        del _CLIENT_REGISTRY[t]
+                    new_count = len(_CLIENT_REGISTRY)
+                    logger.info(f"Viewer cleanup: removed {len(stale_tokens)} stale viewer(s). Remaining: {new_count}")
+                    set_stream_viewers(new_count)
+                    set_viewer_count(new_count)
+        except Exception as e:
+            logger.error(f"Viewer cleanup loop error: {e}", exc_info=True)
 
 
 def _start_viewer_cleanup():
@@ -1247,6 +1252,196 @@ def _find_csv_on_usb() -> Optional[str]:
     return csv_files[0][0]
 
 
+# ── Run folder scanning helpers ─────────────────────────────────────────────────
+
+_RUN_FOLDER_PATTERN = re.compile(
+    r'^Lepmon#SN(\d{6})_([A-Za-z]+)_([A-Za-z]+)_(\d{4}-\d{2}-\d{2})_T_(\d{4,6})$'
+)
+
+IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.tif', '.tiff', '.dng'}
+
+
+def _is_image_file(filename: str) -> bool:
+    """Return True if the filename ends with a known image extension."""
+    return any(filename.lower().endswith(ext) for ext in IMAGE_EXTENSIONS)
+
+
+def _get_folder_size(folder_path: str) -> int:
+    """Calculate total size of all files in a folder (recursive)."""
+    total = 0
+    try:
+        for dirpath, dirnames, filenames in os.walk(folder_path):
+            for f in filenames:
+                fp = os.path.join(dirpath, f)
+                try:
+                    total += os.path.getsize(fp)
+                except OSError:
+                    pass
+    except OSError:
+        pass
+    return total
+
+
+def _format_size(size_bytes: int) -> str:
+    """Format bytes into a human-readable string (KB, MB, GB)."""
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f} KB"
+    elif size_bytes < 1024 * 1024 * 1024:
+        return f"{size_bytes / (1024 * 1024):.1f} MB"
+    else:
+        return f"{size_bytes / (1024 * 1024 * 1024):.2f} GB"
+
+
+def _format_size_kb(size_bytes: int) -> str:
+    """Format bytes as KB with one decimal place."""
+    return f"{size_bytes / 1024:.1f} KB"
+
+
+def _get_file_mod_time_str(filepath: str) -> str:
+    """Get file modification time as formatted string."""
+    try:
+        mtime = os.path.getmtime(filepath)
+        return time.strftime("%d.%m.%Y, %H:%M:%S", time.localtime(mtime))
+    except OSError:
+        return "01.01.1970, 00:00:00"
+
+
+def find_run_folders() -> list:
+    """Scan USB for Lepmon#SN* run folders and return metadata for each."""
+    usb_path = _find_usb_mount_shared()
+    if not usb_path:
+        return []
+    
+    runs = []
+    try:
+        entries = os.listdir(usb_path)
+    except OSError:
+        return []
+    
+    for entry in entries:
+        match = _RUN_FOLDER_PATTERN.match(entry)
+        if not match:
+            continue
+        
+        folder_path = os.path.join(usb_path, entry)
+        if not os.path.isdir(folder_path):
+            continue
+        
+        # Collect image files
+        image_files = []
+        try:
+            for root, dirs, files in os.walk(folder_path):
+                for f in sorted(files):
+                    if f.startswith('._'):  # Skip macOS AppleDouble resource fork files
+                        continue
+                    if _is_image_file(f):
+                        image_files.append(os.path.join(root, f))
+        except OSError:
+            pass
+        
+        image_files.sort()
+        photo_count = len(image_files)
+        folder_size = _get_folder_size(folder_path)
+        
+        # Pick 2 thumbnails at 1/3 and 2/3 positions
+        thumbnail_paths = []
+        if photo_count >= 2:
+            idx1 = max(1, photo_count // 3)
+            idx2 = min(photo_count - 1, (2 * photo_count) // 3)
+            thumbnail_paths = [image_files[idx1], image_files[idx2]]
+        elif photo_count == 1:
+            thumbnail_paths = [image_files[0]]
+        
+        runs.append({
+            "folder_name": entry,
+            "folder_path": folder_path,
+            "date": match.group(4),
+            "time": match.group(5),
+            "photo_count": photo_count,
+            "folder_size": folder_size,
+            "folder_size_str": _format_size(folder_size),
+            "thumbnail_paths": thumbnail_paths,
+            "serial": match.group(1),
+            "province": match.group(2),
+            "region": match.group(3),
+        })
+    
+    runs.sort(key=lambda r: (r["date"], r["time"]), reverse=True)
+    return runs
+
+
+def get_run_folder_contents(folder_name: str) -> Optional[dict]:
+    """Get the contents of a specific run folder."""
+    usb_path = _find_usb_mount_shared()
+    if not usb_path:
+        return None
+    
+    folder_path = os.path.join(usb_path, folder_name)
+    if not os.path.isdir(folder_path):
+        return None
+    
+    match = _RUN_FOLDER_PATTERN.match(folder_name)
+    if not match:
+        return None
+    
+    image_files = []
+    logfile = None
+    csv_file = None
+    checksums = None
+    
+    try:
+        for f in sorted(os.listdir(folder_path)):
+            if f.startswith('._'):  # Skip macOS AppleDouble resource fork files
+                continue
+            fpath = os.path.join(folder_path, f)
+            if not os.path.isfile(fpath):
+                continue
+            
+            try:
+                fsize = os.path.getsize(fpath)
+                ftime = _get_file_mod_time_str(fpath)
+            except OSError:
+                fsize = 0
+                ftime = "---"
+            
+            file_info = {
+                "filename": f,
+                "filepath": fpath,
+                "size": fsize,
+                "size_str": _format_size_kb(fsize),
+                "modified": ftime,
+            }
+            
+            if _is_image_file(f):
+                image_files.append(file_info)
+            elif f.lower().endswith('.log'):
+                if logfile is None:
+                    logfile = file_info
+            elif f.lower().endswith('.csv'):
+                if csv_file is None:
+                    csv_file = file_info
+            elif 'checksum' in f.lower() or 'md5' in f.lower() or 'sha' in f.lower():
+                if checksums is None:
+                    checksums = file_info
+    except OSError:
+        pass
+    
+    image_files.sort(key=lambda x: x["filename"])
+    
+    return {
+        "folder_name": folder_name,
+        "folder_path": folder_path,
+        "date": match.group(4),
+        "time": match.group(5),
+        "images": image_files,
+        "logfile": logfile,
+        "csv_file": csv_file,
+        "checksums": checksums,
+    }
+
+
 def read_LepmonOS_csv() -> dict:
     """Read the CSV data file and return its metadata (header + first/last rows).
 
@@ -1398,19 +1593,22 @@ def _poll_camera_detection() -> None:
     file, to avoid Permission denied errors.
     """
     while True:
-        detected = False
         try:
-            if _vmb_system is not None:
-                cams = _vmb_system.get_all_cameras()
-                detected = bool(cams)
-                logger.debug(f"Camera detection poll: found {len(cams) if cams else 0} camera(s)")
-        except ImportError:
-            logger.debug("vmbpy not available for camera detection polling")
-        except Exception as e:
-            logger.debug(f"Camera detection poll failed: {e}")
+            detected = False
+            try:
+                if _vmb_system is not None:
+                    cams = _vmb_system.get_all_cameras()
+                    detected = bool(cams)
+                    logger.debug(f"Camera detection poll: found {len(cams) if cams else 0} camera(s)")
+            except ImportError:
+                logger.debug("vmbpy not available for camera detection polling")
+            except Exception as e:
+                logger.debug(f"Camera detection poll failed: {e}")
 
-        # Write to in-memory cache instead of JSON file (avoids Permission denied)
-        set_camera_state("is_detected", detected)
+            # Write to in-memory cache instead of JSON file (avoids Permission denied)
+            set_camera_state("is_detected", detected)
+        except Exception as e:
+            logger.error(f"Camera detection loop error: {e}", exc_info=True)
 
         time.sleep(5)
 
@@ -1526,44 +1724,47 @@ def _stop_camera_state_sync() -> None:
 def _check_camera_release_loop() -> None:
     """Periodic check (every 5s): if free_for_web is False, release camera for capturing."""
     while True:
-        time.sleep(5)
-        free_for_web = get_camera_state("free_for_web")
-        if free_for_web == False:
-            logger.info("free_for_web is False -> forcing camera release for capturing...")
-            
-            # Release AV camera
-            with stream_consumers_lock:
-                global _grab_thread, _grab_running
-                if _grab_thread is not None and _grab_thread.is_alive() or _grab_running:
-                    _grab_running = False
-                    if _grab_thread is not None and _grab_thread.is_alive():
-                        _grab_thread.join(timeout=3.0)
-                    _grab_thread = None
-                    with _shared_camera_lock:
-                        if _shared_camera is not None:
-                            _shared_camera.close()
-                            _shared_camera = None
-                        _latest_frame = None
-                    streaming_active = False
-                    stream_consumers = 0
-            
-            # Release RPI camera
-            with stream_consumers_lock:
-                global _rpi_grab_thread, _rpi_grab_running
-                if _rpi_grab_thread is not None and _rpi_grab_thread.is_alive() or _rpi_grab_running:
-                    _rpi_grab_running = False
-                    if _rpi_grab_thread is not None and _rpi_grab_thread.is_alive():
-                        _rpi_grab_thread.join(timeout=3.0)
-                    _rpi_grab_thread = None
-                    with _rpi_shared_camera_lock:
-                        if _rpi_shared_camera is not None:
-                            _rpi_shared_camera.close()
-                            _rpi_shared_camera = None
-                        _latest_frame_rpi = None
-                    streaming_active = False
-                    stream_consumers = 0
-            
-            logger.info("Camera(s) successfully released for capturing.")
+        try:
+            time.sleep(5)
+            free_for_web = get_camera_state("free_for_web")
+            if free_for_web == False:
+                logger.info("free_for_web is False -> forcing camera release for capturing...")
+
+                # Release AV camera
+                with stream_consumers_lock:
+                    global _grab_thread, _grab_running
+                    if _grab_thread is not None and _grab_thread.is_alive() or _grab_running:
+                        _grab_running = False
+                        if _grab_thread is not None and _grab_thread.is_alive():
+                            _grab_thread.join(timeout=3.0)
+                        _grab_thread = None
+                        with _shared_camera_lock:
+                            if _shared_camera is not None:
+                                _shared_camera.close()
+                                _shared_camera = None
+                            _latest_frame = None
+                        streaming_active = False
+                        stream_consumers = 0
+
+                # Release RPI camera
+                with stream_consumers_lock:
+                    global _rpi_grab_thread, _rpi_grab_running
+                    if _rpi_grab_thread is not None and _rpi_grab_thread.is_alive() or _rpi_grab_running:
+                        _rpi_grab_running = False
+                        if _rpi_grab_thread is not None and _rpi_grab_thread.is_alive():
+                            _rpi_grab_thread.join(timeout=3.0)
+                        _rpi_grab_thread = None
+                        with _rpi_shared_camera_lock:
+                            if _rpi_shared_camera is not None:
+                                _rpi_shared_camera.close()
+                                _rpi_shared_camera = None
+                            _latest_frame_rpi = None
+                        streaming_active = False
+                        stream_consumers = 0
+
+                logger.info("Camera(s) successfully released for capturing.")
+        except Exception as e:
+            logger.error(f"Camera release monitor loop error: {e}", exc_info=True)
 
 
 def _start_camera_release_monitor() -> None:
@@ -2250,15 +2451,27 @@ def create_status_frame(message: str) -> np.ndarray:
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     logger.info("Lepmon Web Service starting...")
-    _start_viewer_cleanup()
+    try:
+        _start_viewer_cleanup()
+    except Exception as e:
+        logger.error(f"Failed to start viewer cleanup thread: {e}")
     # Reset persistent viewer count — _CLIENT_REGISTRY is empty, old tokens are invalid.
-    set_viewer_count(0)
-    set_stream_viewers(0)
+    try:
+        set_viewer_count(0)
+        set_stream_viewers(0)
+    except Exception as e:
+        logger.error(f"Failed to reset viewer count: {e}")
     yield
-    _stop_viewer_cleanup()
+    try:
+        _stop_viewer_cleanup()
+    except Exception as e:
+        logger.error(f"Error stopping viewer cleanup: {e}")
     # Clean up on shutdown so no stale count persists across restarts.
-    set_viewer_count(0)
-    set_stream_viewers(0)
+    try:
+        set_viewer_count(0)
+        set_stream_viewers(0)
+    except Exception as e:
+        logger.error(f"Failed to reset viewer count on shutdown: {e}")
     logger.info("Lepmon Web Service shutting down...")
 
 
@@ -2329,14 +2542,28 @@ async def custom_redoc():
     )
 
 
+@app.get("/manifest.json")
+async def web_manifest():
+    """Serve the PWA manifest for home-screen icon customization."""
+    return JSONResponse({
+        "name": "ARNI Remote",
+        "short_name": "ARNI",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#1a1a2e",
+        "theme_color": "#1a1a2e",
+        "icons": [
+            {"src": "/static/icon-180.png", "sizes": "180x180", "type": "image/png"},
+            {"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png"},
+            {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png"}
+        ]
+    })
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """Serve the main web interface."""
-    try:
-        sn = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "serielnumber")
-        title = f"ARNI {sn} Remote"
-    except Exception:
-        title = "ARNI Remote"
+    title = "ARNI Remote Conrol"
     try:
         firmware_version = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "software", "version")
     except Exception:
@@ -3066,15 +3293,31 @@ async def download_csv():
     )
 
 @app.get("/api/images/file")
-async def serve_image(path: str):
-    """Serve an image file from the USB drive."""
+async def serve_image(path: str = "", b64: str = ""):
+    """Serve an image file from the USB drive.
+
+    Accepts ?path=... or ?b64=... (base64-encoded).
+    """
+    raw_path = path
+    if b64:
+        try:
+            raw_path = base64.b64decode(b64).decode("utf-8")
+        except Exception as e:
+            logger.warning(f"Failed to decode b64 path: {e}")
+            return JSONResponse({"error": "Invalid b64 parameter"}, status_code=400)
+    elif not raw_path:
+        return JSONResponse({"error": "No path provided"}, status_code=400)
     # Security: only serve files under a mounted USB drive.
-    if not is_usb_path(path):
+    if not is_usb_path(raw_path):
         return JSONResponse({"error": "Access denied"}, status_code=403)
-    if not os.path.isfile(path):
+    # Skip macOS AppleDouble resource fork files
+    if os.path.basename(raw_path).startswith('._'):
+        logger.warning(f"Skipping AppleDouble file: {raw_path}")
+        return JSONResponse({"error": "File not found"}, status_code=404)
+    if not os.path.isfile(raw_path):
         return JSONResponse({"error": "File not found"}, status_code=404)
 
-    ext = os.path.splitext(path)[1].lower()
+    ext = os.path.splitext(raw_path)[1].lower()
     mime_map = {
         '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
         '.png': 'image/png', '.tif': 'image/tiff',
@@ -3083,35 +3326,51 @@ async def serve_image(path: str):
     mime = mime_map.get(ext, 'application/octet-stream')
 
     try:
-        with open(path, 'rb') as f:
+        with open(raw_path, 'rb') as f:
             data = f.read()
     except OSError as e:
-        logger.warning(f"Failed to serve image {path} (USB hot-unplug?): {e}")
+        logger.warning(f"Failed to serve image {raw_path} (USB hot-unplug?): {e}")
         return JSONResponse({"error": "Image disappeared (USB disconnected?)."}, status_code=503)
 
     return Response(content=data, media_type=mime)
 
 
 @app.get("/api/images/thumbnail")
-async def serve_thumbnail(path: str, max_size: int = THUMB_MAX_PX):
+async def serve_thumbnail(path: str = "", b64: str = "", max_size: int = THUMB_MAX_PX):
     """
     Serve a downscaled thumbnail of an image from the USB drive.
+
+    Accepts ?path=... or ?b64=... (base64-encoded path).
 
     Prefers a precomputed JPEG from the .thumbs/ shadow tree (written
     by the capture loop). Falls back to a lazy 16-bit-aware decode,
     caching the result for next time.
     """
-    if not is_usb_path(path):
+    raw_path = path
+    if b64:
+        try:
+            raw_path = base64.b64decode(b64).decode("utf-8")
+        except Exception as e:
+            logger.warning(f"Failed to decode b64 path: {e}")
+            return JSONResponse({"error": "Invalid b64 parameter"}, status_code=400)
+    elif not raw_path:
+        return JSONResponse({"error": "No path provided"}, status_code=400)
+    if not is_usb_path(raw_path):
         return JSONResponse({"error": "Access denied"}, status_code=403)
+    # Skip macOS AppleDouble resource fork files
+    if os.path.basename(raw_path).startswith('._'):
+        logger.warning(f"Skipping AppleDouble file: {raw_path}")
+        return JSONResponse({"error": "File not found"}, status_code=404)
 
     try:
-        if not os.path.isfile(path):
+        if not os.path.isfile(raw_path):
+            logger.warning(f"Thumbnail file not found: {raw_path}")
             return JSONResponse({"error": "File not found"}, status_code=404)
     except OSError as e:
-        logger.warning(f"Thumbnail path check failed {path} (USB hot-unplug?): {e}")
+        logger.warning(f"Thumbnail path check failed {raw_path} (USB hot-unplug?): {e}")
         return JSONResponse({"error": "USB disconnected during request."}, status_code=503)
 
-    thumb_path = _thumb_path_for(path)
+    thumb_path = _thumb_path_for(raw_path)
 
     if thumb_path and os.path.isfile(thumb_path):
         try:
@@ -3121,8 +3380,9 @@ async def serve_thumbnail(path: str, max_size: int = THUMB_MAX_PX):
             logger.warning(f"Failed to serve cached thumbnail {thumb_path}: {e}")
 
     try:
-        data = _make_thumbnail(path, max_size)
+        data = _make_thumbnail(raw_path, max_size)
         if data is None:
+            logger.warning(f"Cannot decode image for thumbnail: {raw_path}")
             return JSONResponse({"error": "Cannot read image"}, status_code=500)
 
         # Best-effort cache write so subsequent requests are cheap.
@@ -3136,6 +3396,7 @@ async def serve_thumbnail(path: str, max_size: int = THUMB_MAX_PX):
 
         return Response(content=data, media_type="image/jpeg")
     except Exception as e:
+        logger.error(f"Thumbnail generation failed for {raw_path}: {e}", exc_info=True)
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
@@ -3302,6 +3563,124 @@ async def get_location_info():
     except Exception as e:
         logger.error(f"Location info error: {e}")
         return {"error": str(e)}
+
+
+# ── Run folders API ───────────────────────────────────────────────
+
+@app.get("/api/runs")
+async def api_list_runs():
+    """List all Lepmon#SN* run folders on USB with metadata."""
+    runs = find_run_folders()
+    usb_path = _find_usb_mount_shared()
+    return {
+        "mounted": usb_path is not None,
+        "path": usb_path,
+        "runs": runs,
+    }
+
+
+@app.get("/api/runs/{folder_name}")
+async def api_get_run(folder_name: str):
+    """Get detailed contents of a specific run folder."""
+    contents = get_run_folder_contents(folder_name)
+    if contents is None:
+        return JSONResponse({"error": "Run folder not found"}, status_code=404)
+    return contents
+
+
+@app.get("/api/runs/{folder_name}/file")
+async def api_serve_run_file(folder_name: str, file: str):
+    """Serve a specific file from a run folder (log, csv, checksums)."""
+    usb_path = _find_usb_mount_shared()
+    if not usb_path:
+        return JSONResponse({"error": "USB not mounted"}, status_code=503)
+    
+    folder_path = os.path.join(usb_path, folder_name)
+    if not os.path.isdir(folder_path):
+        return JSONResponse({"error": "Folder not found"}, status_code=404)
+    
+    filepath = os.path.join(folder_path, file)
+    # Prevent path traversal
+    if not os.path.realpath(filepath).startswith(os.path.realpath(folder_path)):
+        return JSONResponse({"error": "Invalid file path"}, status_code=400)
+    
+    if not os.path.isfile(filepath):
+        return JSONResponse({"error": "File not found"}, status_code=404)
+    
+    content_type = "text/plain"
+    if file.lower().endswith('.csv'):
+        content_type = "text/csv"
+    elif file.lower().endswith('.json'):
+        content_type = "application/json"
+    
+    return FileResponse(filepath, media_type=content_type, filename=file)
+
+
+@app.post("/api/runs/{folder_name}/download-selected")
+async def api_download_selected(folder_name: str, request: Request):
+    """Download selected files from a run folder individually (one at a time, triggered via JS)."""
+    try:
+        body = await request.json()
+        selected_files = body.get("files", [])
+    except Exception:
+        selected_files = []
+
+    if not selected_files:
+        return JSONResponse({"error": "No files selected"}, status_code=400)
+
+    return {"ok": True, "count": len(selected_files)}
+
+
+@app.get("/api/runs/{folder_name}/download/{file_name:path}")
+async def api_download_single_file(folder_name: str, file_name: str):
+    """Download a single file from a run folder directly (triggers browser save dialog)."""
+    usb_path = _find_usb_mount_shared()
+    if not usb_path:
+        return JSONResponse({"error": "USB not mounted"}, status_code=503)
+
+    folder_path = os.path.join(usb_path, folder_name)
+    if not os.path.isdir(folder_path):
+        return JSONResponse({"error": "Folder not found"}, status_code=404)
+
+    filepath = os.path.join(folder_path, file_name)
+    if not os.path.realpath(filepath).startswith(os.path.realpath(folder_path)):
+        return JSONResponse({"error": "Invalid file path"}, status_code=400)
+    if not os.path.isfile(filepath):
+        return JSONResponse({"error": "File not found"}, status_code=404)
+
+    return FileResponse(
+        filepath,
+        filename=os.path.basename(file_name),
+        headers={"Content-Disposition": f'attachment; filename="{os.path.basename(file_name)}"'},
+    )
+
+
+@app.get("/run/{folder_name}", response_class=HTMLResponse)
+async def run_detail_page(request: Request, folder_name: str):
+    """Serve the run detail page for a specific folder.
+    
+    Note: folder names may contain special chars like #. The URL path
+    %23 gets decoded by FastAPI to #, which is the correct folder name.
+    """
+    try:
+        return templates.TemplateResponse(
+            request,
+            "run_detail.html",
+            {
+                "request": request,
+                "folder_name": folder_name,
+                "title": f"Run: {folder_name}",
+            },
+        )
+    except Exception as e:
+        logger.error(f"Error rendering run_detail for '{folder_name}': {e}", exc_info=True)
+        return HTMLResponse(
+            f"<html><head><title>Error</title></head><body>"
+            f"<h1>Error loading run: {folder_name}</h1>"
+            f"<pre>{e}</pre>"
+            f"<a href='/'>Back to index</a></body></html>",
+            status_code=500,
+        )
 
 
 # --- HTTPS Configuration ---
