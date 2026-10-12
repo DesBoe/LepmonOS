@@ -3573,6 +3573,89 @@ async def get_timing_info():
         return {"error": str(e)}
 
 
+@app.post("/api/rtc/update")
+async def update_rtc_time(request: Request):
+    """Update the RTC clock from the web client's local time.
+
+    The browser sends its local timestamp (via new Date().toISOString()).
+    The backend reads the current Pi/RTC time, then calls set_hwc() to
+    reprogram the hardware clock.
+
+    Expects JSON body:
+        - timestamp (str): ISO 8601 local time, e.g. "2026-12-10T14:30:00.123Z"
+
+    Returns:
+        - old_time (str): Pi RTC time before update, formatted YYYY-mm-DD HH:MM:SS
+        - new_time (str): Client time that was sent, formatted YYYY-mm-DD HH:MM:SS
+        - success  (bool)
+        - message  (str)
+    """
+    try:
+        body = await request.json()
+        client_ts = body.get("timestamp", "")
+
+        # ── Validate & parse ISO 8601 timestamp ──────────────────────────
+        if not client_ts or "T" not in client_ts:
+            return JSONResponse(
+                {"error": "Invalid timestamp format. Expected ISO 8601 (YYYY-MM-DDTHH:MM:SS)"},
+                status_code=400,
+            )
+
+        # Parse the date/time components
+        dt_part = client_ts.split("T")[0]
+        tm_part = client_ts.split("T")[1].split(".")[0].rstrip("Z")
+        year = int(dt_part[0:4])
+        month = int(dt_part[5:7])
+        day = int(dt_part[8:10])
+        hour = int(tm_part[0:2])
+        minute = int(tm_part[3:5])
+        second = int(tm_part[6:8])
+
+        # Build 14-digit string: YYYYMMDDHHMMSS
+        date_time_list = f"{year}{month:02d}{day:02d}{hour:02d}{minute:02d}{second:02d}"
+
+        if len(date_time_list) != 14 or not date_time_list.isdigit():
+            return JSONResponse(
+                {"error": "Parsed timestamp does not yield 14 digits"},
+                status_code=400,
+            )
+
+        # Formatted timestamp for display (YYYY-mm-DD HH:MM:SS)
+        formatted_ts = f"{year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}:{second:02d}"
+
+        # ── Read current Pi/RTC time (old time) before update ────────────
+        from times import Zeit_aktualisieren
+        old_time, _, _ = Zeit_aktualisieren(log_mode="web_stream")
+
+        # ── Call set_hwc to update the RTC ───────────────────────────────
+        from RTC_new_time import set_hwc
+
+        set_hwc(
+            rtc_mode="manual",
+            log_mode="web_stream",
+            date_time_list=date_time_list,
+        )
+
+        logger.info(
+            f"RTC updated via web: old={old_time}, "
+            f"new={formatted_ts} ({date_time_list})"
+        )
+
+        return {
+            "old_time": old_time,
+            "new_time": formatted_ts,
+            "success": True,
+            "message": "RTC time updated successfully",
+        }
+
+    except Exception as e:
+        logger.error(f"RTC update failed: {e}", exc_info=True)
+        return JSONResponse(
+            {"error": str(e), "success": False},
+            status_code=500,
+        )
+
+
 @app.get("/api/location")
 async def get_location_info():
     """Return GPS coordinates and locality data (province/city).
