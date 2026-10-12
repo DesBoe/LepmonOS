@@ -40,10 +40,12 @@ from picamera2 import Picamera2, Preview
 from libcamera import controls
 from json_read_write import get_value_from_section, write_value_to_section, get_camera_state, set_camera_state, set_stream_viewers
 from viewer_state import set_viewer_count, get_viewer_count
+from service import get_Lepmon_code
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 HARDWARE_VERSION = get_hardware_version()
+_, _, _, ARNI_SN = get_Lepmon_code("manual")
 
 if HARDWARE_VERSION in ["Pro_Gen_1", "Pro_Gen_2", "Pro_Gen_3", "Pro_Gen_4"]:
     EXPECTED_CAMERA_TYPE = "AV"
@@ -2572,7 +2574,8 @@ async def index(request: Request):
     return templates.TemplateResponse(request, "index.html", {
         "title": title,
         "hardware_version": HARDWARE_VERSION,
-        "firmware_version": firmware_version
+        "firmware_version": firmware_version,
+        "arni_sn": ARNI_SN
     })
 
 

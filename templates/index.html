@@ -1125,6 +1125,8 @@
                         <span id="zoomValue" class="slider-value">2</span>
                     </div>
                 </div>
+                <!-- CSS_Gen_1 only: Focus mode + Diopter slider -->
+                <div id="cssGen1FocusControls" style="display:none;">
                 <div class="stat-row" style="flex-wrap: wrap; gap: 0.25rem;">
                     <span class="stat-label">Focus</span>
                     <div class="camera-mode-buttons">
@@ -1140,6 +1142,7 @@
                                oninput="document.getElementById('focusValue').textContent=this.value; sendFocusDiopter(this.value)">
                         <span id="focusValue" class="slider-value">0</span>
                     </div>
+                </div>
                 </div>
                 <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;"
                         onclick="applyCameraSettings()">
@@ -1518,6 +1521,8 @@
     
     <footer>
         ARNI Diagnostics v{{ firmware_version | default("unknown", true) }}
+        | Generation: {{ hardware_version | default("unknown", true) }}
+        | SN: {{ arni_sn | default("unknown", true) }}
     </footer>
     
     <script>
@@ -1611,6 +1616,12 @@
         const HARDWARE_VERSION = {{ hardware_version | default("Unknown", true) | tojson }};
         const IS_CSS_GEN_1 = HARDWARE_VERSION === "CSS_Gen_1";
         const IS_PRO = ["Pro_Gen_1", "Pro_Gen_2", "Pro_Gen_3", "Pro_Gen_4"].includes(HARDWARE_VERSION);
+
+        // Show CSS_Gen_1-only UI elements (Focus mode buttons + Diopter slider)
+        if (IS_CSS_GEN_1) {
+            var cssGen1Focus = document.getElementById('cssGen1FocusControls');
+            if (cssGen1Focus) cssGen1Focus.style.display = 'block';
+        }
 
         /* ---- Polling backoff state ---- */
         var POLL_BASE   = 3000;   // normal polling interval (ms)
