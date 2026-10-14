@@ -264,6 +264,7 @@ def open_trap_hmi(log_mode, start_step = 0):
     menu_exit = False
     print("starte lokales HMI")  
     write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_step", "local_menu") 
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "RTC_state", "allow_reset_time_via_web", True) # allow RTC reset via web during local menu
     
     set_new_location_code = force_new_location_code(log_mode)
     if set_new_location_code:
@@ -322,6 +323,8 @@ def open_trap_hmi(log_mode, start_step = 0):
                     turn_off_led("gelb")  
                     
             time.sleep(.05)
+
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "RTC_state", "allow_reset_time_via_web", False)
                        
     if not Menu_open:
         write_fram_bytes(0x05FF, b'\x00') # Kontrollbit für HMI geschlossen setzen

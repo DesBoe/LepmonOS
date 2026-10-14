@@ -37,7 +37,7 @@ def start_up(log_mode):
     send_lora("Starte Lepmon Software")
     write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "general", "current_step", "start_up")
     set_Camera_States_false() # reset Camera States
-
+    write_value_to_section("/home/Ento/LepmonOS/Lepmon_config.json", "RTC_state", "allow_reset_time_via_web", False) # reset RTC state
 
     ############################################################################################################################################################################################################
     # Update: Ram Neu Beschreiben für INFO zur Firmware.

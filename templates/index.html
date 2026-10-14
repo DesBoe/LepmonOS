@@ -1042,7 +1042,7 @@
     <main class="container">
         <div class="light-control-bar">
             <div class="light-control-header">
-                <h2>💡 Light Control<button class="info-btn" data-info="Steuert die LED-Beleuchtung der Kamera. Verwenden Sie die + und - Buttons zum Dimmen oder stellen Sie den Helligkeitswert direkt mit dem Slider ein." onclick="showInfo(this)" title="Info">i</button></h2>
+                <h2>💡 Light Control<button class="info-btn" data-info="turn the visible LED on and off for faster Exposure during focus session. Note the 5 min. countdown. After 5 min, the LED will cool down for another 5 min and can be powered on afterwards" onclick="showInfo(this)" title="Info">i</button></h2>
                 <div class="light-control-buttons">
                     <button id="dimUpBtn" class="btn btn-success" onclick="dimUp()">
                         💡On
@@ -1057,7 +1057,7 @@
 
         <div class="stream-container">
             <div class="stream-header">
-                <h2>📷 Live Camera Stream<button class="info-btn" data-info="Zeigt den Live-Bildstream der Kamera. Starten oder stoppen Sie den Stream mit dem Play/Stop-Button. Die Kamera überträgt Bilder in Echtzeit für Fokussierung und Überwachung." onclick="showInfo(this)" title="Info">i</button></h2>
+                <h2>📷 Live Camera Stream<button class="info-btn" data-info="Displays the camera's live video stream. Start or stop the stream using the Play/Stop button. The camera transmits images in real time for focusing and monitoring. Note: Only available when focus via web is selected on local menu" onclick="showInfo(this)" title="Info">i</button></h2>
                 <div class="stream-controls">
                     <button class="btn btn-secondary" onclick="toggleStream()">
                         <span id="streamToggle">Stop Stream</span>
@@ -1091,7 +1091,7 @@
         <aside class="sidebar">
             <div class="card">
                 <div class="gallery-header">
-                    <h3>⚙️ Camera Settings<button class="info-btn" data-info="Hier können Sie die Kameraeinstellungen anpassen. Wählen Sie zwischen Auto- und Manueller Belichtung. Bei manueller Einstellung können Sie ISO, Verschlusszeit und Gain individuell konfigurieren." onclick="showInfo(this)" title="Info">i</button></h3>
+                    <h3>⚙️ Camera Settings<button class="info-btn" data-info="adjust the camera settings, choose between Auto and Manual exposure. In Manual mode, you can configure the ISO, shutter speed, and gain individually. On ARNI CS, set the focus manually or automatically. use the zoom to digitally crop into the stream for a magnification (up to 5x). Rise the downscale factor to lower stream resolution. Note: this does not affect captured images during night" onclick="showInfo(this)" title="Info">i</button></h3>
                     <div class="camera-mode-buttons">
                         <button id="exposureAutoBtn" class="btn btn-success" onclick="setExposureMode('auto')">Auto</button>
                         <button id="exposureManualBtn" class="btn btn-secondary" onclick="setExposureMode('manual')">Manual</button>
@@ -1152,7 +1152,7 @@
             </div>
             
             <div class="card">
-                <h3>📊 Focus Analysis<button class="info-btn" data-info="Berechnet einen Fokusscore basierend auf der Bildschärfe. Ein höherer Wert bedeutet ein schärferes Bild. Werte über 225 gelten als gut fokussiert. Verwenden Sie diesen Wert zum manuellen Fokussieren der Kamera." onclick="showInfo(this)" title="Info">i</button></h3>
+                <h3>📊 Focus Analysis<button class="info-btn" data-info=“Calculates a focus score based on image sharpness. A higher value indicates a sharper image. Values above 225 are considered well-focused. Use this value to manually focus the camera.” onclick="showInfo(this)" title="Info">i</button></h3>
                 <div class="stat-row">
                     <span class="stat-label">Focus Score</span>
                     <span id="focusScore" class="stat-value">--</span>
@@ -1168,7 +1168,7 @@
             </div>
             
             <div class="card">
-                <h3>📈 System Status<button class="info-btn" data-info="Zeigt den aktuellen Status des Systems an: Anzahl der erfolgreich aufgenommenen Bilder und die CPU-Temperatur des Raspberry Pi. Überwachen Sie diese Werte, um eine optimale Leistung zu gewährleisten." onclick="showInfo(this)" title="Info">i</button></h3>
+                <h3>📈 System Status<button class="info-btn" data-info="Displays the current status of the system: the number of images successfully captured and the number of connected remote control devices." onclick="showInfo(this)" title="Info">i</button></h3>
                 <div class="stat-row">
                     <span class="stat-label">Images Captured</span>
                     <span id="imagesCount" class="stat-value">--</span>
@@ -1180,7 +1180,7 @@
             </div>
             
             <div class="card">
-                <h3>🔧 Camera Info<button class="info-btn" data-info="Zeigt technische Informationen über die verbundene Kamera: Kameramodell, Firmware-Version und Konnektor-Typ. Diese Informationen helfen bei der Fehlersuche und Dokumentation." onclick="showInfo(this)" title="Info">i</button></h3>
+                <h3>🔧 Camera Info<button class="info-btn" data-info="Displays technical information about the connected camera: camera model, firmware version, and connector type. This information helps with troubleshooting and documentation." onclick="showInfo(this)" title="Info">i</button></h3>
                 <div class="stat-row">
                     <span class="stat-label">Camera</span>
                     <span id="cameraModel" class="stat-value">--</span>
@@ -1198,7 +1198,7 @@
             </div>
 
             <div class="card">
-                <h3>📡 Camera State<button class="info-btn" data-info="Zeigt den aktuellen Zustand der Kamera: Ob eine Aufnahme läuft, die Kamera bereit für Web-Streaming ist und ob eine Web-Anfrage aktiv ist. Hilft bei der Diagnose von Kamera-Problemen." onclick="showInfo(this)" title="Info">i</button></h3>
+                <h3>📡 Camera State<button class="info-btn" data-info="Displays the current state of the camera: whether a recording is in progress, the camera is ready for web streaming, and whether a web request is active." onclick="showInfo(this)" title="Info">i</button></h3>
                 {% if hardware_version != "CSS_Gen_1" %}
                 <div class="stat-row">
                     <span class="stat-label">Has Power</span>
@@ -1221,7 +1221,7 @@
 
             
             <div class="card">
-                <h3>📖 Focus Instructions<button class="info-btn" data-info="Schritt-für-Schritt-Anleitung zum Fokussieren der Kamera: Beobachten Sie den Fokusscore, drehen Sie langsam den Fokusring und maximieren Sie den Score. Werte über 225 sind scharf – je höher, desto besser!" onclick="showInfo(this)" title="Info">i</button></h3>
+                <h3>📖 Focus Instructions<button class="info-btn" data-info="Step-by-step instructions for focusing the camera: Observe the focus score, turn the focus ring slowly, and maximize the score. Values above 225 are sharp – the higher, the better!" onclick="showInfo(this)" title="Info">i</button></h3>
                 <div class="instructions">
                     <h4>Focusing Procedure</h4>
                     <ul>
@@ -1239,7 +1239,7 @@
     <section class="sensor-section">
         <div class="gallery-card">
             <div class="gallery-header">
-                <h3>📊 Sensor Monitoring<button class="info-btn" data-info="Zeigt Echtzeit-Daten aller angeschlossenen Sensoren: RTC-Uhrzeit, Umgebungslicht, Innentemperatur, Stromsensor (Spannung, Strom, Leistung) und Umweltsensor (Temperatur, Luftdruck, Luftfeuchtigkeit). Ein ✅-Symbol zeigt einen verbundenen Sensor, ❌ bedeutet nicht verbunden." onclick="showInfo(this)" title="Info">i</button></h3>
+                <h3>📊 Sensor Monitoring<button class="info-btn" data-info=“Displays real-time data from all connected sensors: RTC time, ambient light, indoor temperature, power sensor (voltage, current, power), and environmental sensor (temperature, air pressure, humidity). A ✅ icon indicates a connected sensor, ❌ means not connected, and 🔓 means the sensor is in use for data collection.” onclick="showInfo(this)" title="Info">i</button></h3>
             </div>
             <table class="sensor-table">
                 <thead>
@@ -1275,7 +1275,7 @@
     <section class="usb-section">
         <div class="gallery-card">
             <div class="gallery-header">
-                <h3>💾 USB Storage<button class="info-btn" data-info="Zeigt den Status des USB-Speichers: Ob ein USB-Laufwerk erkannt wurde, dessen Gesamtkapazität, den freien Speicherplatz und den bereits genutzten Speicher. Die Bilder werden automatisch auf den USB-Speicher gespeichert." onclick="showInfo(this)" title="Info">i</button></h3>
+                <h3>💾 USB Storage<button class="info-btn" data-info="Displays the status of the USB storage: Whether a USB drive has been detected, its total capacity, the available storage space, and the amount of storage already in use. Images are automatically saved to the USB storage." onclick="showInfo(this)" title="Info">i</button></h3>
             </div>
 
             <table class="sensor-table storage-table">
@@ -1306,7 +1306,7 @@
     <section class="timing-section">
         <div class="gallery-card">
             <div class="gallery-header">
-                <h3>🌙 Experiment Timing<button class="info-btn" data-info="Steuert den Zeitplan für automatische Experimente. Konfigurieren Sie Start- und Endzeiten für Aufnahmen, um die Kamera zu bestimmten Tageszeiten automatisch arbeiten zu lassen." onclick="showInfo(this)" title="Info">i</button></h3>
+                <h3>🌙 Experiment Timing<button class="info-btn" data-info="schedule for runs." onclick="showInfo(this)" title="Info">i</button></h3>
                 <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
                     <span id="currentStepHeader" style="font-size:0.9rem; color:var(--text);">⚡ Current Step: ---</span>
                 </div>
@@ -1372,7 +1372,7 @@
     <section class="location-section">
         <div class="gallery-card">
             <div class="gallery-header">
-                <h3>📍 Location & LEPMON Code<button class="info-btn" data-info="Zeigt die Standortinformationen und den eindeutigen LEPMON-Code dieses Geräts. Diese Daten identifizieren den genauen Einsatzort im LEPMON-Netzwerk." onclick="showInfo(this)" title="Info">i</button></h3>
+                <h3>📍 Location & LEPMON Code<button class="info-btn" data-info="Displays the location information and the unique LEPMON code of this device. These data identify the exact deployment location within LEPMON." onclick="showInfo(this)" title="Info">i</button></h3>
             </div>
                 <table class="sensor-table">
 
@@ -1414,7 +1414,7 @@
     <section class="gallery-section">
         <div class="gallery-card">
             <div class="gallery-header">
-                <h3>📁 Current Runs<button class="info-btn" data-info="Listet alle aktuellen und vergangenen Aufnahme-Sessions (Runs) auf. Jeder Run entspricht einer separaten Experimentreihe. Sie können den Status des USB-Speichers und die Anzahl der Runs einsehen." onclick="showInfo(this)" title="Info">i</button></h3>
+                <h3>📁 Current Runs<button class="info-btn" data-info= "“Lists all current and past recording sessions (runs). Each run corresponds to a separate series of experiments. Look fo details on date, number of photos and amount of generated data. preview two photos of each night. follow the green button for a preview of all data of one night, select images and download them" onclick="showInfo(this)" title="Info">i</button></h3>
                 <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
                     <span id="runsUsbStatus" class="usb-status usb-disconnected">USB: checking...</span>
                     <button class="btn btn-secondary" onclick="loadRuns()">↻ Refresh</button>
@@ -1429,7 +1429,7 @@
     <section class="gallery-section">
         <div class="gallery-card">
             <div class="gallery-header">
-                <h3>📜 LepmonOS Log<button class="info-btn" data-info="Zeigt das System-Log von LepmonOS an. Hier werden alle Ereignisse, Aktionen und Fehlerprotokolle des Systems dokumentiert. Nutzen Sie den Reload-Button, um das Log auf den neuesten Stand zu bringen." onclick="showInfo(this)" title="Info">i</button></h3>
+                <h3>📜 LepmonOS Log<button class="info-btn" data-info="Review the main LepmonOS log. All system events, actions, and error logs are documented here. Use the Reload button to refresh the log." onclick="showInfo(this)" title="Info">i</button></h3>
                 <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
                     <button class="btn btn-secondary" onclick="loadLog()">↻ Reload Log</button>
                     <button class="btn btn-secondary" onclick="downloadFile('/api/download/log', 'log.txt')">⬇ Download</button>
@@ -1444,7 +1444,7 @@
     <section class="gallery-section">
         <div class="gallery-card">
             <div class="gallery-header">
-                <h3>📊 CSV Data<button class="info-btn" data-info="Zeigt die in der CSV-Datei gespeicherten Sensordaten an. Die CSV-Datei enthält zeitgestempelte Messwerte aller Sensoren und kann zur weiteren Analyse heruntergeladen werden." onclick="showInfo(this)" title="Info">i</button></h3>
+                <h3>📊 CSV Data<button class="info-btn" data-info="Displays the sensor data stored in the CSV file. The CSV file contains timestamped measurements from all sensors and can be downloaded for further analysis." onclick="showInfo(this)" title="Info">i</button></h3>
                 <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
                     <span id="csvFilePath" style="font-size:0.7rem; color:var(--text-dim); max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title=""></span>
                     <button class="btn btn-secondary" onclick="loadCSV()">↻ Reload CSV</button>
@@ -1460,7 +1460,7 @@
     <section class="gallery-section">
         <div class="gallery-card">
             <div class="gallery-header">
-                <h3>📲 Download USB<button class="info-btn" data-info="Ermöglicht das Herunterladen von Daten direkt vom USB-Speicher. Wählen Sie die gewünschten Dateien oder Run-Ordner und laden Sie sie auf Ihren Computer zum Auswerten herunter." onclick="showInfo(this)" title="Info">i</button></h3>
+                <h3>📲 Download USB<button class="info-btn" data-info="Allows you to download all data directly from the USB drive." onclick="showInfo(this)" title="Info">i</button></h3>
                 <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
                     <span id="usbFileCount" style="font-size:0.8rem; color:var(--text-dim);">USB not found</span>
                     <button class="btn btn-secondary" onclick="refreshUsbCount()">↻ Reload</button>
@@ -1492,12 +1492,15 @@
     <section class="gallery-section">
         <div class="gallery-card">
             <div class="gallery-header">
-                <h3>⏱️ RTC Time Sync<button class="info-btn" data-info="Synchronisiert die Echtzeituhr (RTC) mit der Systemzeit des Raspberry Pi. Die RTC stellt sicher, dass die Zeit auch bei Stromausfall korrekt weiterläuft. Synchronisieren Sie regelmäßig für genaue Zeitstempel in den Daten." onclick="showInfo(this)" title="Info">i</button></h3>
+                <h3>⏱️ RTC Time Sync<button class="info-btn" data-info="Synchronizes the real-time clock (RTC) with the Raspberry Pi's system time. The RTC ensures that the time continues to run correctly even during a power outage Note: The clock can only be reset when the local HMI menu on the ARNI is open." onclick="showInfo(this)" title="Info">i</button></h3>
                 <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
                     <button class="btn btn-primary" id="rtcSyncBtn" onclick="confirmRtcSync()">🔄 Synchronize</button>
                 </div>
             </div>
             <div style="padding:1rem;">
+                <div id="rtcHmiNotice" style="display:none; margin-bottom: 0.85rem; padding: 0.65rem 0.85rem; background: rgba(234, 179, 8, 0.12); border: 1px solid var(--warning); border-radius: 6px; color: var(--warning); font-size: 0.85rem; line-height: 1.4;">
+                    ⚠️ <strong>Attention:</strong> Time can only be set with open menu on ARNI.
+                </div>
                 <div class="stat-row">
                     <span class="stat-label">New Time</span>
                     <span id="rtcNewTime" class="stat-value" style="color: var(--success); font-weight: bold;">--</span>
@@ -1514,19 +1517,28 @@
     <section class="gallery-section">
         <div class="gallery-card">
             <div class="gallery-header">
-                <h3>📖 ARNI Manual<button class="info-btn" data-info="Hier können Sie das ARNI-Manual als PDF herunterladen. Das Manual enthält detaillierte Informationen zur Hardware, Installation und Konfiguration des ARNI-Systems." onclick="showInfo(this)" title="Info">i</button></h3>
-                <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
-                    <a href="ARNI_Manual--ENG.pdf" download class="btn btn-primary">⬇ Download Manual</a>
-                </div>
+                <h3>📖 ARNI Manual<button class="info-btn" data-info="view or download the ARNI manual. Note that the manual described the Pro Version, But CS shares the same software features." onclick="showInfo(this)" title="Info">i</button></h3>
             </div>
             <div style="padding:1rem;">
-                <div class="pdf-embed-wrapper">
-                    <embed src="ARNI_Manual--ENG.pdf#toolbar=0&navpanes=0" type="application/pdf">
+                <div id="pdfEmbedContainer" class="pdf-embed-wrapper" style="display:none; flex-direction:column;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:0.5rem 0.75rem; background:rgba(0,0,0,0.3); border-bottom:1px solid var(--accent);">
+                        <span style="font-size:0.9rem; color:var(--text); font-weight:500;">📖 ARNI Manual</span>
+                        <button type="button" class="btn btn-secondary" onclick="togglePdfPreview()" style="padding:0.3rem 0.65rem; font-size:0.8rem;">✕ Close Preview</button>
+                    </div>
+                    <div id="pdfIframeWrapper" style="width:100%; height:calc(100% - 40px);">
+                        <!-- Embedded iframe loaded on user demand only -->
+                    </div>
                 </div>
-                <div class="pdf-download-row" style="margin-top:1rem;">
-                    <div class="pdf-file-info">
-                        <span class="pdf-file-icon">📄</span>
-                        <span class="pdf-file-name">ARNI_Manual--ENG.pdf</span>
+                <div id="pdfPlaceholder" style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:2.5rem 1rem; border:2px dashed var(--accent); border-radius:8px; text-align:center; background: rgba(255,255,255,0.02);">
+                    <div style="font-size:2.8rem; margin-bottom:0.75rem;">📄</div>
+                    <div class="pdf-file-name" style="font-size:1.05rem; font-weight:600; margin-bottom:0.35rem;">ARNI_Manual--ENG.pdf</div>
+                    <div style="color:var(--text-muted); font-size:0.85rem; margin-bottom:1.25rem;">
+                        Hardware- &amp; Software-Dokumentation (PDF, ca. 15 MB)
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:0.6rem; align-items:center; width:100%; max-width:200px;">
+                        <button type="button" class="btn btn-primary" onclick="togglePdfPreview()" style="width:100%; justify-content:center;">📱preview</button>
+                        <a href="/ARNI_Manual--ENG.pdf" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="width:100%; justify-content:center;">⚙️open</a>
+                        <a href="/ARNI_Manual--ENG.pdf?download=true" download="ARNI_Manual--ENG.pdf" class="btn btn-secondary" style="width:100%; justify-content:center;">⬇️download</a>
                     </div>
                 </div>
             </div>
@@ -2480,62 +2492,138 @@
                 });
         }
 
-        /* ---- RTC Time Sync ---- */
-        function confirmRtcSync() {
-            // Build ISO 8601 timestamp from the browser's local clock
-            var now = new Date();
-            var ts = now.getFullYear()
-                + '-' + String(now.getMonth() + 1).padStart(2, '0')
-                + '-' + String(now.getDate()).padStart(2, '0')
-                + 'T'
-                + String(now.getHours()).padStart(2, '0')
-                + ':' + String(now.getMinutes()).padStart(2, '0')
-                + ':' + String(now.getSeconds()).padStart(2, '0');
-
-            var msg = 'Synchronize the RTC clock to your device time?\n\n'
-                + 'Device timestamp: ' + ts + '\n\n'
-                + 'The ARNI will use this timestamp to update its hardware clock.';
-
-            if (!confirm(msg)) return;
-
-            // UI: loading state
-            var btn = document.getElementById('rtcSyncBtn');
-            btn.disabled = true;
-            btn.textContent = '⏳ updating...';
-            document.getElementById('rtcNewTime').textContent = ts.replace('T', ' ');
-            document.getElementById('rtcNewTime').style.color = 'var(--warning)';
-            document.getElementById('rtcOldTime').textContent = 'reading...';
-            document.getElementById('rtcOldTime').style.color = '';
-
-            fetch('/api/rtc/update', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ timestamp: ts }),
-            })
-                .then(function(res) { return res.json().then(function(data) { return { ok: res.ok, data: data }; }); })
-                .then(function(result) {
-                    var d = result.data;
-                    if (result.ok && d.success) {
-                        document.getElementById('rtcOldTime').textContent = d.old_time || '--';
-                        document.getElementById('rtcOldTime').style.color = '';
-                        document.getElementById('rtcNewTime').textContent = d.new_time || ts.replace('T', ' ');
-                        document.getElementById('rtcNewTime').style.color = 'var(--success)';
-                    } else {
-                        document.getElementById('rtcOldTime').textContent = d.error || 'unknown error';
-                        document.getElementById('rtcOldTime').style.color = 'var(--highlight)';
-                        document.getElementById('rtcNewTime').style.color = 'var(--highlight)';
+        /* ---- RTC State & Time Sync ---- */
+        function updateRtcState() {
+            fetch('/api/rtc/state')
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    var isAllowed = (data.allow_reset_time_via_web === true || data.allow_reset_time_manual === true);
+                    var noticeEl = document.getElementById('rtcHmiNotice');
+                    var btn = document.getElementById('rtcSyncBtn');
+                    if (noticeEl) {
+                        noticeEl.style.display = isAllowed ? 'none' : 'block';
+                    }
+                    if (btn) {
+                        if (!isAllowed) {
+                            btn.title = 'Uhrzeit kann nur bei geöffnetem HMI (lokales Menü am ARNI) gestellt werden';
+                        } else {
+                            btn.title = 'RTC mit Gerätezeit synchronisieren';
+                        }
                     }
                 })
                 .catch(function(err) {
-                    console.error('RTC sync failed:', err);
+                    console.error('Failed to read RTC state:', err);
+                });
+        }
+
+        function confirmRtcSync() {
+            // First check whether the server allows RTC resets from the web UI
+            fetch('/api/rtc/state')
+                .then(function(res) { return res.json().then(function(data) { return { ok: res.ok, data: data }; }); })
+                .then(function(result) {
+                    var allow_reset_time_via_web = result.data.allow_reset_time_via_web;
+                    var allow_reset_time_manual = result.data.allow_reset_time_manual;
+                    if (allow_reset_time_via_web !== true && allow_reset_time_manual !== true) {
+                        // Blocked — show info message and alert as requested
+                        var noticeEl = document.getElementById('rtcHmiNotice');
+                        if (noticeEl) {
+                            noticeEl.style.display = 'block';
+                        }
+                        document.getElementById('rtcOldTime').textContent = 'Nur bei geöffnetem HMI möglich';
+                        document.getElementById('rtcOldTime').style.color = 'var(--warning)';
+                        document.getElementById('rtcNewTime').textContent = 'gesperrt';
+                        document.getElementById('rtcNewTime').style.color = 'var(--warning)';
+                        alert('Notice: Time can only be updated while the local menu (HMI) on ARNI is active.');
+                        return;
+                    }
+
+                    var noticeEl = document.getElementById('rtcHmiNotice');
+                    if (noticeEl) {
+                        noticeEl.style.display = 'none';
+                    }
+
+                    // Allowed — proceed with the original confirmation + sync flow
+                    var now = new Date();
+                    var ts = now.getFullYear()
+                        + '-' + String(now.getMonth() + 1).padStart(2, '0')
+                        + '-' + String(now.getDate()).padStart(2, '0')
+                        + 'T'
+                        + String(now.getHours()).padStart(2, '0')
+                        + ':' + String(now.getMinutes()).padStart(2, '0')
+                        + ':' + String(now.getSeconds()).padStart(2, '0');
+
+                    var msg = 'Synchronize the RTC clock to your device time?\n\n'
+                        + 'Device timestamp: ' + ts + '\n\n'
+                        + 'The ARNI will use this timestamp to update its hardware clock.';
+
+                    if (!confirm(msg)) return;
+
+                    var btn = document.getElementById('rtcSyncBtn');
+                    btn.disabled = true;
+                    btn.textContent = '⏳ updating...';
+                    document.getElementById('rtcNewTime').textContent = ts.replace('T', ' ');
+                    document.getElementById('rtcNewTime').style.color = 'var(--warning)';
+                    document.getElementById('rtcOldTime').textContent = 'reading...';
+                    document.getElementById('rtcOldTime').style.color = '';
+
+                    fetch('/api/rtc/update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ timestamp: ts }),
+                    })
+                        .then(function(res) { return res.json().then(function(data) { return { ok: res.ok, data: data }; }); })
+                        .then(function(result) {
+                            var d = result.data;
+                            if (result.ok && d.success) {
+                                document.getElementById('rtcOldTime').textContent = d.old_time || '--';
+                                document.getElementById('rtcOldTime').style.color = '';
+                                document.getElementById('rtcNewTime').textContent = d.new_time || ts.replace('T', ' ');
+                                document.getElementById('rtcNewTime').style.color = 'var(--success)';
+                            } else {
+                                document.getElementById('rtcOldTime').textContent = d.error || 'unknown error';
+                                document.getElementById('rtcOldTime').style.color = 'var(--highlight)';
+                                document.getElementById('rtcNewTime').style.color = 'var(--highlight)';
+                                if (d.error) {
+                                    alert(d.error);
+                                }
+                            }
+                        })
+                        .catch(function(err) {
+                            console.error('RTC sync failed:', err);
+                            document.getElementById('rtcOldTime').textContent = 'connection error';
+                            document.getElementById('rtcOldTime').style.color = 'var(--highlight)';
+                            document.getElementById('rtcNewTime').style.color = 'var(--highlight)';
+                        })
+                        .finally(function() {
+                            btn.disabled = false;
+                            btn.textContent = '🔄 Synchronize';
+                            updateRtcState();
+                        });
+                })
+                .catch(function(err) {
+                    console.error('Failed to read RTC state:', err);
                     document.getElementById('rtcOldTime').textContent = 'connection error';
                     document.getElementById('rtcOldTime').style.color = 'var(--highlight)';
                     document.getElementById('rtcNewTime').style.color = 'var(--highlight)';
-                })
-                .finally(function() {
-                    btn.disabled = false;
-                    btn.textContent = '🔄 Synchronize';
                 });
+        }
+
+        /* ---- PDF Manual Preview Toggle ---- */
+        function togglePdfPreview() {
+            var container = document.getElementById('pdfEmbedContainer');
+            var placeholder = document.getElementById('pdfPlaceholder');
+            var iframeWrapper = document.getElementById('pdfIframeWrapper');
+            if (container.style.display === 'none' || !container.style.display) {
+                var target = iframeWrapper || container;
+                if (!target.querySelector('iframe')) {
+                    target.innerHTML = '<iframe src="/ARNI_Manual--ENG.pdf#toolbar=0&navpanes=0" type="application/pdf" style="width:100%; height:100%; border:none;" title="ARNI Manual Preview"></iframe>';
+                }
+                container.style.display = 'flex';
+                if (placeholder) placeholder.style.display = 'none';
+            } else {
+                container.style.display = 'none';
+                if (placeholder) placeholder.style.display = 'flex';
+            }
         }
 
         /* ---- Experiment Timing Table ---- */
@@ -2750,6 +2838,7 @@
 
         // Initial updates
         updateStatus();
+        updateRtcState();
         updateFocus();
         updateSensors();
         loadDimmingStatus();
@@ -2768,6 +2857,7 @@
         
         // Periodic updates
         setInterval(updateStatus, 2000);
+        setInterval(updateRtcState, 3000);
         setInterval(updateFocus, 1000);
         setInterval(updateSensors, 2000);
         setInterval(loadDimmingStatus, 2000);

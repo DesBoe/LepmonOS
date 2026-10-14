@@ -46,6 +46,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 HARDWARE_VERSION = get_hardware_version()
 _, _, _, ARNI_SN = get_Lepmon_code("manual")
+allow_reset_time_manual = False 
 
 if HARDWARE_VERSION in ["Pro_Gen_1", "Pro_Gen_2", "Pro_Gen_3", "Pro_Gen_4"]:
     EXPECTED_CAMERA_TYPE = "AV"
@@ -2592,12 +2593,14 @@ async def capture_image_placeholder():
 
 
 @app.get("/ARNI_Manual--ENG.pdf")
-async def arni_manual():
+async def arni_manual(download: bool = False):
     """Serve the ARNI Manual PDF from the templates directory."""
+    disp_type = "attachment" if download else "inline"
     return FileResponse(
         templates_dir / "ARNI_Manual--ENG.pdf",
         media_type="application/pdf",
-        filename="ARNI_Manual--ENG.pdf"
+        filename="ARNI_Manual--ENG.pdf",
+        content_disposition_type=disp_type,
     )
 
 
@@ -2630,7 +2633,36 @@ async def video_stream():
             media_type="multipart/x-mixed-replace; boundary=frame"
         )
 
-LEPMON_CONFIG_PATH = "/home/Ento/LepmonOS/Lepmon_config.json"
+LEPMON_CONFIG_PATH = Path("/home/Ento/LepmonOS/Lepmon_config.json")
+if not LEPMON_CONFIG_PATH.exists():
+    _local_cfg = Path(__file__).resolve().parent / "Lepmon_config.json"
+    if _local_cfg.exists():
+        LEPMON_CONFIG_PATH = _local_cfg
+
+
+@app.get("/api/rtc/state")
+async def get_rtc_state():
+    """Return the RTC_state block from Lepmon_config.json.
+
+    The frontend uses allow_reset_time_via_web to decide whether the
+    user may synchronise the RTC clock through the web UI.
+    allow_reset_time_manual is True when explicitly allowed via CLI
+    flag --allow-manual-rtc (debugging mode).
+    """
+    try:
+        val = get_value_from_section(str(LEPMON_CONFIG_PATH), "RTC_state", "allow_reset_time_via_web")
+        allow_reset_time_via_web = (val is True)
+        return {
+            "allow_reset_time_via_web": allow_reset_time_via_web,
+            "allow_reset_time_manual": bool(allow_reset_time_manual),
+            "hint": "Das Einstellen der Uhrzeit ist nur bei geöffnetem HMI (lokales Menü am ARNI) möglich." if not allow_reset_time_via_web and not allow_reset_time_manual else "",
+        }
+    except Exception as e:
+        logger.error(f"RTC state read error: {e}")
+        return JSONResponse(
+            {"error": str(e), "allow_reset_time_via_web": False, "allow_reset_time_manual": bool(allow_reset_time_manual)},
+            status_code=500,
+        )
 
 
 @app.get("/api/camera/power")
@@ -3591,6 +3623,18 @@ async def update_rtc_time(request: Request):
         - message  (str)
     """
     try:
+        # ── Gate: respect allow_reset_time_via_web ───────────────────────
+        val = get_value_from_section(str(LEPMON_CONFIG_PATH), "RTC_state", "allow_reset_time_via_web")
+        allow_reset_time_via_web = (val is True)
+        if not allow_reset_time_via_web and not allow_reset_time_manual:
+            return JSONResponse(
+                {
+                    "success": False,
+                    "error": "Das Einstellen der Uhrzeit ist nur bei geöffnetem HMI (lokales Menü am ARNI) möglich. / Time can only be updated while local menu on ARNI is active.",
+                },
+                status_code=403,
+            )
+
         body = await request.json()
         client_ts = body.get("timestamp", "")
 
@@ -3860,6 +3904,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Lepmon Web Service")
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")
     parser.add_argument("--port", type=int, default=8080, help="Port to bind to")
+    parser.add_argument("--allow-manual-rtc", action="store_true", help="Allow manual RTC reset via web (for debugging)")
     args = parser.parse_args()
     # Start camera detection polling (2s interval)
     _start_camera_detection()
@@ -3868,7 +3913,10 @@ if __name__ == "__main__":
     # Start camera release monitor (5s interval — frees camera when free_for_web is False)
     _start_camera_release_monitor()
     # Start viewer heartbeat cleanup (now handled by lifespan, no longer started here)
-    print("run manually in Terminal:")
-    print("/home/Ento/Lepmon_env/bin/python /home/Ento/LepmonOS/lepmon_web_service.py")
+    if args.allow_manual_rtc:
+        allow_reset_time_manual = True
+        logger.info("Manual RTC reset via web enabled (--allow-manual-rtc)")
+    else:
+        allow_reset_time_manual = False
     run_server(args.host, args.port)
 

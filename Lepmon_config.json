@@ -42,6 +42,10 @@
         "stream_viewers": 0,
         "sensors_free_for_web": true
     },
+    "RTC_state": {
+        "allow_reset_time_via_web": false
+    },
+    
     "Camera_Stream": {
         "gain": 7,
         "exposure": 20,

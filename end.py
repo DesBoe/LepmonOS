@@ -29,7 +29,7 @@ from hardware import get_hardware_version
 HARDWARE_VERSION = get_hardware_version()
 
 
-def check_for_viewers():
+def check_for_viewers(log_mode="log"):
     """Check if there are active viewers and delay if necessary."""
     viewer_count = get_viewer_count()
     if viewer_count > 0:
@@ -69,7 +69,7 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
 
 
     if execution == "during_run":
-        check_for_viewers()
+        check_for_viewers(log_mode)
         log_schreiben("Shutdown während laufendem Experiment ausgelöst - Erwate Fortsetzung des Experiments im selben Ordner nach Neustart", log_mode)
         log_schreiben("sofortiger Reboot in 5 Sekunden", log_mode)
         log_schreiben("##################################",log_mode)
@@ -163,7 +163,7 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
 
 
     if execution == "force_reboot":
-        check_for_viewers()
+        check_for_viewers(log_mode)
         print("Setze Controlbit auf True")
         write_fram_bytes(0x07A0, b'\x01')
         write_timestamp(0x07E0)
@@ -186,7 +186,7 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
             log_schreiben("##################################",log_mode)
             time.sleep(5)
             if execution == "full":
-                check_for_viewers()
+                check_for_viewers(log_mode)
                 os.system("sudo reboot")
                 time.sleep(2)
                 print("Systembefehl zum Neustart ausgeführt.")
@@ -200,7 +200,7 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
             log_schreiben("##################################",log_mode)
             time.sleep(2)
             if execution == "full":
-                check_for_viewers()
+                check_for_viewers(log_mode)
                 os.system("sudo shutdown -r 5")
             elif execution != "full":
                 print("System würde jetzt im PV Modus neu starten (Reboot in 61 Sekunden)")
@@ -213,7 +213,7 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
             log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###",log_mode)
             log_schreiben("##################################",log_mode)
             time.sleep(5)
-            check_for_viewers()
+            check_for_viewers(log_mode)
             if execution == "full":
                 os.system("sudo reboot")
                 time.sleep(2)
@@ -230,7 +230,7 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
                 time.sleep(0.25)
                 print("System würde jetzt im Power Safe Modus herunterfahren (Attiny übernimmt Steuerung)")
             elif execution == "full" or execution == "test":
-                check_for_viewers()
+                check_for_viewers(log_mode)
                 GPIO.output(Power_control_GPIO, GPIO.LOW)
             status = GPIO.input(Power_control_GPIO)
             log_schreiben(f"Status GPIO Pin für Power Control: {status}", log_mode)
