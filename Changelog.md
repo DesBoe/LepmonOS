@@ -14,6 +14,7 @@
 ### Geändert
 ### Hinzugefügt
 - liveview auf ARNI-CS
+
 ### Behoben
 
 ## [2.3.4] 2026-09-18
@@ -28,7 +29,7 @@
 
 ## [2.3.3] 2026-09-02
 ### Geändert
-- AV Kamera initialisierung ohne festen sleelp Befehl, stattdessen für max 10s Suche nache Kamera zum initialisieren. Bei Fehler weiterhin Fehlercode 1
+- AV Kamera initialisierung ohne festen sleep Befehl, stattdessen für max 10s Suche nache Kamera zum initialisieren. Bei Fehler weiterhin Fehlercode 1
 - Config Datei mit Sektion für Experimente für Delay und Intervalle.
 - Maximale Exposure auf ARNI Pro 170 ms
 
