@@ -40,11 +40,18 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--txt);min-
 .cb button:hover{background:rgba(233,69,96,.8)}.cb button.sel{background:var(--green);border-color:var(--green)}
 .ti{background:var(--info-bg);padding:.6rem .7rem}.tf{font-size:.8rem;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tm{font-size:.7rem;color:rgba(255,255,255,.8);margin-top:.2rem;display:flex;justify-content:space-between}
-.lbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:9999;align-items:center;justify-content:center;padding:2rem}
-.lbox.on{display:flex}.lbox img{max-width:95vw;max-height:90vh;object-fit:contain;border-radius:8px}
+.lbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:9999;align-items:center;justify-content:center;padding:2rem;gap:1rem}
+.lbox.on{display:flex}.lbox-content{display:flex;flex-direction:column;align-items:center;gap:.75rem;max-width:calc(100vw - 12rem)}
+.lbox img{max-width:calc(100vw - 12rem);max-height:76vh;object-fit:contain;border-radius:8px;touch-action:none;user-select:none;-webkit-user-drag:none}
 .lbox-x{position:absolute;top:1rem;right:1.5rem;background:none;border:none;color:#fff;font-size:2.5rem;cursor:pointer}
+.lbox-nav{flex:0 0 auto;width:48px;height:60px;border:1px solid rgba(255,255,255,.35);border-radius:10px;background:rgba(22,33,62,.8);color:#fff;font-size:2.5rem;cursor:pointer}
+.lbox-nav:hover{background:var(--accent)}
+.lbox-caption{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:.75rem;width:100%}
+.lbox-name{max-width:min(70vw,900px);overflow-wrap:anywhere;text-align:center;font-size:.95rem;font-weight:600}
+.lbox-select{border:1px solid rgba(255,255,255,.4);border-radius:8px;background:rgba(0,0,0,.65);color:#fff;padding:.55rem .8rem;cursor:pointer}
+.lbox-select.sel{background:var(--green);border-color:var(--green);color:#102315}
 @media(max-width:1024px){.img-grid{grid-template-columns:repeat(3,1fr)}.meta-row{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:768px){.img-grid{grid-template-columns:repeat(2,1fr)}.meta-row{grid-template-columns:1fr 1fr}}
+@media(max-width:768px){.img-grid{grid-template-columns:repeat(2,1fr)}.meta-row{grid-template-columns:1fr 1fr}.lbox{padding:1rem .5rem;gap:.25rem}.lbox-content,.lbox img{max-width:calc(100vw - 6rem)}.lbox-nav{width:32px;height:48px;font-size:1.8rem}.lbox img{max-height:72vh}}
 </style></head><body>
 <div class="run-header"><a href="/" class="back-btn">&larr; Back</a><h1 class="run-title" id="runTitle">Loading...</h1></div>
 <div class="container">
@@ -52,10 +59,18 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--txt);min-
 <div id="error" class="empty" style="display:none">Not found</div>
 <div id="content" style="display:none"><div class="meta-row" id="metaRow"></div><div class="img-grid" id="grid"></div></div>
 </div>
-<div class="lbox" id="lbox" onclick="closeLB()"><button class="lbox-x" onclick="closeLB()">&times;</button><img id="limg"></div>
+<div class="lbox" id="lbox" onclick="closeLB()">
+<button class="lbox-x" aria-label="Close gallery" onclick="closeLB()">&times;</button>
+<button class="lbox-nav" aria-label="Previous image" onclick="event.stopPropagation();moveLB(-1)">&#8249;</button>
+<div class="lbox-content" onclick="event.stopPropagation()">
+<img id="limg" alt="">
+<div class="lbox-caption"><span class="lbox-name" id="lboxName"></span><button class="lbox-select" id="lboxSelect" onclick="toggleActiveSelection()">&#8595; Select for download</button></div>
+</div>
+<button class="lbox-nav" aria-label="Next image" onclick="event.stopPropagation();moveLB(1)">&#8250;</button>
+</div>
 <script>
 function b64encode(s){try{return btoa(unescape(encodeURIComponent(s)))}catch(e){return btoa(s)}}
-const FN="{{ folder_name }}";let S=new Set();let D=null;
+const FN="{{ folder_name }}";let S=new Set();let D=null;let activeImageIndex=-1;
 document.addEventListener("DOMContentLoaded",async()=>{
 try{const e=encodeURIComponent(FN);const r=await fetch(`/api/runs/${e}`);if(!r.ok)throw 0;D=await r.json();
 document.getElementById("runTitle").textContent=D.folder_name;render();
@@ -70,15 +85,28 @@ h+=`<div class="dl-tile"><svg viewBox="0 0 72 72"><circle cx="36" cy="36" r="34"
 document.getElementById("metaRow").innerHTML=h}
 function rGrid(){
 const im=D.images||[];if(!im.length){document.getElementById("grid").innerHTML='<div class="empty">No images found.</div>';return}
-let h="";for(const i of im){const ep=encodeURIComponent(i.filepath);const bp=b64encode(i.filepath);
-h+=`<div class="img-tile"><div class="tw"><img src="/api/images/thumbnail?b64=${bp}" loading="lazy" onclick="openLB('${ep}')" onerror="this.style.display='none'"><div class="cb"><button onclick="openLB('${ep}')">\ud83d\udd0d</button><button onclick="tI('${i.filename}',this)">\u2b07</button></div></div><div class="ti"><div class="tf" title="${i.filename}">${i.filename}</div><div class="tm"><span>${i.modified}</span><span>${i.size_str}</span></div></div></div>`}
+let h="";for(let index=0;index<im.length;index++){const i=im[index];const bp=b64encode(i.filepath);const selected=S.has(i.filename);
+h+=`<div class="img-tile"><div class="tw"><img src="/api/images/thumbnail?b64=${bp}" loading="lazy" onclick="openLB(${index})" onerror="this.style.display='none'"><div class="cb"><button onclick="openLB(${index})">\ud83d\udd0d</button><button class="${selected?"sel":""}" data-image-index="${index}" aria-label="Toggle download selection" onclick="tI(${index})">\u2b07</button></div></div><div class="ti"><div class="tf" title="${i.filename}">${i.filename}</div><div class="tm"><span>${i.modified}</span><span>${i.size_str}</span></div></div></div>`}
 document.getElementById("grid").innerHTML=h}
-function tI(fn,b){if(S.has(fn)){S.delete(fn);b.classList.remove("sel")}else{S.add(fn);b.classList.add("sel")}uC()}
+function tI(index){const i=D?.images?.[index];if(!i)return;if(S.has(i.filename))S.delete(i.filename);else S.add(i.filename);updateSelectionUI(index);uC()}
 function tM(k,b){const d=D[k];if(!d)return;const fn=d.filename;if(S.has(fn)){S.delete(fn);b.classList.remove("sel")}else{S.add(fn);b.classList.add("sel")}uC()}
 function uC(){const t=(D?.images?.length||0)+(D?.logfile?1:0)+(D?.csv_file?1:0)+(D?.checksums?1:0);document.getElementById("dlCt").textContent=S.size+"/"+t;document.getElementById("dlBtn").disabled=S.size===0}
-async function doDL(){if(!S.size)return;const b=document.getElementById("dlBtn");b.textContent="Downloading...";b.disabled=true;const fn=encodeURIComponent(FN);const urls=[...S].map(f=>`/api/runs/${fn}/download/${encodeURIComponent(f)}`);let i=0;function next(){if(i>=urls.length){b.textContent="Download";b.disabled=false;return}const a=document.createElement("a");a.href=urls[i];a.click();a.remove();i++;setTimeout(next,400)}next()}
+async function doDL(){if(!S.size)return;const b=document.getElementById("dlBtn");const fn=encodeURIComponent(FN);const files=[...S];b.disabled=true;
+const done=()=>{b.textContent="Download";b.disabled=S.size===0};
+if(!window.isSecureContext||!window.showDirectoryPicker){alert("Die Ordnerauswahl ist nicht verfügbar. Bitte LepmonOS in Chrome über HTTPS öffnen.");done();return}
+try{const dir=await window.showDirectoryPicker({mode:"readwrite"});for(let n=0;n<files.length;n++){const f=files[n];b.textContent=`Saving ${n+1}/${files.length}...`;const r=await fetch(`/api/runs/${fn}/download/${encodeURIComponent(f)}`);if(!r.ok||!r.body)throw new Error(`${f} (HTTP ${r.status})`);const w=await (await dir.getFileHandle(f,{create:true})).createWritable();await r.body.pipeTo(w)}}
+catch(e){if(e.name!=="AbortError")alert("Download failed: "+e.message)}
+finally{done()}}
 function vF(k){const d=D[k];if(!d)return;window.open(`/api/runs/${encodeURIComponent(FN)}/file?file=${encodeURIComponent(d.filename)}`,"_blank")}
-function openLB(ep){document.getElementById("limg").src="/api/images/file?b64="+b64encode(decodeURIComponent(ep));document.getElementById("lbox").classList.add("on")}
-function closeLB(){document.getElementById("lbox").classList.remove("on")}
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeLB()})
+function openLB(index){activeImageIndex=index;document.getElementById("lbox").classList.add("on");renderActiveImage()}
+function renderActiveImage(){const i=D?.images?.[activeImageIndex];if(!i)return;document.getElementById("limg").src="/api/images/file?b64="+b64encode(i.filepath);document.getElementById("limg").alt=i.filename;document.getElementById("lboxName").textContent=i.filename;updateSelectionUI(activeImageIndex)}
+function moveLB(delta){const count=D?.images?.length||0;if(!count)return;activeImageIndex=(activeImageIndex+delta+count)%count;renderActiveImage()}
+function updateSelectionUI(index){const i=D?.images?.[index];if(!i)return;const selected=S.has(i.filename);const gridButton=document.querySelector(`[data-image-index="${index}"]`);if(gridButton)gridButton.classList.toggle("sel",selected);const button=document.getElementById("lboxSelect");button.classList.toggle("sel",selected);button.innerHTML=selected?"&#10003; Selected for download":"&#8595; Select for download"}
+function toggleActiveSelection(){if(activeImageIndex>=0)tI(activeImageIndex)}
+function closeLB(){document.getElementById("lbox").classList.remove("on");document.getElementById("limg").src="";activeImageIndex=-1}
+document.addEventListener("keydown",e=>{if(!document.getElementById("lbox").classList.contains("on"))return;if(e.key==="Escape")closeLB();else if(e.key==="ArrowLeft"){e.preventDefault();moveLB(-1)}else if(e.key==="ArrowRight"){e.preventDefault();moveLB(1)}else if(e.key==="ArrowUp"){e.preventDefault();toggleActiveSelection()}})
+const lightboxImage=document.getElementById("limg");let touchStart=null;
+lightboxImage.addEventListener("touchstart",e=>{const t=e.changedTouches[0];touchStart={x:t.clientX,y:t.clientY}},{passive:true});
+lightboxImage.addEventListener("touchend",e=>{if(!touchStart)return;const t=e.changedTouches[0];const dy=t.clientY-touchStart.y;const dx=t.clientX-touchStart.x;if(dy<-50&&Math.abs(dy)>Math.abs(dx)*1.2)toggleActiveSelection();touchStart=null},{passive:true});
+lightboxImage.addEventListener("touchcancel",()=>{touchStart=null});
 </script></body></html>

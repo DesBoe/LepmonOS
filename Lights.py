@@ -26,6 +26,7 @@ LepiLed_pwm = GPIO.PWM(LepiLed_pin, Blitz_PMW)
 
 
 def dim_up():
+    show_message("blank", lang= "de")
     flash = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json",
                                      "capture_mode", "flash")
     dimmer_pwm.start(0)
@@ -36,6 +37,7 @@ def dim_up():
 
 
 def dim_down():
+    show_message("blank", lang= "de")
     flash = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json",
                                      "capture_mode", "flash")
     for duty_cycle in range(99, 0, -1):
@@ -49,6 +51,7 @@ def LepiLED_start(display_mode = "show"):
     if display_mode == "show":
         display_text_and_image("","UV","","/home/Ento/LepmonOS/startsequenz/Warnung_UV.png",2)
     print("dimme UV LED hoch")
+    show_message("blank", lang= "de")
     LepiLed_pwm.start(0)
     for duty_cycle in range(0, 99, 1):
         LepiLed_pwm.ChangeDutyCycle(duty_cycle)
@@ -62,6 +65,7 @@ def LepiLED_start(display_mode = "show"):
 def LepiLED_ende(display_mode = "show"):
     flash = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","capture_mode","flash") 
     print("dimme UV LED runter")
+    show_message("blank", lang= "de")
     LepiLed_pwm.start(100)
     for duty_cycle in range(99, 0, -1):
         LepiLed_pwm.ChangeDutyCycle(duty_cycle)

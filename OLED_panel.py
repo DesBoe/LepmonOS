@@ -1,7 +1,7 @@
 from PIL import ImageFont, ImageDraw, Image
 from luma.core.interface.serial import i2c
 from luma.core.render import canvas
-from luma.oled.device import sh1106
+from luma.oled.device import ssd1306, sh1106
 import time
 import os
 from GPIO_Setup import *
@@ -33,16 +33,65 @@ def indicate_display_error(e=""):
 
 
 # OLED-Setup
+# Try SH1106 first (common on 0.96" I2C OLED modules), then fall back to SSD1306.
+# Also try I2C bus 0 if bus 1 fails (some Pi models use a different bus).
 oled = None
-try:
-    Display = i2c(port=1, address=0x3C)
-    oled = sh1106(Display)
-except Exception as e:
-    oled = None
-    if DEV_MODE:
-        note_mock("OLED display (sh1106)")
-    else:
-        indicate_display_error(e)
+oled_driver_used = "unknown"
+
+def _try_init_oled():
+    """Try initializing the OLED with multiple I2C buses and driver combinations.
+    
+    Many 0.96" I2C OLED modules (128x64) use SH1106 instead of SSD1306,
+    even though they look identical. Using the wrong driver causes static noise
+    on the display because the initialization commands differ.
+    
+    Some Raspberry Pi models (Zero, 1, etc.) use I2C bus 0, while others use bus 1.
+    """
+    from luma.core.interface.serial import i2c as i2c_serial
+    
+    oled_devices = [
+        ("sh1106", sh1106),
+        ("ssd1306", ssd1306),
+    ]
+    
+    i2c_ports = [1, 0]  # Try bus 1 first, then bus 0
+    
+    for port in i2c_ports:
+        for driver_name, driver_class in oled_devices:
+            try:
+                print(f"Trying to initialize OLED with {driver_name} on I2C bus {port}...")
+                serial_interface = i2c_serial(port=port, address=0x3C)
+                oled_instance = driver_class(serial_interface)
+                # Quick test: try to clear the display - this confirms the driver is correct
+                with canvas(oled_instance) as draw:
+                    draw.rectangle(oled_instance.bounding_box, outline="black", fill="black")
+                print(f"OLED initialized successfully with {driver_name} on I2C bus {port}")
+                return oled_instance, driver_name
+            except IOError as e:
+                print(f"I2C bus {port} unavailable with {driver_name}: {e}")
+                # If I2C bus itself is unavailable, no point trying the other driver on same bus
+                # but we still try the other bus
+                try:
+                    serial_interface.close()
+                except Exception:
+                    pass
+                continue
+            except Exception as e:
+                print(f"Failed to initialize with {driver_name} on bus {port}: {e}")
+                try:
+                    serial_interface.close()
+                except Exception:
+                    pass
+                continue
+    
+    return None, None
+
+oled, oled_driver_used = _try_init_oled()
+
+if oled is None and not DEV_MODE:
+    indicate_display_error("No OLED driver (sh1106/ssd1306) could initialize the display. Check I2C in raspi-config and wiring.")
+elif oled is None and DEV_MODE:
+    note_mock("OLED display (sh1106/ssd1306)")
 
 HARDWARE_VERSION = _get_hardware_version()
 if HARDWARE_VERSION == "Pro_Gen_1" and oled is not None:
@@ -51,6 +100,10 @@ if HARDWARE_VERSION == "Pro_Gen_1" and oled is not None:
 
 
 def display_text(line1, line2, line3, sleeptime =0):
+    if oled is None:
+        print(f"[OLED] {line1} | {line2} | {line3} (display not available)")
+        time.sleep(sleeptime)
+        return
 
     try:
         with canvas(oled) as draw:
@@ -58,7 +111,8 @@ def display_text(line1, line2, line3, sleeptime =0):
             draw.text((0, 5), line1, font=oled_font, fill="white")
             draw.text((0, 25), line2, font=oled_font, fill="white")
             draw.text((0, 45), line3, font=oled_font, fill="white")
-        time.sleep(sleeptime)
+        time.sleep(sleeptime+0.01)
+        draw.rectangle(oled.bounding_box, outline="black", fill="black")
     except Exception as e:
         indicate_display_error(e)
         print(f"desired message to display:\n   {line1}\n   {line2}\n   {line3}\n")
@@ -68,6 +122,10 @@ def display_text_and_image(line1, line2, line3, image_path,sleeptime =0):
     """
     Zeigt links drei Zeilen Text und rechts ein Bild (64x64 px) auf dem OLED an.
     """
+    if oled is None:
+        print(f"[OLED] {line1} | {line2} | {line3} | {image_path} (display not available)")
+        time.sleep(sleeptime)
+        return
     print(f"\nDisplay image: {image_path}\n")  
 
     try:
@@ -79,6 +137,7 @@ def display_text_and_image(line1, line2, line3, image_path,sleeptime =0):
             draw.text((3, 5), line1, font=oled_font, fill="white")
             draw.text((3, 25), line2, font=oled_font, fill="white")
             draw.text((3, 45), line3, font=oled_font, fill="white")
+
             time.sleep(sleeptime)
     
     except Exception as e:
@@ -91,6 +150,10 @@ def display_image_3_2(image_path,sleeptime =0):
     """
     Zeigt ein Bild (128x64 px) auf dem OLED an.
     """
+    if oled is None:
+        print(f"[OLED] {image_path} (display not available)")
+        time.sleep(sleeptime)
+        return
     print(f"\nDisplay image: {image_path}\n")   
     try:
         logo = Image.open(image_path).convert("1", dither=Image.NONE).resize((128, 64))
@@ -98,7 +161,8 @@ def display_image_3_2(image_path,sleeptime =0):
             # Hintergrund löschen
             draw.rectangle(oled.bounding_box, outline="black", fill="black")
             draw.bitmap((oled.width - 128, 0), logo, fill=1)
-            time.sleep(sleeptime)
+        time.sleep(sleeptime+0.01)
+        draw.rectangle(oled.bounding_box, outline="black", fill="black")
     
     except Exception as e:
         indicate_display_error(e)
@@ -125,6 +189,8 @@ def display_text_with_arrows(line1, line2, line3=None, x_position=None, sleeptim
             if x_position is not None:
                 y0 = 38  # Zeile 3, ggf. anpassen
                 draw.text((x_position, y0), "x", font=oled_font, fill="white")
+            time.sleep(.01)
+            draw.rectangle(oled.bounding_box, outline="black", fill="black")
         time.sleep(sleeptime)    
     except Exception as e:
         print(f"Error displaying text on OLED: {e}")
@@ -191,4 +257,9 @@ if __name__ == "__main__":
     '''
     show_message("hmi_01", Zeitstempel = "2026-01-01 17:00:32")
     time.sleep(5)
+
+    current_step = 1
+    for current_step in range(9):
+        current_step += 1
+        display_text_and_image("Test","Reihe", "Lepmon", f"/home/Ento/LepmonOS/startsequenz/Logo_{current_step}_9.png",1) 
     print("Ende des Tests")
