@@ -48,7 +48,7 @@ def reset_alarms(log_mode):
 
 
     try:
-        power_loss_since_last_write = True#rtc.lost_power
+        power_loss_since_last_write = rtc.lost_power
         jetzt_local, _, _= Zeit_aktualisieren(log_mode=log_mode)
         jetzt = datetime.strptime(jetzt_local, "%Y-%m-%d %H:%M:%S")
         log_schreiben(f"RTC Kontrollbit zeigt Störung der RTC seit dem letzten Schreiben an: {power_loss_since_last_write}", log_mode=log_mode)

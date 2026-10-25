@@ -1,4 +1,5 @@
 import json
+import os
 import threading
 from fram_direct import read_fram
 import time
@@ -209,8 +210,13 @@ def write_value_to_section(file_path, section_name, key_name, value):
         data[section_name][key_name] = value
 
         # JSON-Datei speichern
-        with open(file_path, "w") as json_file:
+        # Atomar schreiben: erst Temp-Datei, dann ersetzen (verhindert leere Datei bei Absturz/Stromausfall)
+        tmp_path = f"{file_path}.tmp"
+        with open(tmp_path, "w") as json_file:
             json.dump(data, json_file, indent=4)
+            json_file.flush()
+            os.fsync(json_file.fileno())
+        os.replace(tmp_path, file_path)
 
     except json.JSONDecodeError as e:
         raise RuntimeError(f"Fehler beim Parsen der JSON-Datei '{file_path}': {e}") from e

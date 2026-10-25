@@ -14,6 +14,21 @@ from mock_hardware import MockRTC
 
 lang = get_language()
 x_positions = [4,10,18,25,40,47,59,66,4,10,22,28,40,46]
+
+def clear_rtc_power_loss_flag(log_mode):
+    try:
+        i2c = board.I2C()
+        rtc = adafruit_ds3231.DS3231(i2c)
+        rtc.lost_power = False
+        log_schreiben("RTC Power Loss Flag wurde erfolgreich zurückgesetzt.", log_mode=log_mode)
+    except Exception as e:
+        if DEV_MODE:
+            note_mock("hardware RTC (DS3231)")
+            return
+        error_message(8, e, log_mode)
+        log_schreiben(f"Fehler beim Zurücksetzen des RTC Power Loss Flags: {e}", log_mode=log_mode)
+
+
 def input_time(log_mode):
     print("Bitte Uhrzeit der Hardware Uhr Stellen")
     rtc_status = False
@@ -246,9 +261,16 @@ def set_hwc(rtc_mode, log_mode, date_time_list=None, ):
                 -1, -1  # yearday, isdst (ignored)
             ))
             print("RTC wird gesetzt auf Systemzeit:", rtc_time)
-            rtc.datetime = rtc_time
+            try:
+                rtc.datetime = rtc_time
+            except Exception as e:
+                log_schreiben(f"Fehler beim Setzen der RTC Zeit: {e}", log_mode=log_mode)
+            
+            clear_rtc_power_loss_flag(log_mode)
+ 
             RPI_time(log_mode)
             log_schreiben(f"Hardware Uhrzeit gesetzt auf: {rtc_time.tm_year}-{rtc_time.tm_mon:02d}-{rtc_time.tm_mday:02d} {rtc_time.tm_hour:02d}:{rtc_time.tm_min:02d}:{rtc_time.tm_sec:02d}", log_mode=log_mode)
+
             break
         if not rtc_status:
             

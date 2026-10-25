@@ -75,6 +75,7 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
         log_schreiben("##################################",log_mode)
         log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###",log_mode)
         log_schreiben("##################################",log_mode)
+        display_text_and_image("Neustart", "restart", "reiniciar", "/home/Ento/LepmonOS/startsequenz/end.png", 0)
         time.sleep(5)
         show_message("blank", lang=lang)
         os.system("sudo reboot")
@@ -182,13 +183,14 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
 
     if HARDWARE_VERSION in ["Pro_Gen_1","Pro_Gen_2", "Pro_Gen_3"]:
         if power_mode == "Netz":
+            if execution == "full":
+                check_for_viewers(log_mode)
             log_schreiben("Reboot im Netzmodus in 5 Sekunden", log_mode)
             log_schreiben("##################################",log_mode)
             log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###",log_mode)
             log_schreiben("##################################",log_mode)
             time.sleep(5)
             if execution == "full":
-                check_for_viewers(log_mode)
                 os.system("sudo reboot")
                 time.sleep(2)
                 print("Systembefehl zum Neustart ausgeführt.")
@@ -196,13 +198,14 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
                 print("System würde jetzt neu starten (Reboot)")
 
         if power_mode == "Solar":
+            if execution == "full":
+                check_for_viewers(log_mode)
             log_schreiben("Shutdown im PV Modus in 5 Sekunden", log_mode)
             log_schreiben("##################################",log_mode)
             log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###",log_mode)
             log_schreiben("##################################",log_mode)
             time.sleep(2)
             if execution == "full":
-                check_for_viewers(log_mode)
                 os.system("sudo shutdown -r 5")
             elif execution != "full":
                 print("System würde jetzt im PV Modus neu starten (Reboot in 61 Sekunden)")
@@ -211,11 +214,11 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
         if power_mode == "Netz":
             log_schreiben("Reboot im Netzmodus in 5 Sekunden", log_mode)
             log_schreiben("GPIO Pin für Power Control nicht schalten, ARNI startet neu ohne Power Save",log_mode)
+            check_for_viewers(log_mode)
             log_schreiben("##################################",log_mode)
             log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###",log_mode)
             log_schreiben("##################################",log_mode)
             time.sleep(5)
-            check_for_viewers(log_mode)
             if execution == "full":
                 os.system("sudo reboot")
                 time.sleep(2)
@@ -225,8 +228,7 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
 
 
         if power_mode == "Solar":
-            log_schreiben("Shutdown im PV Modus...", log_mode)
-            log_schreiben("setze GPIO Pin für Power Control auf LOW, um ARNI herunterzufahren", log_mode)
+            log_schreiben("Shutdown im PV Modus für Pro_Gen_4 und CSS_Gen_1...", log_mode)
             if execution == "anzeige":
                 print("GPIO Pin für Power Control würde auf LOW gesetzt, um ARNI herunterzufahren")
                 time.sleep(0.25)
@@ -234,6 +236,7 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
             elif execution == "full" or execution == "test":
                 check_for_viewers(log_mode)
                 GPIO.output(Power_control_GPIO, GPIO.LOW)
+                log_schreiben("setze GPIO Pin für Power Control auf LOW, um ARNI herunterzufahren", log_mode)
             status = GPIO.input(Power_control_GPIO)
             log_schreiben(f"Status GPIO Pin für Power Control: {status}", log_mode)
 
@@ -261,20 +264,20 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
                 next_experiment_start_time = datetime.strptime(next_experiment_start_time, "%Y-%m-%d %H:%M:%S")
                 try:
                     Sicherheitszeit = next_experiment_start_time - jetzt_local
-                    log_schreiben(f"Berechne Sicherheitszeit bis zum nächsten Experiment.")
+                    log_schreiben(f"Berechne Sicherheitszeit bis zum nächsten Experiment...", log_mode)
                     log_schreiben(f"warte: {Sicherheitszeit}", log_mode)
                     time.sleep(Sicherheitszeit.total_seconds())
                     log_schreiben("ARNI wird nun neu gestartet", log_mode)
-                    reset_command = "sudo reboot"
                 except Exception as e:
                     log_schreiben(f"Fehler bei der Berechnung der Sicherheitszeit: {e}", log_mode)
                     log_schreiben("führe sofortigen Reboot durch, um ARNI neu zu starten", log_mode)
-                    reset_command = "sudo reboot"
 
                 log_schreiben("##################################",log_mode)
                 log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###",log_mode)
                 log_schreiben("##################################",log_mode)
-                os.system(reset_command)
+                os.system("sudo reboot")
+                time.sleep(2)
+                os.system("sudo reboot")
                 
 
         

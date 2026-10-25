@@ -37,26 +37,24 @@ if flatfield_correction:
     if HARDWARE_VERSION in ["CSS_Gen_1"]:
         FLATFIELD_TIF = "/home/Ento/LepmonOS/flatfield_masks/flatfield_divisor_16bit_CSS_Gen_1.tif"
 
-    def _load_flat(log_mode="manual"):
-        # log_mode defaults to "manual" (console-only): this runs at module
-        # import time, before erstelle_ordner()/initialisiere_logfile() has
-        # necessarily created a session log file, so log_mode="log" here would
-        # retry against a possibly-missing path and could trigger a forced
-        # reboot (see log_schreiben) on every import.
-        try:
-            flat = load_flatfield(FLATFIELD_TIF)
-            if flat is None:
-                log_schreiben(f"Flatfield nicht ladbar, Korrektur deaktiviert: {FLATFIELD_TIF}", log_mode=log_mode)
-            else:
-                log_schreiben(f"Flatfield geladen ({flat.shape[1]}x{flat.shape[0]}), Korrektur aktiv.", log_mode=log_mode)
-            return flat
-        except Exception as e:
-            log_schreiben(f"Fehler beim Laden des Flatfields: {e}", log_mode=log_mode)
-            return None
+        def _load_flat(log_mode="manual"):
+            # log_mode defaults to "manual" (console-only): this runs at module
+            # import time, before erstelle_ordner()/initialisiere_logfile() has
+            # necessarily created a session log file, so log_mode="log" here would
+            # retry against a possibly-missing path and could trigger a forced
+            # reboot (see log_schreiben) on every import.
+            try:
+                flat = load_flatfield(FLATFIELD_TIF)
+                if flat is None:
+                    log_schreiben(f"Flatfield für RPi Kamera nicht ladbar, Korrektur deaktiviert: {FLATFIELD_TIF}", log_mode=log_mode)
+                else:
+                    log_schreiben(f"Flatfield für RPi Kamera geladen ({flat.shape[1]}x{flat.shape[0]}), Korrektur aktiv.", log_mode=log_mode)
+                return flat
+            except Exception as e:
+                log_schreiben(f"Fehler beim Laden des Flatfields: {e}", log_mode=log_mode)
+                return None
 
-
-
-    _FLAT = _load_flat()
+        _FLAT = _load_flat()
 elif not flatfield_correction:
     _FLAT = None
     log_schreiben("Flatfield Korrektur für RPI Kamera deaktiviert.", log_mode="manual")

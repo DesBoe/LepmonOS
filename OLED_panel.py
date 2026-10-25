@@ -138,8 +138,8 @@ def display_text_and_image(line1, line2, line3, image_path,sleeptime =0):
             draw.text((3, 25), line2, font=oled_font, fill="white")
             draw.text((3, 45), line3, font=oled_font, fill="white")
 
-            time.sleep(sleeptime)
-    
+        time.sleep(sleeptime)
+        draw.rectangle(oled.bounding_box, outline="black", fill="black")
     except Exception as e:
         indicate_display_error(e)   
         print(f"desired message to display:\n   {line1}\n   {line2}\n   {line3}\n")   

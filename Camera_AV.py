@@ -113,25 +113,26 @@ if flatfield_correction:
         FLATFIELD_TIF = "/home/Ento/LepmonOS/flatfield_divisor_16bit_Pro_Gen_3.tif"
     elif HARDWARE_VERSION in ["Pro_Gen_4"]:
         FLATFIELD_TIF = "/home/Ento/LepmonOS/flatfield_masks/flatfield_divisor_16bit_Pro_Gen_4.tif"
-    
-    def _load_flat(log_mode="manual"):
-        # log_mode defaults to "manual" (console-only): this runs at module
-        # import time, before erstelle_ordner()/initialisiere_logfile() has
-        # necessarily created a session log file, so log_mode="log" here would
-        # retry against a possibly-missing path and could trigger a forced
-        # reboot (see log_schreiben) on every import.
-        try:
-            flat = load_flatfield(FLATFIELD_TIF)
-            if flat is None:
-                log_schreiben(f"Flatfield nicht ladbar, Korrektur deaktiviert: {FLATFIELD_TIF}", log_mode=log_mode)
-            else:
-                log_schreiben(f"Flatfield geladen ({flat.shape[1]}x{flat.shape[0]}), Korrektur aktiv.", log_mode=log_mode)
-            return flat
-        except Exception as e:
-            log_schreiben(f"Fehler beim Laden des Flatfields: {e}", log_mode=log_mode)
-            return None
 
-    _FLAT = _load_flat()
+    if not HARDWARE_VERSION in ["CSS_Gen_1"]:
+        def _load_flat(log_mode="manual"):
+            # log_mode defaults to "manual" (console-only): this runs at module
+            # import time, before erstelle_ordner()/initialisiere_logfile() has
+            # necessarily created a session log file, so log_mode="log" here would
+            # retry against a possibly-missing path and could trigger a forced
+            # reboot (see log_schreiben) on every import.
+            try:
+                flat = load_flatfield(FLATFIELD_TIF)
+                if flat is None:
+                    log_schreiben(f"Flatfield für RPI Kamera nicht ladbar, Korrektur deaktiviert: {FLATFIELD_TIF}", log_mode=log_mode)
+                else:
+                    log_schreiben(f"Flatfield für AV Kamera geladen ({flat.shape[1]}x{flat.shape[0]}), Korrektur aktiv.", log_mode=log_mode)
+                return flat
+            except Exception as e:
+                log_schreiben(f"Fehler beim Laden des Flatfields: {e}", log_mode=log_mode)
+                return None
+
+        _FLAT = _load_flat()
 elif not flatfield_correction:
     _FLAT = None
     log_schreiben("Flatfield Korrektur für AV Kamera deaktiviert.", log_mode="manual")
@@ -181,11 +182,14 @@ def get_frame_AV(Exposure, cam_mode, log_mode, Gain, gamma=1, ContrastShape = 4)
     while not av_camera_available(cam_Initiliase_tries, log_mode):
         cam_Initiliase_tries += 1
         time.sleep(0.1)
-        if cam_Initiliase_tries > 100:
+        if cam_Initiliase_tries > 99:
             print(f"Kamera nach {cam_Initiliase_tries} Versuchen nicht initalisiert")
             log_schreiben(f"Kamera nach {cam_Initiliase_tries} Versuchen nicht initalisiert", log_mode=log_mode)
             show_message("cam_3", lang=lang)
-            time.sleep(5)
+            switch_camera_power("off")
+            time.sleep(2)
+            switch_camera_power("on")
+            time.sleep(3)
             if error_details == "":
                 error_details = f"Kamera nach {cam_Initiliase_tries} Versuchen nicht initalisiert"
     

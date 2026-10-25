@@ -119,6 +119,7 @@ def run_web_focus_session(log_mode, lang):
     while not button_pressed("enter"):
         show_message("wlan_login", ssid=ssid, password=password, lang=lang)
         show_message("wlan_success", lang=lang)
+        time.sleep(0.1)
 
     url = f"http://{ip}:8080/"
     log_schreiben(f"Web focus URL: {url}", log_mode=log_mode)
@@ -144,6 +145,7 @@ def run_web_focus_session(log_mode, lang):
     print(f"QR Code erstellt: {qr_path}")
     show_message("focus_web_started", lang=lang)
 
+    stopped_by_button = False
     try:
         while True:
             #elapsed = time.time() - session_start
@@ -157,37 +159,34 @@ def run_web_focus_session(log_mode, lang):
                     f"Enter=stop",
                     qr_path,
                     sleeptime=0)
-                time.sleep(6)
+
+                for _ in range(120):
+                    if button_pressed("enter") or button_pressed("rechts"):
+                        stopped_by_button = True
+                        break
+                    time.sleep(0.05)
                 display_text(
                     f"Web link",
                     f"{ip}:8080  ",
                     f"Enter=stop",
                     sleeptime=0)
-                time.sleep(3)
+                for _ in range(120):
+                    if button_pressed("enter") or button_pressed("rechts"):
+                        stopped_by_button = True
+                        break
+                    time.sleep(0.05)
             else:
                 show_message(
                     "focus_web_running", lang=lang, ip=ip, sec=""
                 )
 
-            '''
-            if elapsed >= WEB_FOCUS_EMERGENCY_TIMEOUT_S:
-                log_schreiben("Web focus emergency timeout", log_mode=log_mode)
-                show_message("focus_12", lang=lang)
-                break
-            '''
 
             if is_stop_focus_requested():
                 log_schreiben("Web focus stopped via web UI", log_mode=log_mode)
                 show_message("focus_web_stopped", lang=lang)
                 break
 
-            # ~1 s of button polling — same cadence as the local focus loop.
-            stopped_by_button = False
-            for _ in range(199):
-                if button_pressed("enter") or button_pressed("rechts"):
-                    stopped_by_button = True
-                    break
-                time.sleep(0.05)
+
             if stopped_by_button:
                 log_schreiben("Web focus stopped via local interface by user", log_mode=log_mode)
                 show_message("focus_web_stopped", lang=lang)
