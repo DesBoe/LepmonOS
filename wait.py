@@ -13,7 +13,21 @@ from GPIO_Setup import turn_on_led, turn_off_led
 from Experiments import apply_delay
 
 HARDWARE_VERSION = get_hardware_version()
-power = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json","powermode","supply")
+
+
+try:
+    power_mode = read_fram(0x03B0, 16).replace('\x00', '').strip()
+    time.sleep(.5)
+except Exception as e:
+    log_schreiben(f"Fehler beim Lesen des Power-Modus: {e}", log_mode)
+    try:
+        power_mode = get_value_from_section("/home/Ento/LepmonOS/Lepmon_config.json", "powermode", "supply")
+        time.sleep(.5)
+    except Exception as e:
+        log_schreiben(f"Fehler beim Lesen des Power-Modus aus der Konfigurationsdatei: {e}", log_mode)
+        power_mode = "Netz"
+print(f"Power-Modus für wait: {power_mode}")
+
 
 
 
@@ -84,12 +98,12 @@ def wait(log_mode, skip = False):
             
         print(f"Countdown bis zum Start des Experiments: {countdown} Sekunden")
         print(HARDWARE_VERSION)
-        print(power)
-        print(countdown > 15*60)
+        print(f"Power mode: {power_mode}")
+        print(f"Countdown größer als 15 min: {countdown > 15*60}")
         if countdown > 0:
 
             # Solarbetriebene ARNI CSS_Gen_1 und Pro_Gen_4 sollen bei countdown über 15 Minuten in den Sleep-Modus gehen, um Energie zu sparen.
-            if HARDWARE_VERSION in ["CSS_Gen_1", "Pro_Gen_4"] and countdown > 15*60 and power == "Solar":
+            if HARDWARE_VERSION in ["CSS_Gen_1", "Pro_Gen_4"] and countdown > 15*60 and power_mode == "Solar":
                 log_schreiben(f"Coundown > 15 Minuten, ARNI fährt mit ATTINY Kontrolle herunter, um Strom zu sparen", log_mode=log_mode)
                 try:
                     trap_shutdown(i=10, log_mode=log_mode, execution="full", anzeige = "SolareingabeHMI15Min")

@@ -189,9 +189,8 @@ def display_text_with_arrows(line1, line2, line3=None, x_position=None, sleeptim
             if x_position is not None:
                 y0 = 38  # Zeile 3, ggf. anpassen
                 draw.text((x_position, y0), "x", font=oled_font, fill="white")
-            time.sleep(.01)
-            draw.rectangle(oled.bounding_box, outline="black", fill="black")
-        time.sleep(sleeptime)    
+        # canvas schreibt erst beim Verlassen des with-Blocks auf das Display
+        time.sleep(sleeptime)
     except Exception as e:
         print(f"Error displaying text on OLED: {e}")
         print(f"desired message to display:\n   {line1}\n   {line2}\n   {line3}\n")
@@ -255,9 +254,18 @@ if __name__ == "__main__":
     time.sleep(1)    
     display_image_3_2("/home/Ento/LepmonOS/startsequenz/start_K2W.png",sleeptime = 4)  
     '''
+    print("Displaying Start HMI Nachricht")
     show_message("hmi_01", Zeitstempel = "2026-01-01 17:00:32")
-    time.sleep(5)
+    time.sleep(2)
 
+    print("Displaying GPS mit Pfeilen")
+    show_message_with_arrows(
+                "gps_5",
+                lang="de",
+                Länge = "51,1234567",
+                x_position=4)
+    time.sleep(2)
+    print("Displaying Startsequenz")
     current_step = 1
     for current_step in range(9):
         current_step += 1

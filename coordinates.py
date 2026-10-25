@@ -139,11 +139,13 @@ def coordinate_input(log_mode):
         if Wahlmodus == 1:
 
             x_position = xpositions_lat[aktuelle_position]
+            Breite=f"{pol}{latitude_list[0]}{latitude_list[1]}.{latitude_list[2]}{latitude_list[3]}{latitude_list[4]}{latitude_list[5]}{latitude_list[6]}{latitude_list[7]}{latitude_list[8]}"
             show_message_with_arrows(
                 "gps_4",
                 lang=lang,
-                Breite=f"{pol}{latitude_list[0]}{latitude_list[1]}.{latitude_list[2]}{latitude_list[3]}{latitude_list[4]}{latitude_list[5]}{latitude_list[6]}{latitude_list[7]}{latitude_list[8]}",
+                Breite = Breite,
                 x_position=x_position)
+            #print(f"{pol}{latitude_list}; {x_position}")
 
         if Wahlmodus == 2:
             if first_run_2:
@@ -151,11 +153,13 @@ def coordinate_input(log_mode):
                 first_run_2 = False
 
             x_position = xpositions_long[aktuelle_position]
+            Länge=f"{block}{longitude_list[0]}{longitude_list[1]}{longitude_list[2]}.{longitude_list[3]}{longitude_list[4]}{longitude_list[5]}{longitude_list[6]}{longitude_list[7]}{longitude_list[8]}{longitude_list[9]}"
             show_message_with_arrows(
                 "gps_5",
                 lang=lang,
-                Länge=f"{block}{longitude_list[0]}{longitude_list[1]}{longitude_list[2]}.{longitude_list[3]}{longitude_list[4]}{longitude_list[5]}{longitude_list[6]}{longitude_list[7]}{longitude_list[8]}{longitude_list[9]}",
+                Länge = Länge,
                 x_position=x_position)
+            #print(f"{pol}{longitude_list}; {x_position}")
 
 
         if button_pressed("oben"):

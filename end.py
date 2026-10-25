@@ -155,7 +155,9 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
     if anzeige == "Neustart":
         display_text_and_image("Neustart", "restart", "reiniciar", "/home/Ento/LepmonOS/startsequenz/end.png", 0)
     if anzeige == "SolareingabeHMI15Min":  
-        display_text_and_image("Solar", "Power", "Save", "/home/Ento/LepmonOS/startsequenz/end.png", 0)
+        display_text_and_image("Solar", "Power", "Save", "/home/Ento/LepmonOS/startsequenz/end.png", 5)
+        display_text_and_image("power", "safe", "mode", "/home/Ento/LepmonOS/startsequenz/Knopf_An_An.png", sleeptime=3)
+        
 
     
     on_shutdown()
@@ -236,14 +238,47 @@ def trap_shutdown(i,log_mode,execution="full", anzeige = "Neustart"):
             log_schreiben(f"Status GPIO Pin für Power Control: {status}", log_mode)
 
             time.sleep(0.25)
-            log_schreiben("Shutdown mit Power Safe Modus (Attiny)", log_mode)
+            log_schreiben("Warte auf Shutdown mit Power Safe Modus durch Attiny Kontroller", log_mode)
             log_schreiben("##################################",log_mode)
             log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###",log_mode)
             log_schreiben("##################################",log_mode)
-            if execution == "full" or execution == "test":
+            if execution == "test":
                 os.system("sudo shutdown -h now")
+            else: 
+                # Sicherheit dafür, dass Nutzer den Attiny Kontroller off lassen.
+                # ARNI wartet bis zum nächsten Experiment, um wieder hochzufahren.
+                # vorher sollte der Attiny den Strom unterbrechen
+                print("Warte für 90 Sekunden auf das Ausschalten durch Attiny, sonst Meldung über Fehler in Schaltung")
+                time.sleep(90) # in dieser Zeit sollte der Attine den Strom unterbrechen
+
+                log_schreiben("Fehler beim Herunterfahren durch Attiny Kontroller", log_mode)
+                log_schreiben("ARNI bleibt eingeschaltet und wartet auf das nächste Experiment", log_mode)
+                jetzt_local, _,_ = Zeit_aktualisieren(log_mode)
+                jetzt_local = datetime.strptime(jetzt_local, "%Y-%m-%d %H:%M:%S")
+
+                next_experiment_start_time, _ = get_times_power(log_mode)
+                log_schreiben(f"nächstes Anschalten: {next_experiment_start_time}", log_mode)
+                next_experiment_start_time = datetime.strptime(next_experiment_start_time, "%Y-%m-%d %H:%M:%S")
+                try:
+                    Sicherheitszeit = next_experiment_start_time - jetzt_local
+                    log_schreiben(f"Berechne Sicherheitszeit bis zum nächsten Experiment.")
+                    log_schreiben(f"warte: {Sicherheitszeit}", log_mode)
+                    time.sleep(Sicherheitszeit.total_seconds())
+                    log_schreiben("ARNI wird nun neu gestartet", log_mode)
+                    reset_command = "sudo reboot"
+                except Exception as e:
+                    log_schreiben(f"Fehler bei der Berechnung der Sicherheitszeit: {e}", log_mode)
+                    log_schreiben("führe sofortigen Reboot durch, um ARNI neu zu starten", log_mode)
+                    reset_command = "sudo reboot"
+
+                log_schreiben("##################################",log_mode)
+                log_schreiben("### SELBSTINDUZIERTER SHUTDOWN ###",log_mode)
+                log_schreiben("##################################",log_mode)
+                os.system(reset_command)
+                
+
         
 
 if __name__ == "__main__":
-    trap_shutdown(i=2, log_mode="manual", execution="test")
+    trap_shutdown(i=2, log_mode="manual", execution="full")
     print("Ende")

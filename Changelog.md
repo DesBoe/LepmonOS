@@ -1,19 +1,23 @@
 # Changelog
 ## [2.4.1] 202X-XX-XX
 ### Geändert
-- Handling des Kamera_Fehlerserie Zählers und explizietes Triggern Fehler 2 nach mehrfach fehlgeschlagenem Kamerafehler
+
 
 ### Hinzugefügt
-- Handling von Fehler VmbCError(<VmbError.RetriesExceeded: -39>) während die Kameraeinstellungen für die AV Kamera laden
+
 
 ### Behoben
 
 
 
-## [2.3.5] 2026-XX-XX
+## [2.3.5] 2026-10-25
 ### Geändert
+- enable flatfield
+- handling des Kamera_Fehlerserie Zählers und explizietes Triggern Fehler 2 nach mehrfach fehlgeschlagenem Kamerafehler
+- handling for Solar ARNI Pro Gen 4 + CSS Gen 1: not activated Attiny Switch causes sleep to next experiment (mimics behaviour of grid version)
 ### Hinzugefügt
 - liveview auf ARNI-CS
+- Handling von Fehler VmbCError(<VmbError.RetriesExceeded: -39>) während die Kameraeinstellungen für die AV Kamera laden
 
 ### Behoben
 

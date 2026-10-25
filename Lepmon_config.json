@@ -30,7 +30,7 @@
         "gamma_correction": true,
         "trigger_for_wb": false,
         "adjust_ContrastShape": false,
-        "flatfield_correction": false
+        "flatfield_correction": true
     },
     "Camera_state": {
         "has_power": false,
@@ -114,7 +114,7 @@
     },
     "software": {
         "version": "2.3.5",
-        "date": "2026-10-09",
+        "date": "2026-10-25",
         "images_count_RTC_failure": "0"
     },
     "powermode": {
